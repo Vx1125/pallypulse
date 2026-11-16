@@ -95,9 +95,19 @@ function W.CloseButton(parent, onClick)
 end
 
 -- Small square check box (gold tick) with a label. get() -> bool, set(bool)
-function W.Check(parent, label, get, set)
+-- tip (optional): one short line shown on hover
+local function AddTip(frame, label, tip)
+    if not tip then return end
+    W.Tip(frame, function(t)
+        t:AddLine(label, 1, 1, 1)
+        t:AddLine(tip, S.dim[1], S.dim[2], S.dim[3], true)
+    end)
+end
+
+function W.Check(parent, label, get, set, tip)
     local ok, c = pcall(CreateFrame, "CheckButton", nil, parent, "UICheckButtonTemplate")
     if ok and c then
+        AddTip(c, label, tip)
         c:SetSize(24, 24)
         local txt = W.Text(c, 12, S.text)
         txt:SetPoint("LEFT", c, "RIGHT", 2, 1)
@@ -118,14 +128,16 @@ function W.Check(parent, label, get, set)
     local txt = W.Text(c, 12, S.text); txt:SetPoint("LEFT", box, "RIGHT", 8, 0); txt:SetText(label)
     function c:Refresh() mark:SetShown(get() and true or false) end
     c:SetScript("OnClick", function() set(not get()); c:Refresh() end)
+    AddTip(c, label, tip)
     c:Refresh()
     return c
 end
 
 -- Label with [-] value [+]. get() -> number, set(number)
-function W.Stepper(parent, label, get, set, step, minv, maxv, fmt)
+function W.Stepper(parent, label, get, set, step, minv, maxv, fmt, tip)
     local f = CreateFrame("Frame", nil, parent)
     f:SetSize(236, 24)
+    if tip then f:EnableMouse(true); AddTip(f, label, tip) end
     local txt = W.Text(f, 12, S.text)
     txt:SetPoint("LEFT", 4, 0); txt:SetText(label)
     local function bump(d)

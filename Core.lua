@@ -23,8 +23,7 @@ local function SpellKnownByName(name)
     return ok and res and true or false
 end
 
--- Forever has no Greater Blessings yet, and a name lookup can match a spell the character
--- cannot actually cast, so "known" is decided by spell id (same approach as PallyPower).
+-- A name lookup can match a spell the character cannot actually cast, so "known" is decided by spell id (same approach as PallyPower).
 local function SpellKnownById(id)
     if not id then return false end
     local ok, res = pcall(function()

@@ -12,7 +12,36 @@ local TEXT_W = 128
 local PER_ROW_WRAP = 8      -- slots per row in the Wrap layout
 -- Compact layout (PallyPower style): a thin column of rows, each tinted by status, with a
 -- small drag dot on the left and no panel behind it.
-local ROW_W, ROW_H, ROW_GAP, HANDLE = 76, 22, 1, 14
+local ROW_H, ROW_GAP, HANDLE = 22, 1, 14
+local function RowW() return ns.db.rowWidth or 76 end
+
+-- Seals (optional seal button, like PallyPower's). Click casts the chosen one; mouse wheel
+-- picks another (out of combat).
+local ICON = "Interface\\Icons\\"
+local SEALS = {
+    { name = "Seal of Righteousness", id = 21084, icon = ICON .. "Ability_ThunderBolt" },
+    { name = "Seal of the Crusader",  id = 21082, icon = ICON .. "Spell_Holy_HolySmite" },
+    { name = "Seal of Command",       id = 20375, icon = ICON .. "Ability_Warrior_InnerRage" },
+    { name = "Seal of Justice",       id = 20164, icon = ICON .. "Spell_Holy_SealOfWrath" },
+    { name = "Seal of Light",         id = 20165, icon = ICON .. "Spell_Holy_HealingAura" },
+    { name = "Seal of Wisdom",        id = 20166, icon = ICON .. "Spell_Holy_RighteousnessAura" },
+}
+local function KnownSeals()
+    local list = {}
+    for _, sl in ipairs(SEALS) do
+        if ns.KnownSpell(sl.name, sl.id) then list[#list + 1] = sl end
+    end
+    return list
+end
+local function CurrentSeal()
+    local list = KnownSeals()
+    for _, sl in ipairs(list) do if sl.name == ns.db.seal then return sl, list end end
+    return list[1], list
+end
+
+function ns.Alert()
+    pcall(PlaySound, (SOUNDKIT and SOUNDKIT.RAID_WARNING) or 8959, "Master")
+end
 local ROW_COLORS = {
     ok   = { 0.16, 0.42, 0.16, 0.85 },   -- everyone covered
     low  = { 0.50, 0.42, 0.18, 0.85 },   -- expiring soon
@@ -255,6 +284,34 @@ local function BuildMinis()
     au:SetScript("OnLeave", function() GameTooltip:Hide() end)
     au:Hide()
     bar.auraBtn = au
+
+    local se = CreateFrame("Button", "PallyPulseSealBtn", bar, SECURE)
+    W.IconSlot(se, MINI)
+    se:RegisterForClicks("AnyDown", "AnyUp")
+    se.strip:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 1)
+    se:EnableMouseWheel(true)
+    se:SetScript("OnMouseWheel", function(self, delta)
+        if InCombatLockdown() then return end
+        local cur, list = CurrentSeal()
+        if not cur or #list < 2 then return end
+        local idx = 1
+        for i, sl in ipairs(list) do if sl == cur then idx = i end end
+        idx = ((idx - 1 - delta) % #list) + 1
+        ns.db.seal = list[idx].name
+        ns.dirty = true
+        ns.RefreshBar()
+        if self:IsMouseOver() then self:GetScript("OnEnter")(self) end
+    end)
+    se:SetScript("OnEnter", function(self)
+        PlaceTip(self)
+        local cur = CurrentSeal()
+        GameTooltip:AddLine(cur and cur.name or "Seal", unpack(S.gold))
+        GameTooltip:AddLine("Click: cast   Wheel: change seal", 0.6, 0.6, 0.6)
+        GameTooltip:Show()
+    end)
+    se:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    se:Hide()
+    bar.sealBtn = se
 end
 
 -- ---------------------------------------------------------------------------
@@ -406,6 +463,7 @@ function ns.BuildBar()
     bar:SetScript("OnUpdate", function(_, dt)
         elapsed = elapsed + dt
         if elapsed < 0.4 then return end
+        if ns.ApplyBarFade then ns.ApplyBarFade() end
         if ns.dirty or elapsed > 5 then
             elapsed = 0
             ns.RefreshBar()
@@ -421,12 +479,12 @@ end
 -- ---------------------------------------------------------------------------
 -- Reshape a slot button for the Compact rows or back to a square icon.
 local function Shape(b, compact, size)
-    local want = compact and "compact" or size
+    local want = compact and ("compact" .. RowW()) or size
     if b.shaped == want then return end
     b.shaped = want
     b.icon:ClearAllPoints(); b.count:ClearAllPoints(); b.timer:ClearAllPoints(); b.check:ClearAllPoints()
     if compact then
-        b:SetSize(ROW_W, ROW_H)
+        b:SetSize(RowW(), ROW_H)
         local isz, x = ROW_H - 4, 2
         if b.cicon then
             b.cicon:ClearAllPoints(); b.cicon:SetSize(isz, isz); b.cicon:SetPoint("LEFT", x, 0); b.cicon:Show()
@@ -459,11 +517,13 @@ local function Paint(b, state)
     local c = ROW_COLORS[state] or ROW_COLORS.need
     if b.SetBackdropColor then
         b:SetBackdropColor(c[1], c[2], c[3], c[4])
-        b:SetBackdropBorderColor(0, 0, 0, 1)
+        -- the Smart Buff row gets a gold edge so it never looks like just another row
+        if b.isSmart then b:SetBackdropBorderColor(S.gold[1], S.gold[2], S.gold[3], 1)
+        else b:SetBackdropBorderColor(0, 0, 0, 1) end
     end
     b.check:Hide()
     if not b.isSmart then b.icon:SetDesaturated(false); b.icon:SetVertexColor(1, 1, 1) end
-    if b.count:IsShown() then b.timer:SetText("") end
+    if b.count:IsShown() or ns.db.rowTimers == false then b.timer:SetText("") end
 end
 
 local function RowState(b)
@@ -482,13 +542,13 @@ local function SetChrome(compact)
     bar.line1:SetShown(not compact and ns.db.barText); bar.line2:SetShown(not compact and ns.db.barText)
     bar.menuBtn:SetShown(not compact); bar.foldBtn:SetShown(not compact)
     bar.handle:SetShown(compact)
-    bar.smart.key:SetShown(not compact)
 end
 
 local function Layout(minis)
     for _, b in ipairs(bar.buttons) do b:Hide() end
     bar.oathBtn:Hide()
     bar.auraBtn:Hide()
+    bar.sealBtn:Hide()
 
     local s = bar.smart
     local mode = ns.db.barLayout or "row"
@@ -496,20 +556,30 @@ local function Layout(minis)
     SetChrome(mode == "compact")
 
     if mode == "compact" then
+        local up = ns.db.growUp
+        local rows = 1 + ((not ns.db.collapsed) and n or 0)
+        -- keep the Smart row where it is: anchor the bar at its top (or bottom when growing up)
+        local l, b0, t = bar:GetLeft(), bar:GetBottom(), bar:GetTop()
+        if l then
+            bar:ClearAllPoints()
+            if up then bar:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", l, b0)
+            else bar:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", l, t) end
+        end
+        local function Y(j)    -- j = 0 for the Smart row, 1.. for the others
+            return -(((up and (rows - 1 - j)) or j) * (ROW_H + ROW_GAP))
+        end
         Shape(s, true)
-        s:ClearAllPoints(); s:SetPoint("TOPLEFT", bar, "TOPLEFT", HANDLE, 0)
+        s:ClearAllPoints(); s:SetPoint("TOPLEFT", bar, "TOPLEFT", HANDLE, Y(0))
         bar.handle:ClearAllPoints(); bar.handle:SetPoint("RIGHT", s, "LEFT", -1, 0)
-        local rows = 1
         if not ns.db.collapsed then
             for i, b in ipairs(minis) do
                 Shape(b, true)
                 b:ClearAllPoints()
-                b:SetPoint("TOPLEFT", bar, "TOPLEFT", HANDLE, -(i * (ROW_H + ROW_GAP)))
+                b:SetPoint("TOPLEFT", bar, "TOPLEFT", HANDLE, Y(i))
                 b:Show()
             end
-            rows = rows + n
         end
-        bar:SetSize(HANDLE + ROW_W, rows * (ROW_H + ROW_GAP) - ROW_GAP)
+        bar:SetSize(HANDLE + RowW(), rows * (ROW_H + ROW_GAP) - ROW_GAP)
         return
     end
 
@@ -573,6 +643,21 @@ function ns.RefreshBar()
         minis[#minis + 1] = au
     end
 
+    -- Seal slot (optional): green while the seal is on you, tan when it isn't
+    local se = bar.sealBtn
+    if ns.db.sealButton then
+        local cur = CurrentSeal()
+        if cur then
+            se.icon:SetTexture(cur.icon)
+            local on = ns.FindAura("player", cur.name, "HELPFUL") ~= nil
+            W.SetSlotState(se, on and "ok" or "low", nil, nil)
+            if not combat then
+                se:SetAttribute("type", "spell"); se:SetAttribute("spell", cur.name); se:SetAttribute("unit", "player")
+            end
+            minis[#minis + 1] = se
+        end
+    end
+
     for _, b in ipairs(bar.buttons) do
         local key = row[b.class]
         local list = ns.byClass[b.class]
@@ -606,6 +691,13 @@ function ns.RefreshBar()
     -- Oath of Light slot
     local o = bar.oathBtn
     local ounit, oleft = ns.OathStatus()
+    if ns.db.oathSound and ounit and ns.oathCap[me] and oleft and oleft ~= math.huge then
+        if oleft <= 30 and oleft > 0 then
+            if not bar.oathWarned then bar.oathWarned = true; ns.Alert() end
+        elseif oleft > 30 then
+            bar.oathWarned = false
+        end
+    end
     if ounit and ns.oathCap[me] then
         o.left = oleft
         o.icon:SetTexture(ns.OathIcon())
@@ -739,6 +831,7 @@ function ns.RefreshBar()
     end
     local key = BindingText()
     s.key:SetText(key or "")
+    bar.idle = not combat and not s.glow:IsShown() and not (stats and stats.far > 0)
 
     if Compact() then
         -- smart row: red when there's something to cast, tan when only refreshes are due
@@ -759,6 +852,15 @@ function ns.RefreshBar()
     else
         ns.layoutDirty = true
     end
+    ns.ApplyBarFade()
+end
+
+-- Fade the bar when there's nothing to do (option); full strength on mouseover and in combat.
+function ns.ApplyBarFade()
+    if not bar then return end
+    local a = 1
+    if ns.db.fadeIdle and bar.idle and not InCombatLockdown() and not bar:IsMouseOver() then a = 0.3 end
+    if bar:GetAlpha() ~= a then bar:SetAlpha(a) end
 end
 
 function ns.ToggleBar()

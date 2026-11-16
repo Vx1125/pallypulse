@@ -84,7 +84,7 @@ local function Build()
     win:Hide()
     W.MakeDraggable(win, win, "ready")
     W.RestorePos(win, "ready", { "TOP", "TOP", 0, -140 })
-    win:SetScale(ns.db.scale or 1)
+    win:SetScale(ns.db.rcScale or ns.db.scale or 1)
 
     win.title = W.Text(win, 14, S.gold, "LEFT", S.head)
     win.title:SetPoint("TOPLEFT", PAD, -9)
@@ -120,10 +120,12 @@ local function Build()
         row:SetHeight(ROW_H)
         row.bg = row:CreateTexture(nil, "BACKGROUND")
         row.bg:SetAllPoints()
+        row.stripe = row:CreateTexture(nil, "BORDER")
+        row.stripe:SetPoint("TOPLEFT"); row.stripe:SetPoint("BOTTOMLEFT"); row.stripe:SetWidth(3)
         row.ready = row:CreateTexture(nil, "ARTWORK")
-        row.ready:SetSize(14, 14); row.ready:SetPoint("LEFT", 2, 0)
+        row.ready:SetSize(14, 14); row.ready:SetPoint("LEFT", 5, 0)
         row.name = W.Text(row, 12, S.text, "LEFT", S.head)
-        row.name:SetPoint("LEFT", 20, 0); row.name:SetWidth(NAME_W - 22); row.name:SetWordWrap(false)
+        row.name:SetPoint("LEFT", 22, 0); row.name:SetWidth(NAME_W - 24); row.name:SetWordWrap(false)
         row.bcount = W.Text(row, 12, S.text, "CENTER", S.num, "OUTLINE")
         row.bcount:SetPoint("LEFT", NAME_W - 6, 0); row.bcount:SetWidth(COUNT_W - 4)
         row.cells = {}
@@ -150,9 +152,30 @@ local function Build()
         win.rows[r] = row
     end
 
-    win.foot = W.Text(win, 11, S.dim, "LEFT")
-    win.foot:SetPoint("BOTTOMLEFT", PAD, 8)
-    win.foot:SetSpacing(4)
+    -- footer: one clickable line per paladin who owes something (click = whisper them)
+    win.lines = {}
+    for i = 1, 10 do
+        local l = CreateFrame("Button", nil, win)
+        l:SetHeight(16)
+        l.text = W.Text(l, 11, S.text, "LEFT")
+        l.text:SetPoint("LEFT"); l.text:SetWordWrap(false)
+        l.hl = l:CreateTexture(nil, "HIGHLIGHT")
+        l.hl:SetAllPoints(); l.hl:SetColorTexture(1, 1, 1, 0.08)
+        l:SetScript("OnClick", function(self)
+            if self.whisper and self.pal then
+                pcall(SendChatMessage, self.whisper, "WHISPER", nil, self.pal)
+            end
+        end)
+        l:SetScript("OnEnter", function(self)
+            if not self.tip then return end
+            GameTooltip:SetOwner(self, "ANCHOR_TOP")
+            GameTooltip:AddLine(self.tip, 1, 1, 1)
+            GameTooltip:Show()
+        end)
+        l:SetScript("OnLeave", function() GameTooltip:Hide() end)
+        l:Hide()
+        win.lines[i] = l
+    end
 
     local elapsed = 0
     win:SetScript("OnUpdate", function(self, dt)
@@ -179,6 +202,23 @@ local function Owed(e)
     return owe
 end
 
+-- What a player has and should have. short = alive and missing a blessing.
+local function Evaluate(e, npal)
+    local alive = not ns.SafeUnit(UnitIsDeadOrGhost, e.unit, false)
+    local have
+    if e.fake then alive, have = not e.dead, ns.PreviewBuffs(e) else have = BuffsOn(e.unit) end
+    local owe = Owed(e)
+    local expect = 0
+    for _ in pairs(owe) do expect = expect + 1 end
+    if expect == 0 then expect = math.min(npal, 4) end
+    local got = 0
+    for _, col in ipairs(COLS) do
+        if col.blessing and HasCol(have, col) then got = got + 1 end
+    end
+    return { alive = alive, have = have, owe = owe, expect = expect, got = got,
+             short = alive and expect > 0 and got < expect }
+end
+
 local function SortedRoster()
     local list = {}
     for _, e in ipairs(ns.roster or {}) do list[#list + 1] = e end
@@ -196,6 +236,15 @@ function ns.RefreshReadyCheck()
     if not win or not win:IsShown() then return end
     local list = SortedRoster()
     local me = ns.Me()
+    local npal = #(ns.paladins or {})
+    -- players short a blessing first, then class order
+    local info, pos = {}, {}
+    for i, e in ipairs(list) do info[e] = Evaluate(e, npal); pos[e] = i end
+    table.sort(list, function(a, b)
+        local sa, sb = info[a].short, info[b].short
+        if sa ~= sb then return sa end
+        return pos[a] < pos[b]
+    end)
 
     -- which columns: the four blessings (if any paladin), raid buffs whose class is present,
     -- food and flask always
@@ -223,7 +272,6 @@ function ns.RefreshReadyCheck()
     local ready, total = 0, 0
     local short, checked = 0, 0
     local todo, todoOrder = {}, {}    -- [paladin] = { [KEY] = { names } }
-    local npal = #(ns.paladins or {})
     local n = math.min(#list, MAXROWS)
     for r = 1, MAXROWS do
         local row = win.rows[r]
@@ -234,9 +282,10 @@ function ns.RefreshReadyCheck()
             row:SetPoint("TOPLEFT", win, "TOPLEFT", 6, -(TOP + (r - 1) * (ROW_H + 1)))
             row:SetWidth(width - 12)
             local cr, cg, cb = W.ClassColor(e.class)
-            row.bg:SetColorTexture(cr, cg, cb, 0.18)
+            row.bg:SetColorTexture(cr, cg, cb, 0.10)
+            row.stripe:SetColorTexture(cr, cg, cb, 1)
             row.name:SetText(ns.FirstName(e.name))
-            row.name:SetTextColor(cr, cg, cb)
+            row.name:SetTextColor(unpack(S.text))
 
             local st
             if e.fake then st = e.ready
@@ -247,19 +296,11 @@ function ns.RefreshReadyCheck()
             local rt = ReadyTexture(st)
             row.ready:SetTexture(rt); row.ready:SetShown(rt ~= nil)
 
-            local alive = not ns.SafeUnit(UnitIsDeadOrGhost, e.unit, false)
-            local have
-            if e.fake then alive, have = not e.dead, ns.PreviewBuffs(e) else have = BuffsOn(e.unit) end
-            -- how many blessings they should have (one per paladin, distinct) vs have
-            local owe = Owed(e)
-            local expect = 0
-            for _ in pairs(owe) do expect = expect + 1 end
-            if expect == 0 then expect = math.min(npal, 4) end
-            local got = 0
-            for _, col in ipairs(COLS) do
-                if col.blessing and HasCol(have, col) then got = got + 1 end
-            end
+            local inf = info[e]
+            local alive, have = inf.alive, inf.have
+            local owe, expect, got = inf.owe, inf.expect, inf.got
             if not alive then
+                row.name:SetTextColor(unpack(S.dim))
                 row.bcount:SetText("dead"); row.bcount:SetTextColor(unpack(S.dim))
             elseif expect > 0 then
                 checked = checked + 1
@@ -320,25 +361,42 @@ function ns.RefreshReadyCheck()
         if b == me then return false end
         return a < b
     end)
-    local lines = {}
+    local nl = 0
+    win.mineMissing = 0
     for _, pal in ipairs(todoOrder) do
-        local parts = {}
+        if nl >= #win.lines then break end
+        local parts, wparts = {}, {}
         for _, b in ipairs(ns.BLESSINGS) do
             local names = todo[pal][b.key]
             if names then
+                if pal == me then win.mineMissing = win.mineMissing + #names end
                 local shown = {}
                 for i = 1, math.min(#names, 4) do shown[i] = names[i] end
                 local txt = table.concat(shown, ", ")
                 if #names > 4 then txt = txt .. " +" .. (#names - 4) end
                 parts[#parts + 1] = ("|T%s:14|t %s"):format(b.icon, txt)
+                wparts[#wparts + 1] = b.single:gsub("^Blessing of ", "") .. ": " .. table.concat(names, ", ")
             end
         end
+        nl = nl + 1
+        local l = win.lines[nl]
         local who = (pal == me) and (W.Hex(unpack(S.bad)) .. "You|r")
             or (W.Hex(unpack(S.warn)) .. ns.FirstName(pal) .. "|r")
-        lines[#lines + 1] = who .. ":  " .. W.Hex(unpack(S.text)) .. table.concat(parts, "   ") .. "|r"
+        l.text:SetText(who .. ":  " .. table.concat(parts, "   "))
+        l.pal, l.whisper, l.tip = nil, nil, nil
+        local real = ns.UnitForName and ns.UnitForName(pal)
+        if pal ~= me and real then
+            l.pal = pal
+            l.whisper = "[PallyPulse] Missing your " .. table.concat(wparts, "; ")
+            l.tip = "Click: whisper " .. ns.FirstName(pal)
+        end
+        l:ClearAllPoints()
+        l:SetPoint("TOPLEFT", win, "TOPLEFT", PAD, -(TOP + n * (ROW_H + 1) + 4 + (nl - 1) * 17))
+        l:SetWidth(math.max(width, 330) - PAD * 2)
+        l:Show()
     end
-    win.foot:SetText(table.concat(lines, "\n"))
-    local footH = (#lines > 0) and (#lines * 16 + 12) or 8
+    for i = nl + 1, #win.lines do win.lines[i]:Hide() end
+    local footH = (nl > 0) and (nl * 17 + 10) or 8
     win:SetSize(math.max(width, 330), TOP + n * (ROW_H + 1) + footH)
 end
 
@@ -346,7 +404,7 @@ function ns.ShowReadyCheck(auto)
     if not win then Build() end
     if InCombatLockdown() then return end
     closeAt = nil
-    win:SetScale(ns.db.scale or 1)
+    win:SetScale(ns.db.rcScale or ns.db.scale or 1)
     win:Show()
     ns.RefreshReadyCheck()
     ns.dirty = true   -- the bar refreshes too
@@ -367,7 +425,10 @@ ev:SetScript("OnEvent", function(_, event)
     if not ns.db then return end
     if event == "READY_CHECK" then
         wipe(lastStatus)
-        if ns.db.readyCheck ~= false then ns.ShowReadyCheck(true) end
+        if ns.db.readyCheck ~= false then
+            ns.ShowReadyCheck(true)
+            if ns.db.readyCheckSound and win and (win.mineMissing or 0) > 0 and ns.Alert then ns.Alert() end
+        end
     elseif event == "READY_CHECK_CONFIRM" then
         ns.RefreshReadyCheck()
     elseif event == "READY_CHECK_FINISHED" then
