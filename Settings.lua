@@ -53,6 +53,8 @@ function ns.BuildOptions(P, top)
     Add(W.Check(P, "Answer \"!bless\" chat requests", function() return ns.db.chatRequests end,
         function(v) ns.db.chatRequests = v end))
     Add(W.Check(P, "Sync with PallyPower users", function() return ns.db.compat end, function(v) ns.db.compat = v end))
+    Add(W.Check(P, "Ready check window", function() return ns.db.readyCheck ~= false end,
+        function(v) ns.db.readyCheck = v end))
 
     -- two columns
     local colX, y0 = { 16, 270 }, -(top or 60)

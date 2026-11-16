@@ -1,6 +1,7 @@
 # PallyPulse
 
 ## 1.0.5
+- New ready check window. When a ready check starts it opens with everyone's ready status and buffs: the four blessings, Stamina, Mark of the Wild, Intellect, Spirit, food and flask. Blessings that are yours to give and missing get a red outline, and it tells you how many you owe. Open it any time with /pulse check; turn it off under Options > Ready check window.
 - Fixed your aura turning red in combat while it was still on. The aura is now read from the stance bar, which the game still shows in combat.
 
 ## 1.0.4

@@ -79,5 +79,6 @@ Needs the CF_API_KEY secret and "Read and write" workflow permissions.
 - /pulse debug: assignments, Oath, combat-queue availability
 - /pulse test: dry run of the queue and guessed roles
 - /pulse frames: which Blizzard frames were found
+- /pulse check: opens the ready check window (also opens on every ready check)
 - /pulse auras: buffs on you with spell id and caster, and what the aura check finds
 - /pulse versions
