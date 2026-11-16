@@ -1,11 +1,15 @@
 # PallyPulse
 
 ## 1.0.5
-- Much less chat spam: no more messages confirming what you just did (sync, preview, presets, lock, Oath target changes, the login line). Errors and the debug commands still print.
-- Ready check window: each player shows a blessing count like 3/3 (green) or 2/3 (red), and the top line says "All blessed" or how many are short. Missing blessings are outlined red if they're yours and orange if they're another paladin's (hover for who), and the bottom lists who owes what, e.g. "Billy: [Wisdom] Bob, Sam".
-- New preview mode for testing while solo: /pulse preview (or Options > Preview a raid) adds a pretend 13-person raid with a mix of buffed, expiring, missing and dead players, so you can see the bar, the Blessings and Players tabs and the ready check window filled in. The ready check window opens with it. Nothing is cast on the pretend players, and closing the preview window or a /reload turns it off.
-- New ready check window. When a ready check starts it opens with everyone's ready status and blessings. Blessings that are yours to give and missing get a red outline, and it tells you how many you owe. Turn on Options > "Ready check: show raid buffs too" to add Stamina, Mark of the Wild, Intellect, Spirit, food and flask. Open it any time with /pulse check; turn it off with Options > Open window on ready check.
-- Fixed your aura turning red in combat while it was still on. The aura is now read from the stance bar, which the game still shows in combat.
+- New ready check window. It opens on every ready check (or /pulse check) with everyone's ready status and blessings:
+  - A blessing count per player: 3/3 in green, 2/3 in red. The top line says "All blessed" or how many are short.
+  - Missing blessings are outlined red if they're yours and orange if they're another paladin's. Hover for who.
+  - The bottom lists who owes what, e.g. "Billy: [Wisdom] Bob, Sam".
+  - Options > "Ready check: show raid buffs too" adds Stamina, Mark of the Wild, Intellect, Spirit, food and flask.
+  - Hides in combat and comes back afterwards. Turn it off with Options > Open window on ready check.
+- New preview mode for testing while solo: Options > Preview a raid (or /pulse preview) adds a pretend 13-person raid so you can see the bar, the tabs and the ready check window filled in. Nothing is cast on the pretend players. Closing the window or a /reload ends it.
+- Fixed your aura turning red in combat while it was still on. It's now read from the stance bar, which the game still shows in combat.
+- Much less chat spam: no more messages confirming what you just did. Errors and the debug commands still print.
 
 ## 1.0.4
 - New Compact bar layout in the style of PallyPower: a thin column of rows, green when everyone is buffed, tan when expiring, red when someone is missing it. Drag the green dot to move it, click the dot to fold the rows, right-click it for assignments. It's the default for new installs; pick it under Options > Bar layout.
