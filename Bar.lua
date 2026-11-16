@@ -279,9 +279,9 @@ local function BuildMinis()
                     end
                 end
                 GameTooltip:AddLine(" ")
-                local left = ns.CastNames(self.key, self.class)
+                local left, right = ns.CastNames(self.key, self.class)
                 GameTooltip:AddLine("Click: " .. tostring(left), 0.6, 0.6, 0.6)
-                GameTooltip:AddLine("Right-click: single", 0.6, 0.6, 0.6)
+                if right and right ~= left then GameTooltip:AddLine("Right-click: single", 0.6, 0.6, 0.6) end
                 GameTooltip:AddLine("Shift-click: single on target", 0.6, 0.6, 0.6)
             end
             GameTooltip:Show()

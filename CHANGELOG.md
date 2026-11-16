@@ -1,5 +1,8 @@
 # PallyPulse
 
+## 1.1.1
+- Class row tooltip hides "Right-click: single" when a click already casts the single blessing.
+
 ## 1.1.0
 - Removed Blessing of Light (replaced by Oath of Light on Forever).
 - Test mode moved to a button at the top of the window.
