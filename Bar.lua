@@ -632,7 +632,7 @@ function ns.RefreshBar()
     -- Aura slot (first)
     local au = bar.auraBtn
     local akey, aon, aknown = ns.AuraStatus()
-    if akey and aknown then
+    if akey and aknown and ns.db.auraButton ~= false then
         local a = ns.AURA_BY_KEY[akey]
         au.aura, au.on = akey, aon
         au.icon:SetTexture(a.icon)

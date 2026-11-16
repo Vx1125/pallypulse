@@ -28,6 +28,9 @@ function ns.BuildOptions(P, top)
     Add(W.Check(P, "Fade when all buffed", function() return ns.db.fadeIdle end,
         function(v) ns.db.fadeIdle = v; ns.ApplyBarFade() end,
         "The bar goes faint when there's nothing to cast. Full strength on mouseover and in combat."))
+    Add(W.Check(P, "Show aura button", function() return ns.db.auraButton ~= false end,
+        function(v) ns.db.auraButton = v; ns.dirty = true end,
+        "Your assigned aura on the bar. Smart Buff still turns it on either way."))
     Add(W.Check(P, "Show seal button", function() return ns.db.sealButton end,
         function(v) ns.db.sealButton = v; ns.dirty = true end,
         "Click to cast your seal, mouse wheel to change it."))

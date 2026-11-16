@@ -7,7 +7,7 @@
   - Click a paladin's line at the bottom to whisper them what they owe.
   - Its own size setting (Options > Ready check > Window scale).
   - Optional sound when a ready check starts and you owe blessings.
-- New bar options: fade when everyone is buffed, a seal button (click to cast, mouse wheel to change seal), and for the Compact layout row width, grow upward, and timers on or off.
+- New bar options: hide the aura button, fade when everyone is buffed, a seal button (click to cast, mouse wheel to change seal), and for the Compact layout row width, grow upward, and timers on or off.
 - Optional sound when your Oath of Light has 30 seconds left.
 - The Smart Buff row in the Compact layout has a gold edge and shows your keybind, so it stands apart from the other rows.
 - Options are grouped into clearer sections and every option explains itself on hover.
