@@ -1,5 +1,8 @@
 # PallyPulse
 
+## 1.0.5
+- Fixed your aura turning red in combat while it was still on. The aura is now read from the stance bar, which the game still shows in combat.
+
 ## 1.0.4
 - New Compact bar layout in the style of PallyPower: a thin column of rows, green when everyone is buffed, tan when expiring, red when someone is missing it. Drag the green dot to move it, click the dot to fold the rows, right-click it for assignments. It's the default for new installs; pick it under Options > Bar layout.
 - The other bar layouts drop the two lines of text beside Smart Buff, so the panel is much slimmer. Turn them back on with Options > Show text beside Smart Buff. The low Symbols warning is now also in the Smart Buff tooltip.

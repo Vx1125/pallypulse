@@ -149,13 +149,48 @@ function ns.DebugAuras()
 end
 
 -- Your assigned aura: key, whether it's on, whether you know it.
+-- Paladin auras are also stances. The stance bar still says which one is active in combat,
+-- when your buffs are hidden from addons. true/false if the aura is on the stance bar, nil if not.
+local function StanceActive(auraName)
+    if not (GetNumShapeshiftForms and GetShapeshiftFormInfo) then return nil end
+    local found
+    pcall(function()
+        for i = 1, GetNumShapeshiftForms() or 0 do
+            local a1, a2, a3, a4 = GetShapeshiftFormInfo(i)
+            local name, active
+            if type(a2) == "string" then          -- older clients: texture, name, active, castable
+                name, active = a2, a3
+            else                                  -- icon, active, castable, spellID
+                active = a2
+                if a4 then
+                    if C_Spell and C_Spell.GetSpellName then name = C_Spell.GetSpellName(a4)
+                    elseif GetSpellInfo then name = GetSpellInfo(a4) end
+                end
+            end
+            if name and ns.Readable(name) and name == auraName then
+                found = (ns.Readable(active) and active) and true or false
+                return
+            end
+        end
+    end)
+    return found
+end
+
+local lastAuraOn = {}   -- [aura key] = on, from the last out-of-combat read
+
 function ns.AuraStatus()
     local me = ns.Me()
     local key = ns.AuraFor(me)
     if not key then return nil end
     local a = ns.AURA_BY_KEY[key]
     local known = ns.auraCaps[me] and ns.auraCaps[me][key]
-    local on = ns.FindAura("player", a.name, "HELPFUL|PLAYER") ~= nil
+    local on = StanceActive(a.name)
+    if on == nil then
+        on = ns.FindAura("player", a.name, "HELPFUL|PLAYER") ~= nil
+        -- buffs can be hidden in combat: trust what we saw before the pull
+        if not on and InCombatLockdown() and lastAuraOn[key] then on = true end
+    end
+    if not InCombatLockdown() then lastAuraOn = { [key] = on } end
     return key, on, known
 end
 
