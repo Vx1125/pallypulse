@@ -1,6 +1,7 @@
 # PallyPulse
 
 ## 1.0.5
+- Much less chat spam: no more messages confirming what you just did (sync, preview, presets, lock, Oath target changes, the login line). Errors and the debug commands still print.
 - Ready check window: each player shows a blessing count like 3/3 (green) or 2/3 (red), and the top line says "All blessed" or how many are short. Missing blessings are outlined red if they're yours and orange if they're another paladin's (hover for who), and the bottom lists who owes what, e.g. "Billy: [Wisdom] Bob, Sam".
 - New preview mode for testing while solo: /pulse preview (or Options > Preview a raid) adds a pretend 13-person raid with a mix of buffed, expiring, missing and dead players, so you can see the bar, the Blessings and Players tabs and the ready check window filled in. The ready check window opens with it. Nothing is cast on the pretend players, and closing the preview window or a /reload turns it off.
 - New ready check window. When a ready check starts it opens with everyone's ready status and blessings. Blessings that are yours to give and missing get a red outline, and it tells you how many you owe. Turn on Options > "Ready check: show raid buffs too" to add Stamina, Mark of the Wild, Intellect, Spirit, food and flask. Open it any time with /pulse check; turn it off with Options > Open window on ready check.

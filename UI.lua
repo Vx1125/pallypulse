@@ -13,5 +13,4 @@ function ns.BuildUI()
     ns.BuildWindow()
     ns.BuildMinimap()
     ns.dirty = true
-    ns.Print(("v%s loaded. /pulse opens the window, or click the minimap button."):format(ns.VERSION or "?"))
 end

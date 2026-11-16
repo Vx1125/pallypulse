@@ -482,8 +482,6 @@ function ns.AutoOathSelf()
 
     ns.db.oathAutoPick = choice
     ns.SetOath(me, choice, true)
-    ns.Print(("Oath of Light target: %s (tank)%s"):format(choice,
-        InCombatLockdown() and " - your Oath button switches to them after combat" or ""))
 end
 
 local pendingAuto
@@ -881,7 +879,7 @@ SlashCmdList.PALLYPULSE = function(msg)
         end
     elseif cmd == "lock" then
         ns.db.locked = not ns.db.locked
-        ns.Print(ns.db.locked and "Bar locked." or "Bar unlocked.")
+        ns.dirty = true
     elseif cmd == "debug" then
         local me = ns.Me()
         ns.Print(("you = '%s', paladins in group = %d, combat = %s"):format(tostring(me), #ns.paladins, tostring(InCombatLockdown())))
@@ -926,7 +924,7 @@ SlashCmdList.PALLYPULSE = function(msg)
     elseif cmd == "auto" then
         ns.AutoAssign()
     elseif cmd == "sync" then
-        ns.RequestSync(); ns.Print("Sync requested.")
+        ns.RequestSync()
     elseif cmd == "refresh" then
         local n = tonumber(arg)
         if n and n >= 0 then

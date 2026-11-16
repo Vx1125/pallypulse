@@ -16,7 +16,6 @@ function ns.SavePreset(name)
     local rows = {}
     for i, pal in ipairs(ns.paladins) do rows[i] = Copy(ns.assign[pal]) end
     ns.db.presets[name] = rows
-    ns.Print(("Saved preset '%s' (%d paladin row%s)."):format(name, #rows, #rows == 1 and "" or "s"))
 end
 
 function ns.LoadPreset(name)
@@ -40,13 +39,10 @@ function ns.LoadPreset(name)
     end
     ns.dirty = true
     if ns.OnAssignmentsChanged then ns.OnAssignmentsChanged() end
-    local extra = #rows > #ns.paladins and (" Preset has %d more row(s) than paladins; extras were ignored."):format(#rows - #ns.paladins) or ""
-    ns.Print(("Loaded '%s' onto %d paladin(s).%s"):format(name, applied, extra))
 end
 
 function ns.DeletePreset(name)
     ns.db.presets[name] = nil
-    ns.Print(("Deleted preset '%s'."):format(name))
 end
 
 StaticPopupDialogs["PALLYPULSE_SAVE_PRESET"] = {
