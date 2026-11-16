@@ -23,6 +23,8 @@ function ns.BuildOptions(P, top)
         end,
         function(v) ns.db.barLayout = LAYOUTS[v] or "compact"; ns.dirty = true end,
         1, 1, 4, function(v) return LAYOUT_NAMES[v] or "Compact" end))
+    Add(W.Check(P, "Show text beside Smart Buff", function() return ns.db.barText end,
+        function(v) ns.db.barText = v; ns.dirty = true end))
     Add(W.Check(P, "Show minimap button", function() return ns.db.showMinimap end,
         function(v) ns.db.showMinimap = v; if ns.UpdateMinimap then ns.UpdateMinimap() end end))
     Add(W.Stepper(P, "UI scale", function() return ns.db.scale end, function(v) ns.db.scale = v; ns.ApplyScale() end,

@@ -21,6 +21,8 @@ local ROW_COLORS = {
 local bar
 
 local function Compact() return ns.db.barLayout == "compact" end
+-- width taken by the two text lines beside Smart Buff (off unless "Show text" is on)
+local function TextW() return ns.db.barText and (TEXT_W + 8) or 0 end
 local ShowFlyout   -- defined below; the class buttons call it
 
 local SECURE = "SecureActionButtonTemplate" .. (BackdropTemplateMixin and ",BackdropTemplate" or "")
@@ -130,6 +132,11 @@ local function BuildSmart()
             GameTooltip:AddDoubleLine("  Missing", st.missing, 0.8, 0.8, 0.8, 1, 1, 1)
             GameTooltip:AddDoubleLine("  Expiring soon", st.expiring, 0.8, 0.8, 0.8, 1, 1, 1)
             if st.far > 0 then GameTooltip:AddDoubleLine("  Out of range", st.far, 0.8, 0.8, 0.8, 1, 1, 1) end
+            local warn = ns.db.reagentWarn or 0
+            if warn > 0 and ns.KnowsAnyGreater() then
+                local n = ns.ReagentCount()
+                if n and n < warn then GameTooltip:AddDoubleLine("Symbols of Kings", n, 0.8, 0.8, 0.8, unpack(S.bad)) end
+            end
             if (st.held or 0) > 0 then GameTooltip:AddDoubleLine("  Under your Freedom / Protection", st.held, 0.8, 0.8, 0.8, 1, 1, 1) end
         end
         GameTooltip:AddLine(" ")
@@ -442,7 +449,7 @@ local function SetChrome(compact)
     else
         bar:SetBackdropColor(unpack(S.bg)); bar:SetBackdropBorderColor(unpack(S.frame))
     end
-    bar.line1:SetShown(not compact); bar.line2:SetShown(not compact)
+    bar.line1:SetShown(not compact and ns.db.barText); bar.line2:SetShown(not compact and ns.db.barText)
     bar.menuBtn:SetShown(not compact); bar.foldBtn:SetShown(not compact)
     bar.handle:SetShown(compact)
     bar.smart.key:SetShown(not compact)
@@ -478,7 +485,7 @@ local function Layout(minis)
 
     Shape(s, false, SMART)
     s:ClearAllPoints(); s:SetPoint("TOPLEFT", PAD, -PAD)
-    local headW = PAD + SMART + 8 + TEXT_W + 20       -- 20 = room for the two small buttons
+    local headW = PAD + SMART + 4 + TextW() + 20      -- 20 = room for the two small buttons
     local w, h = headW, PAD * 2 + SMART
     if not ns.db.collapsed and n > 0 then
         for _, b in ipairs(minis) do Shape(b, false, MINI) end
@@ -496,7 +503,7 @@ local function Layout(minis)
             h = PAD * 2 + SMART + 6 + rows * (MINI + GAP) - GAP
             w = math.max(headW, PAD * 2 + math.min(n, PER_ROW_STACKED) * (MINI + GAP) - GAP)
         else
-            local x = PAD + SMART + 8 + TEXT_W + 4
+            local x = PAD + SMART + 4 + TextW()
             local y = -(PAD + (SMART - MINI) / 2)
             for i, b in ipairs(minis) do
                 b:ClearAllPoints()
