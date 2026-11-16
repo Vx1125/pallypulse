@@ -135,6 +135,7 @@ function ns.SetPreview(on)
     if ns.AutoOverrides then ns.AutoOverrides() end
     ns.dirty = true
     if ns.RefreshWindow then pcall(ns.RefreshWindow) end
+    if ns.RefreshOptions then pcall(ns.RefreshOptions) end   -- keep the Options checkbox in step
     if ns.preview then
         if ns.ShowReadyCheck then ns.ShowReadyCheck() end    -- show the ready check window filled in
         ns.Print("Preview on.")

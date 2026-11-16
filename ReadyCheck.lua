@@ -95,7 +95,10 @@ local function Build()
 
     local close = CreateFrame("Button", nil, win, "UIPanelCloseButton")
     close:SetPoint("TOPRIGHT", 2, 2)
-    close:SetScript("OnClick", function() win:Hide() end)
+    close:SetScript("OnClick", function()
+        -- closing the preview window ends the preview
+        if ns.preview and ns.SetPreview then ns.SetPreview(false) else win:Hide() end
+    end)
 
     win.heads = {}
     for i, col in ipairs(COLS) do

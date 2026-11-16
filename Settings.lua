@@ -55,9 +55,9 @@ function ns.BuildOptions(P, top)
     Add(W.Check(P, "Answer \"!bless\" chat requests", function() return ns.db.chatRequests end,
         function(v) ns.db.chatRequests = v end))
     Add(W.Check(P, "Sync with PallyPower users", function() return ns.db.compat end, function(v) ns.db.compat = v end))
-    Add(W.Check(P, "Ready check window", function() return ns.db.readyCheck ~= false end,
+    Add(W.Check(P, "Open window on ready check", function() return ns.db.readyCheck ~= false end,
         function(v) ns.db.readyCheck = v end))
-    Add(W.Check(P, "  ...also show raid buffs, food, flask", function() return ns.db.readyCheckRaid end,
+    Add(W.Check(P, "Ready check: show raid buffs too", function() return ns.db.readyCheckRaid end,
         function(v) ns.db.readyCheckRaid = v; if ns.RefreshReadyCheck then ns.RefreshReadyCheck() end end))
 
     -- two columns
