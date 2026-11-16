@@ -137,12 +137,11 @@ function ns.SetPreview(on)
     if ns.RefreshWindow then pcall(ns.RefreshWindow) end
     if ns.preview then
         if ns.ShowReadyCheck then ns.ShowReadyCheck() end    -- show the ready check window filled in
-        ns.Print("Preview ON: a pretend 13-person raid is added so you can see how everything looks. "
-            .. "Nothing is cast on them. /pulse preview again to stop.")
+        ns.Print("Preview on.")
     else
         local rc = _G.PallyPulseReadyCheck
         if rc then rc:Hide() end
-        ns.Print("Preview OFF.")
+        ns.Print("Preview off.")
     end
 end
 

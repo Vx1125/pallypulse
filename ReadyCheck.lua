@@ -358,6 +358,8 @@ ev:RegisterEvent("READY_CHECK")
 ev:RegisterEvent("READY_CHECK_CONFIRM")
 ev:RegisterEvent("READY_CHECK_FINISHED")
 ev:RegisterEvent("PLAYER_REGEN_DISABLED")
+ev:RegisterEvent("PLAYER_REGEN_ENABLED")
+local reopen = false       -- it was open when combat started: bring it back afterwards
 ev:SetScript("OnEvent", function(_, event)
     if not ns.db then return end
     if event == "READY_CHECK" then
@@ -369,6 +371,14 @@ ev:SetScript("OnEvent", function(_, event)
         ns.RefreshReadyCheck()
         if win and win:IsShown() then closeAt = GetTime() + 15 end   -- stays open while you hover it
     elseif event == "PLAYER_REGEN_DISABLED" then
+        reopen = win and win:IsShown() or false
         if win then win:Hide() end
+    elseif event == "PLAYER_REGEN_ENABLED" then
+        if reopen then
+            reopen = false
+            local keepClose = closeAt
+            ns.ShowReadyCheck()
+            closeAt = keepClose        -- a finished ready check still closes on its timer
+        end
     end
 end)
