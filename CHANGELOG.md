@@ -1,7 +1,7 @@
 # PallyPulse
 
 ## 1.1.1
-- Esc closes the ready check window
+- Esc closes the ready check window.
 - Class row tooltip hides "Right-click: single" when a click already casts the single blessing.
 
 ## 1.1.0
