@@ -782,8 +782,8 @@ core:SetScript("OnEvent", function(_, event, ...)
             end
         end
         ns.db = PallyPulseDB
-        -- bar layout: "row" | "wrap" | "column" (older versions had a yes/no "vertical")
-        if ns.db.barLayout == nil then ns.db.barLayout = ns.db.vertical and "wrap" or "row" end
+        -- bar layout: "compact" | "row" | "wrap" | "column" (older versions had a yes/no "vertical")
+        if ns.db.barLayout == nil then ns.db.barLayout = ns.db.vertical and "wrap" or "compact" end
         ns.assign = ns.db.assign
         ns.oath = ns.db.oath
         -- Drop blessings that no longer exist (e.g. Salvation, removed on Forever) from saved data.

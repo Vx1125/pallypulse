@@ -1,5 +1,8 @@
 # PallyPulse
 
+## 1.0.4
+- New Compact bar layout in the style of PallyPower: a thin column of rows, green when everyone is buffed, tan when expiring, red when someone is missing it. Drag the green dot to move it, click the dot to fold the rows, right-click it for assignments. It's the default for new installs; pick it under Options > Bar layout.
+
 ## 1.0.3
 - Oath of Light now defaults to yourself when you're solo or your target left the group.
 - Fixed your own aura (e.g. Retribution Aura) showing as "Off" when it was on.

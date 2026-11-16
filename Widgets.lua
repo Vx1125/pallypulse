@@ -246,6 +246,7 @@ end
 
 -- state: "ok" (covered), "low" (expiring), "need" (some missing), "all" (everyone missing)
 function W.SetSlotState(btn, state, count, timer)
+    btn.slotState = state
     local covered = state == "ok"
     btn.icon:SetDesaturated(covered)
     local v = covered and 0.55 or 1

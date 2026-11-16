@@ -10,7 +10,17 @@ local S, W = ns.STYLE, ns.W
 local SMART, MINI, GAP, PAD = 44, 22, 2, 7
 local TEXT_W = 128
 local PER_ROW_WRAP = 8      -- slots per row in the Wrap layout
+-- Compact layout (PallyPower style): a thin column of rows, each tinted by status, with a
+-- small drag dot on the left and no panel behind it.
+local ROW_W, ROW_H, ROW_GAP, HANDLE = 76, 22, 1, 14
+local ROW_COLORS = {
+    ok   = { 0.16, 0.42, 0.16, 0.85 },   -- everyone covered
+    low  = { 0.50, 0.42, 0.18, 0.85 },   -- expiring soon
+    need = { 0.55, 0.13, 0.10, 0.85 },   -- someone missing it
+}
 local bar
+
+local function Compact() return ns.db.barLayout == "compact" end
 local ShowFlyout   -- defined below; the class buttons call it
 
 local SECURE = "SecureActionButtonTemplate" .. (BackdropTemplateMixin and ",BackdropTemplate" or "")
@@ -55,6 +65,7 @@ local function BuildSmart()
     s:SetPoint("TOPLEFT", PAD, -PAD)
     s.strip:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 1)
     s.count:SetFont(S.num, 18, "OUTLINE")
+    s.isSmart = true
 
     -- soft gold pulse while there is something to cast
     s.glow = s:CreateTexture(nil, "OVERLAY", nil, 3)
@@ -143,6 +154,14 @@ local function BuildMinis()
         b:RegisterForClicks("AnyDown", "AnyUp")
         b.strip:SetColorTexture(W.ClassColor(class))
         b.class = class
+        -- class icon, shown only in the Compact layout (left of the blessing icon)
+        local tc = CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[class]
+        if tc then
+            b.cicon = b:CreateTexture(nil, "ARTWORK")
+            b.cicon:SetTexture("Interface\\Glues\\CharacterCreate\\UI-CharacterCreate-Classes")
+            b.cicon:SetTexCoord(tc[1] + 0.02, tc[2] - 0.02, tc[3] + 0.02, tc[4] - 0.02)
+            b.cicon:Hide()
+        end
         b:SetScript("OnEnter", function(self)
             GameTooltip:SetOwner(self, "ANCHOR_TOP")
             if self.key then
@@ -223,6 +242,7 @@ local FLY_MAX, FLY_H, FLY_W = 12, 20, 168
 local function BuildFlyout()
     fly = W.Panel(bar, FLY_W, 40)
     fly:SetFrameStrata("DIALOG")
+    fly:SetClampedToScreen(true)
     fly:Hide()
     fly.rows = {}
     for i = 1, FLY_MAX do
@@ -281,7 +301,11 @@ function ShowFlyout(btn)
     fly:SetSize(FLY_W, 10 + n * FLY_H)
     fly.anchor = btn
     fly:ClearAllPoints()
-    fly:SetPoint("TOP", btn, "BOTTOM", 0, -4)
+    if Compact() then
+        fly:SetPoint("TOPLEFT", btn, "TOPRIGHT", 4, 0)
+    else
+        fly:SetPoint("TOP", btn, "BOTTOM", 0, -4)
+    end
     fly:SetScale(1)
     fly:Show()
 end
@@ -317,6 +341,29 @@ function ns.BuildBar()
     bar.foldBtn:SetScript("OnClick", function() ns.db.collapsed = not ns.db.collapsed; ns.dirty = true end)
     W.Tip(bar.foldBtn, function(t) t:AddLine(ns.db.collapsed and "Show class buttons" or "Hide class buttons", 1, 1, 1) end)
 
+    -- Compact layout's drag dot: drag to move, click to fold the rows, right-click for assignments
+    local hd = CreateFrame("Button", nil, bar)
+    hd:SetSize(12, 12)
+    hd:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    hd.tex = hd:CreateTexture(nil, "ARTWORK")
+    hd.tex:SetAllPoints()
+    hd.tex:SetTexture("Interface\\COMMON\\Indicator-Green")
+    if not hd.tex:GetTexture() then hd.tex:SetColorTexture(S.good[1], S.good[2], S.good[3], 1) end
+    hd:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
+    W.MakeDraggable(bar, hd, "bar", true, true)
+    hd:SetScript("OnClick", function(_, btn)
+        if btn == "RightButton" then ns.ToggleWindow()
+        else ns.db.collapsed = not ns.db.collapsed; ns.dirty = true end
+    end)
+    W.Tip(hd, function(t)
+        t:AddLine("PallyPulse", unpack(S.gold))
+        t:AddLine("Drag to move", 0.8, 0.8, 0.8)
+        t:AddLine(ns.db.collapsed and "Click: show the rows" or "Click: hide the rows", 0.8, 0.8, 0.8)
+        t:AddLine("Right-click: assignments", 0.8, 0.8, 0.8)
+    end)
+    hd:Hide()
+    bar.handle = hd
+
     local elapsed = 0
     bar:SetScript("OnUpdate", function(_, dt)
         elapsed = elapsed + dt
@@ -334,16 +381,106 @@ end
 -- ---------------------------------------------------------------------------
 -- Layout (out of combat only: moving or showing secure buttons is protected)
 -- ---------------------------------------------------------------------------
+-- Reshape a slot button for the Compact rows or back to a square icon.
+local function Shape(b, compact, size)
+    local want = compact and "compact" or size
+    if b.shaped == want then return end
+    b.shaped = want
+    b.icon:ClearAllPoints(); b.count:ClearAllPoints(); b.timer:ClearAllPoints(); b.check:ClearAllPoints()
+    if compact then
+        b:SetSize(ROW_W, ROW_H)
+        local isz, x = ROW_H - 4, 2
+        if b.cicon then
+            b.cicon:ClearAllPoints(); b.cicon:SetSize(isz, isz); b.cicon:SetPoint("LEFT", x, 0); b.cicon:Show()
+            x = x + isz + 2
+        end
+        b.icon:SetSize(isz, isz); b.icon:SetPoint("LEFT", x, 0)
+        b.count:SetPoint("RIGHT", -6, 0)
+        b.timer:SetPoint("RIGHT", -5, 0)
+        b.check:SetPoint("BOTTOMRIGHT", 1, -1)
+        b.strip:Hide()
+        if b.isSmart then b.count:SetFont(S.num, 13, "OUTLINE") end
+    else
+        b:SetSize(size, size)
+        b.icon:SetPoint("TOPLEFT", 1, -1); b.icon:SetPoint("BOTTOMRIGHT", -1, 1)
+        if b.cicon then b.cicon:Hide() end
+        if b.isSmart then
+            b.count:SetFont(S.num, 18, "OUTLINE"); b.count:SetPoint("BOTTOMRIGHT", -2, 2)
+        else
+            b.count:SetPoint("CENTER", 0, 1)
+        end
+        b.timer:SetPoint("TOPRIGHT", 0, -1)
+        b.check:SetPoint("BOTTOMRIGHT", 1, -1)
+        b.strip:Show()
+        if b.SetBackdropColor then b:SetBackdropColor(0, 0, 0, 0.8) end
+    end
+end
+
+-- Compact rows: tint by status. Cosmetic only, so it also runs in combat.
+local function Paint(b, state)
+    local c = ROW_COLORS[state] or ROW_COLORS.need
+    if b.SetBackdropColor then
+        b:SetBackdropColor(c[1], c[2], c[3], c[4])
+        b:SetBackdropBorderColor(0, 0, 0, 1)
+    end
+    b.check:Hide()
+    if not b.isSmart then b.icon:SetDesaturated(false); b.icon:SetVertexColor(1, 1, 1) end
+    if b.count:IsShown() then b.timer:SetText("") end
+end
+
+local function RowState(b)
+    local st = b.slotState
+    if st == "ok" then return b.soon and "low" or "ok" end
+    if st == "low" then return "low" end
+    return "need"
+end
+
+local function SetChrome(compact)
+    if compact then
+        bar:SetBackdropColor(0, 0, 0, 0); bar:SetBackdropBorderColor(0, 0, 0, 0)
+    else
+        bar:SetBackdropColor(unpack(S.bg)); bar:SetBackdropBorderColor(unpack(S.frame))
+    end
+    bar.line1:SetShown(not compact); bar.line2:SetShown(not compact)
+    bar.menuBtn:SetShown(not compact); bar.foldBtn:SetShown(not compact)
+    bar.handle:SetShown(compact)
+    bar.smart.key:SetShown(not compact)
+end
+
 local function Layout(minis)
     for _, b in ipairs(bar.buttons) do b:Hide() end
     bar.oathBtn:Hide()
     bar.auraBtn:Hide()
 
+    local s = bar.smart
+    local mode = ns.db.barLayout or "row"
+    local n = #minis
+    SetChrome(mode == "compact")
+
+    if mode == "compact" then
+        Shape(s, true)
+        s:ClearAllPoints(); s:SetPoint("TOPLEFT", bar, "TOPLEFT", HANDLE, 0)
+        bar.handle:ClearAllPoints(); bar.handle:SetPoint("RIGHT", s, "LEFT", -1, 0)
+        local rows = 1
+        if not ns.db.collapsed then
+            for i, b in ipairs(minis) do
+                Shape(b, true)
+                b:ClearAllPoints()
+                b:SetPoint("TOPLEFT", bar, "TOPLEFT", HANDLE, -(i * (ROW_H + ROW_GAP)))
+                b:Show()
+            end
+            rows = rows + n
+        end
+        bar:SetSize(HANDLE + ROW_W, rows * (ROW_H + ROW_GAP) - ROW_GAP)
+        return
+    end
+
+    Shape(s, false, SMART)
+    s:ClearAllPoints(); s:SetPoint("TOPLEFT", PAD, -PAD)
     local headW = PAD + SMART + 8 + TEXT_W + 20       -- 20 = room for the two small buttons
     local w, h = headW, PAD * 2 + SMART
-    local n = #minis
     if not ns.db.collapsed and n > 0 then
-        local mode = ns.db.barLayout or "row"
+        for _, b in ipairs(minis) do Shape(b, false, MINI) end
         if mode ~= "row" then
             -- Wrap / Column: rows of slots under the smart button
             local PER_ROW_STACKED = (mode == "column") and 1 or PER_ROW_WRAP
@@ -409,6 +546,7 @@ function ns.RefreshBar()
             b.icon:SetTexture(ns.BY_KEY[key].icon or W.QUESTION)
             local state = need == 0 and "ok" or (need == total and "all" or "need")
             W.SetSlotState(b, state, need, lowest)
+            b.soon = lowest and lowest <= (ns.db.refresh or 0) or false
             if lowest and (not soonest or lowest < soonest) then soonest = lowest end
             if not combat then
                 local greater, single = ns.CastNames(key, b.class)
@@ -465,7 +603,7 @@ function ns.RefreshBar()
         s.icon:SetDesaturated(false); s.icon:SetVertexColor(1, 1, 1)
         s.check:Hide()
         s.count:SetShown(cleft > 1); s.count:SetText(cleft); s.count:SetTextColor(unpack(S.gold))
-        s.count:ClearAllPoints(); s.count:SetPoint("BOTTOMRIGHT", -2, 2)
+        if not Compact() then s.count:ClearAllPoints(); s.count:SetPoint("BOTTOMRIGHT", -2, 2) end
         s.timer:SetText("")
         s:SetBackdropBorderColor(unpack(S.gold))
         s.glow:Show(); if not s.pulse:IsPlaying() then s.pulse:Play() end
@@ -524,7 +662,7 @@ function ns.RefreshBar()
         s.icon:SetDesaturated(false); s.icon:SetVertexColor(1, 1, 1)
         s.check:Hide()
         s.count:SetShown(todo > 1); s.count:SetText(todo); s.count:SetTextColor(unpack(S.gold))
-        s.count:ClearAllPoints(); s.count:SetPoint("BOTTOMRIGHT", -2, 2)
+        if not Compact() then s.count:ClearAllPoints(); s.count:SetPoint("BOTTOMRIGHT", -2, 2) end
         s:SetBackdropBorderColor(unpack(S.gold))
         s.glow:Show(); if not s.pulse:IsPlaying() then s.pulse:Play() end
         local r, g, b = 1, 1, 1
@@ -563,6 +701,19 @@ function ns.RefreshBar()
     end
     local key = BindingText()
     s.key:SetText(key or "")
+
+    if Compact() then
+        -- smart row: red when there's something to cast, tan when only refreshes are due
+        local st = "ok"
+        if s.glow:IsShown() then
+            st = (not combat and stats and stats.missing == 0 and stats.expiring > 0) and "low" or "need"
+        elseif not combat and stats and stats.far > 0 then
+            st = "low"
+        end
+        s.glow:Hide(); s.pulse:Stop()
+        Paint(s, st)
+        for _, b in ipairs(minis) do Paint(b, RowState(b)) end
+    end
 
     if not combat then
         Layout(minis)
