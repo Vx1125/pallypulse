@@ -1,5 +1,8 @@
 # PallyPulse
 
+## 1.0.7
+- When everyone is buffed, the Smart Buff key refreshes your Oath of Light out of combat too, instead of doing nothing.
+
 ## 1.0.6
 - Ready check window:
   - Players who are short a blessing are listed first.

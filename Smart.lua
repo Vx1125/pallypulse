@@ -197,17 +197,22 @@ function ns.QueueSmart()
     btn.combatQueue = nil
     local job, stats = ns.NextBuff()
     btn.stats = stats
+    local ounit = SetOathAttributes(btn)
     if job then
         btn:SetAttribute("type1", "spell")
         btn:SetAttribute("spell1", job.spell)
         btn:SetAttribute("unit1", job.unit)
+    elseif ounit then
+        -- nothing else to cast: the key refreshes Oath of Light (same as in combat)
+        btn:SetAttribute("type1", "spell")
+        btn:SetAttribute("spell1", ns.OATH.name)
+        btn:SetAttribute("unit1", ounit)
     else
         btn:SetAttribute("type1", nil)
         btn:SetAttribute("spell1", nil)
         btn:SetAttribute("unit1", nil)
     end
     btn.job = job
-    SetOathAttributes(btn)
 end
 
 -- PLAYER_REGEN_DISABLED: the last moment attributes can be set from normal addon code.

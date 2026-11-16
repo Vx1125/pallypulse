@@ -171,6 +171,9 @@ local function BuildSmart()
             end
         else
             GameTooltip:AddLine("Everyone you're assigned to is buffed", unpack(S.good))
+            if ns.oathCap[ns.Me()] and ns.oath[ns.Me()] then
+                GameTooltip:AddLine("Press: refresh Oath of Light", 0.6, 0.6, 0.6)
+            end
         end
         local st = self.stats
         if st then
