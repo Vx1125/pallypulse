@@ -538,5 +538,6 @@ end)
 BINDING_HEADER_PALLYPULSE = "PallyPulse"
 _G["BINDING_NAME_CLICK PallyPulseSmartButton:LeftButton"] = "Smart buff (next missing blessing)"
 _G["BINDING_NAME_CLICK PallyPulseSmartButton:RightButton"] = "Smart buff: Oath of Light"
+_G["BINDING_NAME_CLICK PallyPulseOathTarget:LeftButton"] = "Oath of Light on mouseover / target"
 BINDING_NAME_PALLYPULSE_TOGGLE = "Show / hide assignments"
 function PallyPulse_ToggleWindow() if ns.ToggleWindow then ns.ToggleWindow() end end

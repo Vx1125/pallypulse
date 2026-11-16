@@ -1,5 +1,8 @@
 # PallyPulse
 
+## 1.0.8
+- Put Oath of Light on anyone quickly: a new keybind, "Oath of Light on mouseover / target" (Key Bindings > AddOns > PallyPulse), casts it on whoever your mouse is over, otherwise your target, otherwise you, and makes them your Oath target. Shift-click the Oath row on the bar does the same. Works in combat; the Oath row and Smart Buff switch to the new target after combat.
+
 ## 1.0.7
 - Player list beside the bar: scroll the mouse wheel over a player to change the blessing you give them (marked with *), then click to cast it.
 - Fixed the player list closing when you move the mouse onto it.

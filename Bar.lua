@@ -39,6 +39,30 @@ local function CurrentSeal()
     return list[1], list
 end
 
+-- Oath of Light on whoever you're pointing at: mouseover, else your target, else yourself.
+-- Works in combat (the macro never changes). Afterwards that player becomes your Oath target.
+local function OathMacro()
+    local n = ns.OATH.name
+    return "/cast [@mouseover,help,nodead][@target,help,nodead][@player] " .. n
+end
+
+function ns.PickOathFromCast()
+    local me = ns.Me()
+    local function ok(u)
+        local r = false
+        pcall(function()
+            r = UnitExists(u) and UnitCanAssist("player", u) and not UnitIsDeadOrGhost(u)
+                and (UnitIsUnit(u, "player") or UnitInParty(u) or UnitInRaid(u)) and true or false
+        end)
+        return r
+    end
+    local unit = (ok("mouseover") and "mouseover") or (ok("target") and "target") or "player"
+    local name = ns.FullName(unit)
+    if not name or not ns.Readable(name) then return end
+    ns.db.oathAutoPick = nil          -- hand-picked: automatic Oath leaves it alone
+    if name ~= ns.oath[me] then ns.SetOath(me, name, true) end
+end
+
 function ns.Alert()
     pcall(PlaySound, (SOUNDKIT and SOUNDKIT.RAID_WARNING) or 8959, "Master")
 end
@@ -255,6 +279,11 @@ local function BuildMinis()
     local o = CreateFrame("Button", "PallyPulseOathBtn", bar, SECURE)
     W.IconSlot(o, MINI)
     o:RegisterForClicks("AnyDown", "AnyUp")
+    o:HookScript("PostClick", function(_, button, down)
+        if IsShiftKeyDown() and (down == nil or down == (GetCVarBool and GetCVarBool("ActionButtonUseKeyDown"))) then
+            ns.PickOathFromCast()
+        end
+    end)
     o.strip:SetColorTexture(S.paladin[1], S.paladin[2], S.paladin[3], 1)
     o:SetScript("OnEnter", function(self)
         PlaceTip(self)
@@ -265,6 +294,7 @@ local function BuildMinis()
             GameTooltip:AddLine("Not active", unpack(S.bad))
         end
         GameTooltip:AddLine("Click: cast Oath of Light on your Oath target", 0.6, 0.6, 0.6)
+        GameTooltip:AddLine("Shift-click: Oath on your target instead (they become your Oath target)", 0.6, 0.6, 0.6, true)
         GameTooltip:Show()
     end)
     o:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -474,6 +504,16 @@ function ns.BuildBar()
 
     BuildMinis()
     BuildFlyout()
+
+    -- keybind "Oath of Light on target" (Key Bindings > AddOns > PallyPulse)
+    local ot = CreateFrame("Button", "PallyPulseOathTarget", UIParent, SECURE)
+    ot:SetSize(1, 1)
+    local down = true
+    pcall(function() if GetCVarBool then down = GetCVarBool("ActionButtonUseKeyDown") end end)
+    ot:RegisterForClicks(down and "AnyDown" or "AnyUp")
+    ot:SetAttribute("type", "macro")
+    ot:SetAttribute("macrotext", OathMacro())
+    ot:SetScript("PostClick", function() ns.PickOathFromCast() end)
 
     bar.menuBtn = SmallIconButton(bar, "menu")
     bar.menuBtn:SetPoint("TOPRIGHT", -5, -5)
@@ -756,6 +796,8 @@ function ns.RefreshBar()
             o:SetAttribute("type", "spell")
             o:SetAttribute("spell", ns.OATH.name)
             o:SetAttribute("unit", ounit)
+            o:SetAttribute("shift-type1", "macro")
+            o:SetAttribute("shift-macrotext1", OathMacro())
         end
         minis[#minis + 1] = o
     end
