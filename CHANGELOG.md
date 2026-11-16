@@ -1,5 +1,9 @@
 # PallyPulse
 
+## 1.0.2
+- First CurseForge release.
+- Removed Blessing of Sanctuary (no longer in WoW Forever).
+
 ## 1.0.1
 - Removed Blessing of Sanctuary (no longer in WoW Forever).
 
