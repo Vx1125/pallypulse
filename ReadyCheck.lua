@@ -196,9 +196,6 @@ local function Owed(e)
         local k = ns.KeyFor(pal, e)
         if k and not owe[k] then owe[k] = pal end
     end
-    if e.fake and ns.PreviewOwed then
-        for k, pal in pairs(ns.PreviewOwed(e)) do if not owe[k] then owe[k] = pal end end
-    end
     return owe
 end
 
@@ -384,7 +381,7 @@ function ns.RefreshReadyCheck()
             or (W.Hex(unpack(S.warn)) .. ns.FirstName(pal) .. "|r")
         l.text:SetText(who .. ":  " .. table.concat(parts, "   "))
         l.pal, l.whisper, l.tip = nil, nil, nil
-        local real = ns.UnitForName and ns.UnitForName(pal)
+        local real = ns.UnitForName and ns.UnitForName(pal) and not (ns.IsFakeName and ns.IsFakeName(pal))
         if pal ~= me and real then
             l.pal = pal
             l.whisper = "[PallyPulse] Missing your " .. table.concat(wparts, "; ")

@@ -233,6 +233,12 @@ local function BuildTitle()
     win.sub:SetPoint("LEFT", title, "RIGHT", 8, -1)
     local close = W.CloseButton(tb, function() win:Hide() end)
     close:SetPoint("RIGHT", 4, 0)
+    win.testBtn = W.Button(tb, "Test mode", 86, 20, function() if ns.TogglePreview then ns.TogglePreview() end end)
+    win.testBtn:SetPoint("RIGHT", close, "LEFT", -6, 0)
+    W.Tip(win.testBtn, function(t)
+        t:AddLine("Test mode", 1, 1, 1)
+        t:AddLine("Fake 13-player raid with two fake paladins. Edit anything; nothing is cast or sent.", 0.7, 0.7, 0.7, true)
+    end)
     W.MakeDraggable(win, tb, "win", false)
 
     local x = PAD
@@ -720,7 +726,12 @@ end
 function ns.RefreshWindow()
     if not win or not win:IsShown() then return end
     local grp = IsInRaid() and "Raid" or (IsInGroup() and "Party" or "Solo")
+    if ns.preview then grp = W.Hex(unpack(S.warn)) .. "Test mode|r" end
     win.sub:SetText(("%s  |  %d paladin%s"):format(grp, #ns.paladins, #ns.paladins == 1 and "" or "s"))
+    if win.testBtn then
+        win.testBtn:SetText(ns.preview and "Exit test" or "Test mode")
+        if win.testBtn.label then win.testBtn.label:SetTextColor(unpack(ns.preview and S.warn or S.text)) end
+    end
     local h
     if current == "blessings" then h = RefreshBlessings(panels.blessings)
     elseif current == "players" then h = RefreshPlayers(panels.players)

@@ -77,8 +77,6 @@ function ns.BuildOptions(P, top)
     Add(W.Check(P, "Accept !bless requests", function() return ns.db.chatRequests end,
         function(v) ns.db.chatRequests = v end, "!bless want might"))
     Add(W.Check(P, "PallyPower sync", function() return ns.db.compat end, function(v) ns.db.compat = v end))
-    Add(W.Check(P, "Test mode", function() return ns.preview end,
-        function(v) if ns.SetPreview then ns.SetPreview(v) end end, "Adds a fake 13-player raid."))
 
     Section("Ready Check")
     Add(W.Check(P, "Show on ready check", function() return ns.db.readyCheck ~= false end,

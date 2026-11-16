@@ -1,5 +1,9 @@
 # PallyPulse
 
+## 1.1.0
+- Test mode moved to a button at the top of the window.
+- Test mode adds two fake paladins you can assign like real ones; fake players' buffs follow the assignments, so changes show everywhere at once.
+
 ## 1.0.9
 - Shorter labels and tooltips throughout.
 - Options regrouped: Bar, Raid frames, Key Bindings, Smart Buff, Group, Ready Check, Sounds.
