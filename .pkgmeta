@@ -9,3 +9,5 @@ ignore:
   - DESIGN.md
   - .github
   - VERSION
+  - media
+  - CURSEFORGE.md
