@@ -1,0 +1,143 @@
+local ADDON, ns = ...
+
+-- Aura assignments (one aura per paladin, synced with PallyPulse and PallyPower users) and the
+-- Righteous Fury reminder for tanking paladins. Both feed into Smart Buff, ahead of blessings.
+
+ns.auraCaps = {}   -- paladin -> { AURA KEY = true }
+
+function ns.ComputeAuraCaps()
+    local me = ns.Me()
+    local caps = {}
+    for _, a in ipairs(ns.AURAS) do
+        if ns.KnownSpell(a.name, a.id) then caps[a.key] = true end
+    end
+    ns.auraCaps[me] = caps
+    return caps
+end
+
+function ns.AuraFor(pal)
+    local k = ns.db and ns.db.auraAssign[pal]
+    return k and ns.AURA_BY_KEY[k] and k or nil
+end
+
+function ns.SetAura(pal, key, broadcast)
+    if key == "NONE" or key == "" then key = nil end
+    ns.db.auraAssign[pal] = key
+    ns.dirty = true
+    if ns.OnAssignmentsChanged then ns.OnAssignmentsChanged() end
+    if broadcast then
+        ns.Send(("U|%s|%s"):format(pal, key or "NONE"))
+        if ns.CompatSendAura then ns.CompatSendAura(pal, key) end
+    end
+end
+
+ns.comm["U"] = function(sender, pal, key)
+    if not (pal and key) then return end
+    if sender ~= pal and not ns.HasAuthority(ns.UnitForName(sender)) then return end
+    if key ~= "NONE" and not ns.AURA_BY_KEY[key] then return end
+    ns.SetAura(pal, key, false)
+end
+
+table.insert(ns.syncHooks, function()
+    local me = ns.Me()
+    if select(2, UnitClass("player")) == "PALADIN" then
+        ns.Send(("U|%s|%s"):format(me, ns.AuraFor(me) or "NONE"))
+    end
+end)
+
+-- One different aura per paladin, best first. Keeps auras already set where they're unique.
+function ns.AutoAuras()
+    local pals = {}
+    for i, p in ipairs(ns.paladins) do pals[i] = p end
+    table.sort(pals)
+    local used = {}
+    for _, pal in ipairs(pals) do
+        if not ns.CanEditRow(pal) then
+            local k = ns.AuraFor(pal)
+            if k then used[k] = true end
+        end
+    end
+    for _, pal in ipairs(pals) do
+        if ns.CanEditRow(pal) then
+            local caps = ns.auraCaps[pal]
+            local pick
+            for _, k in ipairs(ns.AURA_PREFS) do
+                if not used[k] and (not caps or next(caps) == nil or caps[k]) then pick = k break end
+            end
+            if pick then used[pick] = true end
+            ns.db.auraAssign[pal] = pick
+            ns.Send(("U|%s|%s"):format(pal, pick or "NONE"))
+            if ns.CompatSendAura then ns.CompatSendAura(pal, pick) end
+        end
+    end
+end
+
+-- ---------------------------------------------------------------------------
+-- Is a buff of yours on a unit? Returns expiration (0 = no duration) or nil.
+-- ---------------------------------------------------------------------------
+function ns.FindAura(unit, name, filter)
+    local modern = C_UnitAuras and C_UnitAuras.GetAuraDataByIndex
+    for i = 1, 40 do
+        local n, e, fin = nil, nil, false
+        if modern then
+            local ok, d = pcall(C_UnitAuras.GetAuraDataByIndex, unit, i, filter)
+            if ok and not d then fin = true
+            elseif ok then pcall(function() n, e = d.name, d.expirationTime end) end
+        else
+            local fn = (filter and filter:find("HARMFUL")) and UnitDebuff or UnitBuff
+            local f2 = filter and filter:find("PLAYER") and "PLAYER" or nil
+            local ok, nn, _, _, _, _, ee = pcall(fn, unit, i, f2)
+            if ok and not nn then fin = true elseif ok then n, e = nn, ee end
+        end
+        if fin then break end
+        if n and ns.Readable(n) and n == name then
+            if not ns.Readable(e) then e = 0 end
+            return e or 0
+        end
+    end
+    return nil
+end
+
+-- Your assigned aura: key, whether it's on, whether you know it.
+function ns.AuraStatus()
+    local me = ns.Me()
+    local key = ns.AuraFor(me)
+    if not key then return nil end
+    local a = ns.AURA_BY_KEY[key]
+    local known = ns.auraCaps[me] and ns.auraCaps[me][key]
+    local on = ns.FindAura("player", a.name, "HELPFUL|PLAYER") ~= nil
+    return key, on, known
+end
+
+-- Non-English clients: replace the English spell names with the client's own, looked up by id.
+-- English clients keep the names as written (safer if Forever renumbered any spells).
+function ns.LocalizeSpells()
+    local loc = GetLocale and GetLocale() or "enUS"
+    if loc == "enUS" or loc == "enGB" then return end
+    local function N(id)
+        local n
+        pcall(function()
+            if C_Spell and C_Spell.GetSpellName then n = C_Spell.GetSpellName(id)
+            elseif GetSpellInfo then n = GetSpellInfo(id) end
+        end)
+        return n
+    end
+    for _, b in ipairs(ns.BLESSINGS) do
+        local s, g = N(b.singleId), N(b.greaterId)
+        if s then ns.NAME2KEY[s] = b.key; b.single = s end
+        if g then ns.NAME2KEY[g] = b.key; b.greater = g end
+    end
+    for _, a in ipairs(ns.AURAS) do local n = N(a.id); if n then a.name = n end end
+    local rf = N(ns.RF.id); if rf then ns.RF.name = rf end
+end
+
+-- Should you have Righteous Fury up, and is it? (only while you're marked as tank)
+function ns.RFStatus()
+    if not ns.db.rfReminder then return false end
+    local me = ns.Me()
+    local tank = false
+    for _, t in ipairs(ns.FindTanks()) do if t == me then tank = true break end end
+    if not tank or not ns.KnownSpell(ns.RF.name, ns.RF.id) then return false end
+    local on = ns.FindAura("player", ns.RF.name, "HELPFUL|PLAYER") ~= nil
+    return true, on
+end

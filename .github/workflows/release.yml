@@ -1,0 +1,23 @@
+name: Package and release
+
+# Push a tag like v1.0.2 and this builds PallyPulse and uploads it to CurseForge
+# (project 1809219, from the TOC) and to GitHub Releases.
+on:
+  push:
+    tags:
+      - '**'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      CF_API_KEY: ${{ secrets.CF_API_KEY }}
+      GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Check out the code (full history, for the changelog)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Package and upload
+        uses: BigWigsMods/packager@v2

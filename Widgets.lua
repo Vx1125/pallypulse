@@ -1,0 +1,247 @@
+local ADDON, ns = ...
+local S = ns.STYLE
+
+-- Widget kit. Panels use the client's own tooltip textures and buttons use Blizzard's
+-- templates where they exist, so PallyPulse looks like part of the default UI.
+local W = {}
+ns.W = W
+
+local WHITE = "Interface\\Buttons\\WHITE8x8"
+W.WHITE = WHITE
+W.QUESTION = "Interface\\Icons\\INV_Misc_QuestionMark"
+W.READY = "Interface\\RaidFrame\\ReadyCheck-Ready"
+W.NOTREADY = "Interface\\RaidFrame\\ReadyCheck-NotReady"
+W.WAITING = "Interface\\RaidFrame\\ReadyCheck-Waiting"
+
+local BACKDROP_TEMPLATE = BackdropTemplateMixin and "BackdropTemplate" or nil
+
+function W.ClassColor(class)
+    local c = (CUSTOM_CLASS_COLORS and CUSTOM_CLASS_COLORS[class]) or RAID_CLASS_COLORS[class]
+    if c then return c.r, c.g, c.b end
+    return 1, 1, 1
+end
+
+function W.Hex(r, g, b)
+    return ("|cff%02x%02x%02x"):format(r * 255, g * 255, b * 255)
+end
+
+-- Tooltip-style panel: the same background and border as the game's tooltips.
+function W.Panel(parent, w, h, name)
+    local f = CreateFrame("Frame", name, parent, BACKDROP_TEMPLATE)
+    if w then f:SetSize(w, h) end
+    f:SetBackdrop({
+        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 16, edgeSize = 14,
+        insets = { left = 3, right = 3, top = 3, bottom = 3 },
+    })
+    f:SetBackdropColor(unpack(S.bg))
+    f:SetBackdropBorderColor(unpack(S.frame))
+    return f
+end
+
+-- Hard-edged 1px box, for icon slots and grid cells.
+function W.Flat(parent, w, h, bg, border, name)
+    local f = CreateFrame("Frame", name, parent, BACKDROP_TEMPLATE)
+    if w then f:SetSize(w, h) end
+    f:SetBackdrop({ bgFile = WHITE, edgeFile = WHITE, edgeSize = 1 })
+    f:SetBackdropColor(unpack(bg or S.cell))
+    f:SetBackdropBorderColor(unpack(border or S.border))
+    return f
+end
+
+function W.Text(parent, size, color, justify, font, flags)
+    local fs = parent:CreateFontString(nil, "OVERLAY")
+    fs:SetFont(font or S.font, size or 12, flags or "")
+    fs:SetShadowOffset(1, -1)
+    fs:SetShadowColor(0, 0, 0, 1)
+    local c = color or S.text
+    fs:SetTextColor(c[1], c[2], c[3], c[4] or 1)
+    fs:SetJustifyH(justify or "LEFT")
+    return fs
+end
+
+function W.Heading(parent, size)
+    return W.Text(parent, size or 13, S.gold, "LEFT", S.head)
+end
+
+-- Blizzard's red panel button; falls back to a flat button if the template is missing.
+function W.Button(parent, label, w, h, onClick)
+    local ok, b = pcall(CreateFrame, "Button", nil, parent, "UIPanelButtonTemplate")
+    if not ok or not b then
+        b = CreateFrame("Button", nil, parent, BACKDROP_TEMPLATE)
+        b:SetBackdrop({ bgFile = WHITE, edgeFile = WHITE, edgeSize = 1 })
+        b:SetBackdropColor(unpack(S.panel)); b:SetBackdropBorderColor(unpack(S.border))
+        b:SetNormalFontObject(GameFontNormalSmall)
+        b:SetHighlightFontObject(GameFontHighlightSmall)
+    end
+    b:SetSize(w, h)
+    b:SetText(label ~= "" and label or " ")
+    b.label = b:GetFontString()
+    if onClick then b:SetScript("OnClick", function(self) onClick(self) end) end
+    return b
+end
+
+-- Blizzard's close "X".
+function W.CloseButton(parent, onClick)
+    local ok, b = pcall(CreateFrame, "Button", nil, parent, "UIPanelCloseButton")
+    if not ok or not b then
+        b = CreateFrame("Button", nil, parent)
+        b:SetSize(20, 20)
+        local t = W.Text(b, 14, S.dim, "CENTER"); t:SetAllPoints(); t:SetText("x")
+    end
+    b:SetScript("OnClick", onClick)
+    return b
+end
+
+-- Small square check box (gold tick) with a label. get() -> bool, set(bool)
+function W.Check(parent, label, get, set)
+    local ok, c = pcall(CreateFrame, "CheckButton", nil, parent, "UICheckButtonTemplate")
+    if ok and c then
+        c:SetSize(24, 24)
+        local txt = W.Text(c, 12, S.text)
+        txt:SetPoint("LEFT", c, "RIGHT", 2, 1)
+        txt:SetText(label)
+        c:SetHitRectInsets(0, -200, 0, 0)
+        function c:Refresh() self:SetChecked(get() and true or false) end
+        c:SetScript("OnClick", function(self) set(self:GetChecked() and true or false) end)
+        c:Refresh()
+        return c
+    end
+    -- fallback
+    c = CreateFrame("Button", nil, parent)
+    c:SetSize(230, 22)
+    local box = W.Flat(c, 14, 14, S.panel, S.border); box:SetPoint("LEFT")
+    local mark = box:CreateTexture(nil, "OVERLAY")
+    mark:SetPoint("TOPLEFT", 3, -3); mark:SetPoint("BOTTOMRIGHT", -3, 3)
+    mark:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 1)
+    local txt = W.Text(c, 12, S.text); txt:SetPoint("LEFT", box, "RIGHT", 8, 0); txt:SetText(label)
+    function c:Refresh() mark:SetShown(get() and true or false) end
+    c:SetScript("OnClick", function() set(not get()); c:Refresh() end)
+    c:Refresh()
+    return c
+end
+
+-- Label with [-] value [+]. get() -> number, set(number)
+function W.Stepper(parent, label, get, set, step, minv, maxv, fmt)
+    local f = CreateFrame("Frame", nil, parent)
+    f:SetSize(236, 24)
+    local txt = W.Text(f, 12, S.text)
+    txt:SetPoint("LEFT", 4, 0); txt:SetText(label)
+    local function bump(d)
+        local v = math.floor((get() + d * step) * 100 + 0.5) / 100
+        v = math.max(minv, math.min(maxv, v))
+        set(v); f:Refresh()
+    end
+    local plus = W.Button(f, "+", 24, 20, function() bump(1) end)
+    plus:SetPoint("RIGHT")
+    local val = W.Text(f, 12, S.gold, "CENTER", S.head)
+    val:SetPoint("RIGHT", plus, "LEFT", -2, 0); val:SetWidth(40)
+    local minus = W.Button(f, "-", 24, 20, function() bump(-1) end)
+    minus:SetPoint("RIGHT", val, "LEFT", -2, 0)
+    function f:Refresh() val:SetText(fmt and fmt(get()) or tostring(get())) end
+    f:Refresh()
+    return f
+end
+
+function W.Tip(frame, fn)
+    frame:HookScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+        fn(GameTooltip)
+        GameTooltip:Show()
+    end)
+    frame:HookScript("OnLeave", function() GameTooltip:Hide() end)
+end
+
+local function Over(f)
+    if not f then return false end
+    if f.IsMouseOver then return f:IsMouseOver() end
+    if MouseIsOver then return MouseIsOver(f) end
+    return false
+end
+
+-- Popovers close when you click anywhere outside them (or their anchor).
+function W.AutoClose(frame)
+    frame:SetScript("OnUpdate", function(self)
+        if (IsMouseButtonDown("LeftButton") or IsMouseButtonDown("RightButton"))
+            and not Over(self) and not Over(self.anchor) then
+            self:Hide()
+        end
+    end)
+end
+
+function W.FormatTime(sec)
+    if not sec or sec == math.huge then return "" end
+    if sec >= 3600 then return ("%dh"):format(sec / 3600) end
+    if sec >= 60 then return ("%dm"):format(sec / 60) end
+    return ("%ds"):format(sec)
+end
+
+function W.SavePos(frame, key)
+    local p, _, rp, x, y = frame:GetPoint()
+    ns.db.pos[key] = { p, rp, x, y }
+end
+
+function W.RestorePos(frame, key, default)
+    local p = ns.db.pos[key] or default
+    frame:ClearAllPoints()
+    frame:SetPoint(p[1], UIParent, p[2], p[3], p[4])
+end
+
+function W.MakeDraggable(frame, handle, key, respectLock)
+    frame:SetMovable(true)
+    frame:SetClampedToScreen(true)
+    handle:EnableMouse(true)
+    handle:RegisterForDrag("LeftButton")
+    handle:SetScript("OnDragStart", function()
+        if respectLock and ns.db.locked then return end
+        frame:StartMoving()
+    end)
+    handle:SetScript("OnDragStop", function()
+        frame:StopMovingOrSizing()
+        W.SavePos(frame, key)
+    end)
+end
+
+-- Icon slot used across the bar: icon + 1px edge + optional class strip, count and timer.
+function W.IconSlot(btn, size)
+    btn:SetSize(size, size)
+    if btn.SetBackdrop then
+        btn:SetBackdrop({ bgFile = WHITE, edgeFile = WHITE, edgeSize = 1 })
+        btn:SetBackdropColor(0, 0, 0, 0.8)
+        btn:SetBackdropBorderColor(unpack(S.border))
+    end
+    btn.icon = btn:CreateTexture(nil, "ARTWORK")
+    btn.icon:SetPoint("TOPLEFT", 1, -1); btn.icon:SetPoint("BOTTOMRIGHT", -1, 1)
+    btn.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    btn.strip = btn:CreateTexture(nil, "OVERLAY")
+    btn.strip:SetPoint("BOTTOMLEFT", 1, 1); btn.strip:SetPoint("BOTTOMRIGHT", -1, 1)
+    btn.strip:SetHeight(2)
+    btn.check = btn:CreateTexture(nil, "OVERLAY", nil, 2)
+    btn.check:SetSize(size * 0.42, size * 0.42); btn.check:SetPoint("BOTTOMRIGHT", 1, -1)
+    btn.check:SetTexture(W.READY)
+    btn.count = W.Text(btn, math.floor(size * 0.45), S.warn, "CENTER", S.num, "OUTLINE")
+    btn.count:SetPoint("CENTER", 0, 1)
+    btn.timer = W.Text(btn, math.max(9, math.floor(size * 0.3)), S.text, "RIGHT", S.num, "OUTLINE")
+    btn.timer:SetPoint("TOPRIGHT", 0, -1)
+    btn.hl = btn:CreateTexture(nil, "HIGHLIGHT")
+    btn.hl:SetPoint("TOPLEFT", 1, -1); btn.hl:SetPoint("BOTTOMRIGHT", -1, 1)
+    btn.hl:SetColorTexture(1, 1, 1, 0.15)
+    return btn
+end
+
+-- state: "ok" (covered), "low" (expiring), "need" (some missing), "all" (everyone missing)
+function W.SetSlotState(btn, state, count, timer)
+    local covered = state == "ok"
+    btn.icon:SetDesaturated(covered)
+    local v = covered and 0.55 or 1
+    btn.icon:SetVertexColor(v, v, v)
+    btn.check:SetShown(covered)
+    btn.count:SetShown(not covered and count ~= nil)
+    if count then btn.count:SetText(count) end
+    local c = (state == "all" and S.bad) or (state == "need" and S.warn) or (state == "low" and S.warn) or S.good
+    btn.count:SetTextColor(c[1], c[2], c[3])
+    btn.timer:SetText(W.FormatTime(timer))
+    btn.baseBorder = covered and S.border or c
+    if btn.SetBackdropBorderColor then btn:SetBackdropBorderColor(unpack(btn.baseBorder)) end
+end

@@ -1,0 +1,244 @@
+local ADDON, ns = ...
+local S, W = ns.STYLE, ns.W
+
+-- Big, readable blessing icons on Blizzard's party and raid frames.
+--
+-- On each frame, right side, inside the health bar:
+--   [blessing]  the blessing you owe this player, with time left.
+--               Missing it: red border, pulsing, "!".
+--   [hand]      your Freedom / Protection / Sacrifice while it's on them (blue border).
+--   [oath]      your Oath of Light, on your Oath target (pink border).
+--
+-- The icons are plain textures parented to Blizzard's frames. They never take mouse input,
+-- so clicking and click-casting on the frames work exactly as before, in or out of combat.
+
+local overlays = {}      -- blizzard frame -> overlay
+local frameList = {}
+local lastListBuild = 0
+
+local function Enabled() return ns.db and ns.db.frameIcons end
+local function Size() return (ns.db and ns.db.frameIconSize) or 22 end
+
+-- Every Blizzard unit frame we know how to decorate, if it exists on this client.
+local function BuildFrameList()
+    wipe(frameList)
+    local function add(f) if f and f.GetObjectType then frameList[#frameList + 1] = f end end
+    for i = 1, 5 do add(_G["CompactPartyFrameMember" .. i]) end
+    for i = 1, 40 do add(_G["CompactRaidFrame" .. i]) end
+    for g = 1, 8 do for m = 1, 5 do add(_G["CompactRaidGroup" .. g .. "Member" .. m]) end end
+    for i = 1, 4 do add(_G["PartyMemberFrame" .. i]) end                         -- classic portrait frames
+    if PartyFrame then for i = 1, 4 do add(PartyFrame["MemberFrame" .. i]) end end  -- modern portrait frames
+    lastListBuild = GetTime()
+end
+
+local function FrameUnit(f)
+    local u = f.displayedUnit or f.unit
+    if not u and f.GetAttribute then
+        local ok, v = pcall(f.GetAttribute, f, "unit")
+        if ok then u = v end
+    end
+    return u
+end
+
+-- ---------------------------------------------------------------------------
+-- Overlay
+-- ---------------------------------------------------------------------------
+local function MakeSlot(parent, border)
+    local s = CreateFrame("Frame", nil, parent, BackdropTemplateMixin and "BackdropTemplate" or nil)
+    W.IconSlot(s, Size())
+    s:EnableMouse(false)
+    s.check:Hide(); s.count:Hide()
+    s.strip:SetColorTexture(0, 0, 0, 0)
+    s.border = border
+    s.bang = W.Text(s, 14, S.bad, "CENTER", S.num, "OUTLINE")
+    s.bang:SetPoint("CENTER", 0, 0)
+    s.bang:SetText("!")
+    s.bang:Hide()
+    local ag = s:CreateAnimationGroup()
+    ag:SetLooping("BOUNCE")
+    local a = ag:CreateAnimation("Alpha")
+    a:SetFromAlpha(1); a:SetToAlpha(0.35); a:SetDuration(0.6)
+    s.pulse = ag
+    s:Hide()
+    return s
+end
+
+local function GetOverlay(f)
+    local o = overlays[f]
+    if o then return o end
+    o = CreateFrame("Frame", nil, f)
+    o:SetAllPoints(f)
+    o:EnableMouse(false)
+    o:SetFrameLevel((f:GetFrameLevel() or 1) + 8)
+    o.bless = MakeSlot(o, S.border)
+    o.hand = MakeSlot(o, { 0.30, 0.60, 1.00, 1 })
+    o.oath = MakeSlot(o, S.paladin)
+    o.vigil = MakeSlot(o, { 1.00, 0.85, 0.40, 1 })
+    o.forb = MakeSlot(o, { 0.70, 0.20, 0.20, 1 })
+    overlays[f] = o
+    return o
+end
+
+local function Resize(o)
+    local sz = Size()
+    for _, s in ipairs({ o.bless, o.hand, o.oath, o.vigil, o.forb }) do
+        s:SetSize(sz, sz)
+        s.timer:SetFont(S.num, math.max(9, math.floor(sz * 0.42)), "OUTLINE")
+        s.bang:SetFont(S.num, math.floor(sz * 0.7), "OUTLINE")
+    end
+    o.size = sz
+end
+
+-- Lay out the visible slots from the right edge inward, vertically centred.
+local function Place(o, slots)
+    local x = -4
+    for _, s in ipairs(slots) do
+        s:ClearAllPoints()
+        s:SetPoint("RIGHT", o, "RIGHT", x, 0)
+        x = x - (o.size + 2)
+    end
+end
+
+-- far: out of range for your blessing. Shown dim and still, so it's clear a press won't reach.
+local function SetSlot(s, icon, left, missing, far)
+    s.icon:SetTexture(icon or W.QUESTION)
+    s.icon:SetDesaturated((missing or far) and true or false)
+    s.timer:SetText(missing and "" or W.FormatTime(left))
+    s.bang:SetShown(missing and true or false)
+    local c = (missing and not far) and S.bad or (far and S.dim) or s.border
+    s:SetBackdropBorderColor(c[1], c[2], c[3], 1)
+    if missing and not far then
+        if not s.pulse:IsPlaying() then s.pulse:Play() end
+    else
+        s.pulse:Stop()
+    end
+    s:SetAlpha(far and 0.4 or 1)
+    s:Show()
+end
+
+local function SpellIcon(name)
+    local icon
+    pcall(function()
+        if C_Spell and C_Spell.GetSpellTexture then icon = C_Spell.GetSpellTexture(name)
+        elseif GetSpellTexture then icon = GetSpellTexture(name) end
+    end)
+    return icon
+end
+
+-- ---------------------------------------------------------------------------
+-- Update
+-- ---------------------------------------------------------------------------
+local function EntryForUnit(unit)
+    local name = ns.FullName(unit)
+    if not name then return nil end
+    for _, e in ipairs(ns.roster) do
+        if e.name == name then return e end
+    end
+end
+
+local function UpdateFrame(f)
+    local o = overlays[f]
+    local unit = f:IsVisible() and FrameUnit(f)
+    local e = unit and ns.SafeUnit(UnitExists, unit, false) and EntryForUnit(unit)
+    if not Enabled() or not e then
+        if o then o:Hide() end
+        return
+    end
+    o = GetOverlay(f)
+    if o.size ~= Size() then Resize(o) end
+    o:Show()
+
+    local me = ns.Me()
+    local slots = {}
+    local alive = ns.Eligible(e)
+
+    -- your assigned blessing for this player's class
+    local key = ns.KeyFor(me, e)
+    if key and ns.BY_KEY[key] and alive then
+        local left = ns.MemberRemaining(e, key)
+        local far = e.name ~= me and ns.InRange and ns.InRange(ns.BY_KEY[key].single, e.unit) == false
+        SetSlot(o.bless, ns.BY_KEY[key].icon, left, not left, far)
+        slots[#slots + 1] = o.bless
+    else
+        o.bless:Hide()
+    end
+
+    -- your Freedom / Protection / Sacrifice
+    local hand = alive and ns.HandActive(e.unit)
+    if hand then
+        SetSlot(o.hand, SpellIcon(hand), nil, false)
+        slots[#slots + 1] = o.hand
+    else
+        o.hand:Hide()
+    end
+
+    -- your Oath of Light
+    if ns.oathCap[me] and ns.oath[me] == e.name and alive then
+        local _, oleft = ns.OathStatus()
+        SetSlot(o.oath, ns.OathIcon(), oleft, not oleft)
+        slots[#slots + 1] = o.oath
+    else
+        o.oath:Hide()
+    end
+
+    -- your Light's Vigil (Holy: only one friendly player per party can have it)
+    local vexp = alive and ns.FindAura(e.unit, ns.VIGIL.name, "HELPFUL|PLAYER")
+    if vexp then
+        SetSlot(o.vigil, SpellIcon(ns.VIGIL.name) or ns.VIGIL.icon, vexp > 0 and (vexp - GetTime()) or nil, false)
+        slots[#slots + 1] = o.vigil
+    else
+        o.vigil:Hide()
+    end
+
+    -- Forbearance: Blessing of Protection, Divine Shield and Templar's Bulwark won't work on them
+    local fexp = alive and ns.FindAura(e.unit, ns.FORBEARANCE, "HARMFUL")
+    if fexp then
+        SetSlot(o.forb, SpellIcon(ns.FORBEARANCE) or "Interface\\Icons\\Spell_Holy_RemoveCurse",
+            fexp > 0 and (fexp - GetTime()) or nil, false)
+        o.forb.icon:SetDesaturated(true)
+        slots[#slots + 1] = o.forb
+    else
+        o.forb:Hide()
+    end
+
+    Place(o, slots)
+end
+
+function ns.RefreshFrameIcons()
+    if GetTime() - lastListBuild > 5 then BuildFrameList() end
+    for _, f in ipairs(frameList) do
+        local ok = pcall(UpdateFrame, f)
+        if not ok and overlays[f] then overlays[f]:Hide() end
+    end
+end
+
+local driver = CreateFrame("Frame")
+local elapsed, dirty = 0, true
+driver:RegisterEvent("GROUP_ROSTER_UPDATE")
+driver:RegisterEvent("UNIT_AURA")
+driver:RegisterEvent("PLAYER_ENTERING_WORLD")
+driver:SetScript("OnEvent", function(_, event)
+    if event ~= "UNIT_AURA" then lastListBuild = 0 end   -- frames may have been created or reassigned
+    dirty = true
+end)
+driver:SetScript("OnUpdate", function(_, dt)
+    elapsed = elapsed + dt
+    if elapsed < 0.25 then return end
+    if dirty or elapsed > 1 then        -- at least once a second, for the timers
+        elapsed, dirty = 0, false
+        if ns.db then ns.RefreshFrameIcons() end
+    end
+end)
+
+-- /pulse frames: list which Blizzard frames were found, for troubleshooting.
+function ns.DebugFrames()
+    BuildFrameList()
+    local n = 0
+    for _, f in ipairs(frameList) do
+        if f:IsVisible() then
+            n = n + 1
+            ns.Print(("%s  unit=%s"):format(f:GetName() or "?", tostring(FrameUnit(f))))
+        end
+    end
+    if n == 0 then ns.Print("No visible party/raid frames found. Are you in a group with Blizzard's frames shown?") end
+end

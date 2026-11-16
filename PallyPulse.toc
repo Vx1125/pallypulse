@@ -1,0 +1,24 @@
+## Interface: 16001
+## Title: PallyPulse
+## Notes: Paladin blessings for WoW Forever: one-button smart buffing (in combat too), spec-aware assignments, auras, Oath of Light, party-frame icons and PallyPower sync.
+## Author: Austin
+## Version: @project-version@
+## SavedVariables: PallyPulseDB
+## X-Category: Paladin
+## X-Curse-Project-ID: 1809219
+
+Data.lua
+Core.lua
+Compat.lua
+Widgets.lua
+Players.lua
+Auras.lua
+Versions.lua
+Smart.lua
+Presets.lua
+Bar.lua
+FrameIcons.lua
+Settings.lua
+Window.lua
+Minimap.lua
+UI.lua
