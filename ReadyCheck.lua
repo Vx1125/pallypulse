@@ -84,7 +84,7 @@ local function Build()
     win:Hide()
     W.MakeDraggable(win, win, "ready")
     W.RestorePos(win, "ready", { "TOP", "TOP", 0, -140 })
-    win:SetScale(ns.db.rcScale or ns.db.scale or 1)
+    win:SetScale(ns.RCScale())
 
     win.title = W.Text(win, 14, S.gold, "LEFT", S.head)
     win.title:SetPoint("TOPLEFT", PAD, -9)
@@ -404,7 +404,7 @@ function ns.ShowReadyCheck(auto)
     if not win then Build() end
     if InCombatLockdown() then return end
     closeAt = nil
-    win:SetScale(ns.db.rcScale or ns.db.scale or 1)
+    win:SetScale(ns.RCScale())
     win:Show()
     ns.RefreshReadyCheck()
     ns.dirty = true   -- the bar refreshes too

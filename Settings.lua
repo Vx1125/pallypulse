@@ -39,8 +39,10 @@ function ns.BuildOptions(P, top)
         "Row, Wrap and Column only: the next buff and counts as text."))
     Add(W.Check(P, "Show minimap button", function() return ns.db.showMinimap end,
         function(v) ns.db.showMinimap = v; if ns.UpdateMinimap then ns.UpdateMinimap() end end))
-    Add(W.Stepper(P, "UI scale", function() return ns.db.scale end, function(v) ns.db.scale = v; ns.ApplyScale() end,
-        0.1, 0.7, 1.5, function(v) return ("%.1f"):format(v) end, "Size of the bar and the main window."))
+    Add(W.Stepper(P, "Bar size", function() return ns.db.scale end, function(v) ns.db.scale = v; ns.ApplyScale() end,
+        0.1, 0.5, 2.0, function(v) return ("%.1f"):format(v) end, "Size of the buff bar."))
+    Add(W.Stepper(P, "Window size", function() return ns.WinScale() end, function(v) ns.db.winScale = v; ns.ApplyScale() end,
+        0.1, 0.6, 1.5, function(v) return ("%.1f"):format(v) end, "Size of this window."))
 
     Section("Compact layout")
     Add(W.Stepper(P, "Row width", function() return ns.db.rowWidth or 76 end,
@@ -97,9 +99,14 @@ function ns.BuildOptions(P, top)
         "Adds Stamina, Mark, Intellect, Spirit, food and flask."))
     Add(W.Check(P, "Sound if my blessings are missing", function() return ns.db.readyCheckSound end,
         function(v) ns.db.readyCheckSound = v end, "Plays a sound when a ready check starts and you owe blessings."))
-    Add(W.Stepper(P, "Window scale", function() return ns.db.rcScale or ns.db.scale or 1 end,
-        function(v) ns.db.rcScale = v; ns.ApplyScale() end, 0.1, 0.6, 1.5, function(v) return ("%.1f"):format(v) end,
-        "Size of the ready check window."))
+    Add(W.Stepper(P, "Ready check size", function() return ns.RCScale() end,
+        function(v)
+            ns.db.rcScale = v; ns.ApplyScale()
+            -- show the window so the change is visible
+            local rc = _G.PallyPulseReadyCheck
+            if not (rc and rc:IsShown()) and ns.ShowReadyCheck then ns.ShowReadyCheck() end
+        end, 0.1, 0.6, 1.5, function(v) return ("%.1f"):format(v) end,
+        "Size of the ready check window. Changing it opens the window so you can see."))
 
     Section("Testing")
     Add(W.Check(P, "Preview a raid", function() return ns.preview end,

@@ -140,7 +140,7 @@ local function OpenPicker(anchor, options, cur, onPick)
     picker.onPick, picker.anchor = onPick, anchor
     picker:ClearAllPoints()
     picker:SetPoint("BOTTOM", anchor, "TOP", 0, 2)
-    picker:SetScale(ns.db.scale)
+    picker:SetScale(ns.WinScale and ns.WinScale() or ns.db.scale)
     picker:Show()
 end
 
@@ -711,7 +711,7 @@ local function Build()
     end)
     win:SetScript("OnHide", function() ns.HideMenus() end)
     W.RestorePos(win, "win", { "CENTER", "CENTER", 0, 60 })
-    win:SetScale(ns.db.scale)
+    win:SetScale(ns.WinScale and ns.WinScale() or ns.db.scale)
 end
 
 function ns.RefreshWindow()
