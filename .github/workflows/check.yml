@@ -1,0 +1,18 @@
+name: Check Lua
+
+# Syntax-checks every .lua file on each push and pull request, so a typo shows up as a red
+# X on GitHub straight away instead of at release time. Syntax only: it can't catch wrong
+# game function names or runtime errors.
+on:
+  push:
+  pull_request:
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Lua syntax
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq lua5.1
+          rc=0; for f in *.lua; do luac5.1 -p "$f" || rc=1; done; exit $rc
