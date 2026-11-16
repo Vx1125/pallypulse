@@ -5,6 +5,7 @@
 - Fixed your own aura (e.g. Retribution Aura) showing as "Off" when it was on.
 - The buff bar now says it can't be moved in combat instead of silently failing.
 - New /pulse auras command lists the buffs on you, for troubleshooting.
+- Smaller buff bar slots, and a new Bar layout option (Row, Wrap or Column) in Options.
 
 ## 1.0.2
 - First CurseForge release.

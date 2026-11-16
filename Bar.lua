@@ -7,9 +7,9 @@ local S, W = ns.STYLE, ns.W
 -- The smart button (or its keybind) casts the next buff you owe. The small class slots
 -- still cast by hand: left-click greater (or normal), right-click normal blessing.
 
-local SMART, MINI, GAP, PAD = 44, 28, 3, 7
+local SMART, MINI, GAP, PAD = 44, 22, 2, 7
 local TEXT_W = 128
-local PER_ROW_STACKED = 5
+local PER_ROW_WRAP = 8      -- slots per row in the Wrap layout
 local bar
 local ShowFlyout   -- defined below; the class buttons call it
 
@@ -343,8 +343,10 @@ local function Layout(minis)
     local w, h = headW, PAD * 2 + SMART
     local n = #minis
     if not ns.db.collapsed and n > 0 then
-        if ns.db.vertical then
-            -- stacked: rows of class slots under the smart button
+        local mode = ns.db.barLayout or "row"
+        if mode ~= "row" then
+            -- Wrap / Column: rows of slots under the smart button
+            local PER_ROW_STACKED = (mode == "column") and 1 or PER_ROW_WRAP
             for i, b in ipairs(minis) do
                 local col = (i - 1) % PER_ROW_STACKED
                 local rowi = math.floor((i - 1) / PER_ROW_STACKED)

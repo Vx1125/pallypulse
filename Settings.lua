@@ -15,8 +15,14 @@ function ns.BuildOptions(P, top)
 
     Section("Buff bar")
     Add(W.Check(P, "Lock buff bar position", function() return ns.db.locked end, function(v) ns.db.locked = v end))
-    Add(W.Check(P, "Stack class buttons under Smart Buff", function() return ns.db.vertical end,
-        function(v) ns.db.vertical = v; ns.dirty = true end))
+    local LAYOUTS = { "row", "wrap", "column" }
+    local LAYOUT_NAMES = { "Row", "Wrap", "Column" }
+    Add(W.Stepper(P, "Bar layout", function()
+            for i, k in ipairs(LAYOUTS) do if k == ns.db.barLayout then return i end end
+            return 1
+        end,
+        function(v) ns.db.barLayout = LAYOUTS[v] or "row"; ns.dirty = true end,
+        1, 1, 3, function(v) return LAYOUT_NAMES[v] or "Row" end))
     Add(W.Check(P, "Show minimap button", function() return ns.db.showMinimap end,
         function(v) ns.db.showMinimap = v; if ns.UpdateMinimap then ns.UpdateMinimap() end end))
     Add(W.Stepper(P, "UI scale", function() return ns.db.scale end, function(v) ns.db.scale = v; ns.ApplyScale() end,
