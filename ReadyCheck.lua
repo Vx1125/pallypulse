@@ -2,8 +2,8 @@ local ADDON, ns = ...
 local S, W = ns.STYLE, ns.W
 
 -- Ready check window: opens on a ready check (or /pulse check) and shows, for everyone in
--- the group, their ready status and which buffs they have: the four blessings, the main
--- raid buffs, food and flask. Gaps that are yours to fill get a red outline.
+-- the group, their ready status and which blessings they have. With "show raid buffs" on it
+-- also shows the main raid buffs, food and flask. Gaps that are yours to fill get a red outline.
 -- Ready checks happen out of combat, when group members' buffs can be read.
 
 local ICON = "Interface\\Icons\\"
@@ -22,7 +22,7 @@ end
 local function Col(key, label, icon, names, from)
     local set = {}
     for _, n in ipairs(names) do set[n] = true end
-    COLS[#COLS + 1] = { key = key, label = label, icon = ICON .. icon, names = set, from = from }
+    COLS[#COLS + 1] = { key = key, label = label, icon = ICON .. icon, names = set, from = from, raid = true }
 end
 Col("FORT",   "Stamina",   "Spell_Holy_WordFortitude",  { "Power Word: Fortitude", "Prayer of Fortitude" }, { PRIEST = true })
 Col("MOTW",   "Mark",      "Spell_Nature_Regeneration", { "Mark of the Wild", "Gift of the Wild" }, { DRUID = true })
@@ -173,8 +173,8 @@ function ns.RefreshReadyCheck()
     for _, e in ipairs(list) do present[e.class] = true end
     wipe(shownCols)
     for i, col in ipairs(COLS) do
-        local show = true
-        if col.from then
+        local show = not col.raid or ns.db.readyCheckRaid
+        if show and col.from then
             show = false
             for c in pairs(col.from) do if present[c] then show = true break end end
         end
