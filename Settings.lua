@@ -27,7 +27,7 @@ function ns.BuildOptions(P, top)
         "Compact: PallyPower-style rows. Row, Wrap, Column: icon slots."))
     Add(W.Check(P, "Fade when all buffed", function() return ns.db.fadeIdle end,
         function(v) ns.db.fadeIdle = v; ns.ApplyBarFade() end,
-        "The bar goes faint when there's nothing to cast. Full strength on mouseover and in combat."))
+        "The bar goes faint when there's nothing to cast, in or out of combat. Full strength on mouseover."))
     Add(W.Check(P, "Show aura button", function() return ns.db.auraButton ~= false end,
         function(v) ns.db.auraButton = v; ns.dirty = true end,
         "Your assigned aura on the bar. Smart Buff still turns it on either way."))

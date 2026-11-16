@@ -219,13 +219,16 @@ function W.MakeDraggable(frame, handle, key, respectLock, noCombatMove)
             return
         end
         moving = true
+        frame.pulseMoving = true      -- the bar holds off re-laying itself out while dragged
         frame:StartMoving()
     end)
     handle:SetScript("OnDragStop", function()
         if not moving then return end
         moving = false
         frame:StopMovingOrSizing()
+        frame.pulseMoving = false
         W.SavePos(frame, key)
+        ns.dirty = true
     end)
 end
 

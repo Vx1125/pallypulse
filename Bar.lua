@@ -831,7 +831,8 @@ function ns.RefreshBar()
     end
     local key = BindingText()
     s.key:SetText(key or "")
-    bar.idle = not combat and not s.glow:IsShown() and not (stats and stats.far > 0)
+    -- idle = nothing to cast (in combat: the combat queue is empty and Oath isn't urgent)
+    bar.idle = not s.glow:IsShown() and not (not combat and stats and stats.far > 0)
 
     if Compact() then
         -- smart row: red when there's something to cast, tan when only refreshes are due
@@ -846,7 +847,7 @@ function ns.RefreshBar()
         for _, b in ipairs(minis) do Paint(b, RowState(b)) end
     end
 
-    if not combat then
+    if not combat and not bar.pulseMoving then   -- never re-lay out mid-drag: it fights the mouse
         Layout(minis)
         ns.layoutDirty = false
     else
@@ -855,11 +856,12 @@ function ns.RefreshBar()
     ns.ApplyBarFade()
 end
 
--- Fade the bar when there's nothing to do (option); full strength on mouseover and in combat.
+-- Fade the bar when there's nothing to cast (option), in or out of combat; full strength on
+-- mouseover and while dragging.
 function ns.ApplyBarFade()
     if not bar then return end
     local a = 1
-    if ns.db.fadeIdle and bar.idle and not InCombatLockdown() and not bar:IsMouseOver() then a = 0.3 end
+    if ns.db.fadeIdle and bar.idle and not bar.pulseMoving and not bar:IsMouseOver() then a = 0.3 end
     if bar:GetAlpha() ~= a then bar:SetAlpha(a) end
 end
 
