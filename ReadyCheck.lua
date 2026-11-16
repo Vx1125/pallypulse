@@ -206,7 +206,8 @@ function ns.RefreshReadyCheck()
             row.name:SetTextColor(cr, cg, cb)
 
             local st
-            pcall(function() st = GetReadyCheckStatus and GetReadyCheckStatus(e.unit) end)
+            if e.fake then st = e.ready
+            else pcall(function() st = GetReadyCheckStatus and GetReadyCheckStatus(e.unit) end) end
             if not ns.Readable(st) then st = nil end
             if st then lastStatus[e.name] = st else st = lastStatus[e.name] end
             if st == "ready" then ready = ready + 1 end
@@ -214,7 +215,8 @@ function ns.RefreshReadyCheck()
             row.ready:SetTexture(rt); row.ready:SetShown(rt ~= nil)
 
             local alive = not ns.SafeUnit(UnitIsDeadOrGhost, e.unit, false)
-            local have = BuffsOn(e.unit)
+            local have
+            if e.fake then alive, have = not e.dead, ns.PreviewBuffs(e) else have = BuffsOn(e.unit) end
             local myKey = ns.KeyFor(me, e)
             for i, c in ipairs(row.cells) do c:Hide() end
             for k, ci in ipairs(shownCols) do

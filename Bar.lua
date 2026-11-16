@@ -311,6 +311,7 @@ function ShowFlyout(btn)
             local _, single = ns.CastNames(key, e.class)
             r:SetAttribute("type1", "spell"); r:SetAttribute("spell1", single); r:SetAttribute("unit1", e.unit)
             r:SetAttribute("type2", "spell"); r:SetAttribute("spell2", single); r:SetAttribute("unit2", e.unit)
+            if e.fake then r:SetAttribute("type1", nil); r:SetAttribute("type2", nil) end   -- preview player
             r.icon:SetTexture(ns.BY_KEY[key].icon)
             r.name:SetText(ns.FirstName(e.name))
             r.name:SetTextColor(W.ClassColor(e.class))

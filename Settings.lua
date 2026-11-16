@@ -50,6 +50,8 @@ function ns.BuildOptions(P, top)
         2, 14, 40, function(v) return ("%d"):format(v) end))
 
     Section("Group")
+    Add(W.Check(P, "Preview a raid (test while solo)", function() return ns.preview end,
+        function(v) if ns.SetPreview then ns.SetPreview(v) end end))
     Add(W.Check(P, "Answer \"!bless\" chat requests", function() return ns.db.chatRequests end,
         function(v) ns.db.chatRequests = v end))
     Add(W.Check(P, "Sync with PallyPower users", function() return ns.db.compat end, function(v) ns.db.compat = v end))

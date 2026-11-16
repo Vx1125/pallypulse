@@ -18,6 +18,7 @@ Smart.lua
 Presets.lua
 Bar.lua
 ReadyCheck.lua
+Preview.lua
 FrameIcons.lua
 Settings.lua
 Window.lua

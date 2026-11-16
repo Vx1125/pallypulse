@@ -916,6 +916,8 @@ SlashCmdList.PALLYPULSE = function(msg)
         if ns.DebugAuras then ns.DebugAuras() end
     elseif cmd == "check" then
         if ns.ToggleReadyCheck then ns.ToggleReadyCheck() end
+    elseif cmd == "preview" then
+        if ns.TogglePreview then ns.TogglePreview() end
     elseif cmd == "compat" then
         if arg == "on" or arg == "off" then ns.db.compat = (arg == "on") end
         ns.Print("PallyPower compatibility is " .. (ns.db.compat and "ON" or "OFF") .. ". Usage: /pulse compat on|off")
@@ -943,6 +945,6 @@ SlashCmdList.PALLYPULSE = function(msg)
             ns.Print("Usage: /pulse scale <0.5 - 2>")
         end
     else
-        ns.Print("/pulse (window) | players | versions | options | bar | lock | auto | announce | sync | test | trace | debug | frames | auras | check")
+        ns.Print("/pulse (window) | players | versions | options | bar | lock | auto | announce | sync | test | trace | debug | frames | auras | check | preview")
     end
 end

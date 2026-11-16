@@ -59,7 +59,8 @@ function ns.Candidates()
 
     local function add(score, job)
         job.score = score
-        job.near = ns.SafeUnit(UnitIsVisible, job.unit, true) and ns.InRange(job.spell, job.unit) ~= false
+        job.near = (ns.preview and ns.IsFake and ns.IsFake(job.unit))
+            or (ns.SafeUnit(UnitIsVisible, job.unit, true) and ns.InRange(job.spell, job.unit) ~= false)
         if not job.near then stats.far = stats.far + 1 end
         jobs[#jobs + 1] = job
     end
