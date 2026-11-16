@@ -345,12 +345,53 @@ local function BuildFlyout()
         r.hl = r:CreateTexture(nil, "HIGHLIGHT")
         r.hl:SetAllPoints(); r.hl:SetColorTexture(1, 1, 1, 0.10)
         r:SetPoint("TOPLEFT", 5, -5 - (i - 1) * FLY_H)
+        -- mouse wheel: change the blessing you give this player (a personal blessing)
+        r:EnableMouseWheel(true)
+        r:SetScript("OnMouseWheel", function(self, delta)
+            local e = self.entry
+            if InCombatLockdown() or not e then return end
+            local me = ns.Me()
+            local caps = ns.caps[me]
+            local keys = {}
+            for _, b in ipairs(ns.BLESSINGS) do
+                if not caps or caps[b.key] then keys[#keys + 1] = b.key end
+            end
+            if #keys < 2 then return end
+            local cur, idx = ns.KeyFor(me, e), 1
+            for i2, k in ipairs(keys) do if k == cur then idx = i2 end end
+            local new = keys[((idx - 1 - delta) % #keys) + 1]
+            local classKey = ns.assign[me] and ns.assign[me][e.class]
+            ns.SetOverride(me, e.name, (new ~= classKey) and new or nil, not e.fake)
+            ns.dirty = true
+            ShowFlyout(fly.anchor)
+            if self:IsMouseOver() then self:GetScript("OnEnter")(self) end
+        end)
+        r:SetScript("OnEnter", function(self)
+            local e = self.entry
+            if not e then return end
+            GameTooltip:SetOwner(self, "ANCHOR_NONE")
+            GameTooltip:ClearAllPoints()
+            GameTooltip:SetPoint("TOPLEFT", fly, "BOTTOMLEFT", 0, -4)
+            GameTooltip:AddLine(ns.FirstName(e.name), W.ClassColor(e.class))
+            if self.key then GameTooltip:AddLine("Click: " .. ns.BY_KEY[self.key].single, 1, 1, 1) end
+            GameTooltip:AddLine("Wheel: change their blessing", 0.6, 0.6, 0.6)
+            if self.own then GameTooltip:AddLine("Right-click the Players tab cell to reset", 0.6, 0.6, 0.6) end
+            GameTooltip:Show()
+        end)
+        r:SetScript("OnLeave", function() GameTooltip:Hide() end)
         r:Hide()
         fly.rows[i] = r
     end
-    fly:SetScript("OnUpdate", function(self)
+    -- stays open while the mouse is on it, its button or the bar, with half a second of
+    -- grace so crossing the gap between the bar and the list doesn't close it
+    fly:SetScript("OnUpdate", function(self, dt)
         if InCombatLockdown() then return end
-        if not self:IsMouseOver() and not (self.anchor and self.anchor:IsMouseOver()) then self:Hide() end
+        if self:IsMouseOver() or (self.anchor and self.anchor:IsMouseOver()) or bar:IsMouseOver() then
+            self.away = 0
+            return
+        end
+        self.away = (self.away or 0) + dt
+        if self.away > 0.5 then self:Hide() end
     end)
     local ev = CreateFrame("Frame")
     ev:RegisterEvent("PLAYER_REGEN_DISABLED")     -- last chance to hide it before combat locks it
@@ -372,8 +413,10 @@ function ShowFlyout(btn)
             r:SetAttribute("type1", "spell"); r:SetAttribute("spell1", single); r:SetAttribute("unit1", e.unit)
             r:SetAttribute("type2", "spell"); r:SetAttribute("spell2", single); r:SetAttribute("unit2", e.unit)
             if e.fake then r:SetAttribute("type1", nil); r:SetAttribute("type2", nil) end   -- preview player
+            r.entry, r.key = e, key
+            r.own = ns.IsException(me, e) and true or false
             r.icon:SetTexture(ns.BY_KEY[key].icon)
-            r.name:SetText(ns.FirstName(e.name))
+            r.name:SetText(ns.FirstName(e.name) .. (r.own and " *" or ""))
             r.name:SetTextColor(W.ClassColor(e.class))
             local alive = ns.Eligible(e)
             local left = alive and ns.MemberRemaining(e, key)
@@ -392,11 +435,14 @@ function ShowFlyout(btn)
     local yoff = (btn:GetTop() or 0) - (bar:GetTop() or 0)
     local right = SideRight()
     if right then
-        fly:SetPoint("TOPLEFT", bar, "TOPRIGHT", 4, yoff)
+        fly:SetPoint("TOPLEFT", bar, "TOPRIGHT", 2, yoff)
+    elseif Compact() then
+        fly:SetPoint("TOPRIGHT", btn, "TOPLEFT", -2, 0)    -- right next to the row, not past the drag dot
     else
-        fly:SetPoint("TOPRIGHT", bar, "TOPLEFT", -4, yoff)
+        fly:SetPoint("TOPRIGHT", bar, "TOPLEFT", -2, yoff)
     end
     fly:SetScale(1)
+    fly.away = 0
     fly:Show()
     if GameTooltip:IsOwned(btn) then
         GameTooltip:ClearAllPoints()

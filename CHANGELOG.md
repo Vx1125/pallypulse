@@ -1,6 +1,8 @@
 # PallyPulse
 
 ## 1.0.7
+- Player list beside the bar: scroll the mouse wheel over a player to change the blessing you give them (marked with *), then click to cast it.
+- Fixed the player list closing when you move the mouse onto it.
 - When everyone is buffed, the Smart Buff key refreshes your Oath of Light out of combat too, instead of doing nothing.
 
 ## 1.0.6
