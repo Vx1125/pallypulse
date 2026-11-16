@@ -358,7 +358,7 @@ function W.MakeDraggable(frame, handle, key, respectLock, noCombatMove)
         if noCombatMove and InCombatLockdown() then
             if GetTime() - lastMsg > 5 then
                 lastMsg = GetTime()
-                ns.Print("The buff bar can't be moved in combat (the game blocks it). Move it after combat.")
+                ns.Print("Can't move in combat.")
             end
             return
         end

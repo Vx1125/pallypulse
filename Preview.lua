@@ -128,7 +128,7 @@ local function HookBar()
 end
 
 function ns.SetPreview(on)
-    if InCombatLockdown() then ns.Print("Preview can't be changed in combat.") return end
+    if InCombatLockdown() then return end
     HookBar()
     ns.preview = on and true or false
     ns.ScanRoster()

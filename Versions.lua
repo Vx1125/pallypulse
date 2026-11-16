@@ -22,7 +22,7 @@ function ns.NoteAddon(name, addon, ver)
     ns.versions[name] = { addon = addon, ver = ver, t = GetTime() }
     if addon == "PallyPulse" and ver and Parse(ver) > Parse(ns.VERSION) and newerSeen ~= ver then
         newerSeen = ver
-        ns.Print(("%s has a newer PallyPulse (%s); you have %s."):format(name, ver, ns.VERSION))
+        ns.Print(("New version available: %s"):format(ver))
     end
     if ns.RefreshWindow then ns.RefreshWindow() end
 end
@@ -99,7 +99,7 @@ f:RegisterEvent("PLAYER_LOGIN")
 f:SetScript("OnEvent", function()
     local function check()
         if ns.db and not ns.db.selfCastWarned and AutoSelfCastOn() then
-            ns.Print("Tip: the game's Auto Self Cast setting is on. When a blessing's target is out of range it lands on you instead. Turning it off (Options > Combat or Controls) makes those presses fail harmlessly. This shows once.")
+            ns.Print("Auto Self Cast is on: out-of-range blessings land on you.")
             ns.db.selfCastWarned = true
         end
         ns.RequestVersions()

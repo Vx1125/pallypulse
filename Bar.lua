@@ -199,68 +199,46 @@ local function BuildSmart()
 
     s:SetScript("OnEnter", function(self)
         PlaceTip(self)
-        GameTooltip:AddLine("Smart Buff", unpack(S.gold))
-        local job = self.job
+        local key = BindingText()
+        GameTooltip:AddDoubleLine("Smart Buff", key or "", S.gold[1], S.gold[2], S.gold[3], 0.6, 0.6, 0.6)
+        local job, me = self.job, ns.Me()
         if InCombatLockdown() then
             local cn = self.cnext
-            if type(cn) == "table" and cn.combatRebless then
+            if type(cn) == "table" then
                 GameTooltip:AddDoubleLine(cn.spell, cn.name, 1, 1, 1, 1, 1, 1)
-                GameTooltip:AddLine("Re-blesses your current target (e.g. after Freedom)", unpack(S.dim))
-                GameTooltip:AddLine("Target a mob or nobody to use the pull queue, then Oath", unpack(S.dim))
-            elseif type(cn) == "table" then
-                GameTooltip:AddDoubleLine(cn.spell, cn.name, 1, 1, 1, 1, 1, 1)
-                GameTooltip:AddLine(("Combat queue: %d left, frozen at the pull"):format(self.cleft or 0), unpack(S.dim))
+                if not cn.combatRebless then
+                    GameTooltip:AddDoubleLine("Queue", self.cleft or 0, 0.8, 0.8, 0.8, 1, 1, 1)
+                end
             elseif cn == "oath" then
-                GameTooltip:AddDoubleLine("Oath of Light", tostring(ns.oath[ns.Me()]), 1, 1, 1, 1, 1, 1)
-                GameTooltip:AddLine("Combat queue done; presses recast your Oath", unpack(S.dim))
+                GameTooltip:AddDoubleLine("Oath of Light", tostring(ns.oath[me]), 1, 1, 1, 1, 1, 1)
             else
-                GameTooltip:AddLine("Nothing queued (everyone was buffed at the pull)", unpack(S.dim))
+                GameTooltip:AddLine("Queue empty", unpack(S.dim))
             end
-            GameTooltip:AddLine("Right-click: Oath of Light", 0.6, 0.6, 0.6)
-            if ns.selfSpell then GameTooltip:AddLine("Alt + key: " .. ns.selfSpell .. " on yourself", 0.6, 0.6, 0.6) end
         elseif job then
             local r, g, b = 1, 1, 1
-            local unit = job.unit
-            if unit then local _, c = UnitClass(unit); if c then r, g, b = W.ClassColor(c) end end
+            if job.unit then local _, c = UnitClass(job.unit); if c then r, g, b = W.ClassColor(c) end end
             GameTooltip:AddDoubleLine(job.spell, job.name, 1, 1, 1, r, g, b)
-            if job.rebless then
-                local h = job.unit and ns.HandActive(job.unit)
-                GameTooltip:AddLine(h and ("Re-bless: this replaces your " .. h)
-                    or "Re-bless after your Freedom / Protection / Sacrifice", 0.5, 0.75, 0.5, true)
-            end
-            if job.greater then
-                GameTooltip:AddLine("Greater blessing: covers the whole class", unpack(S.dim))
-            elseif job.class then
-                local why = ns.GreaterSkipReason(job.key, job.class)
-                if why then GameTooltip:AddLine("Normal blessing, no reagent: " .. why, 0.5, 0.75, 0.5, true) end
-            end
+            if job.rebless then GameTooltip:AddLine("Re-bless", 0.5, 0.75, 0.5) end
         else
-            GameTooltip:AddLine("Everyone you're assigned to is buffed", unpack(S.good))
-            if ns.oathCap[ns.Me()] and ns.oath[ns.Me()] then
-                GameTooltip:AddLine("Press: refresh Oath of Light", 0.6, 0.6, 0.6)
-            end
+            GameTooltip:AddLine("All buffed", unpack(S.good))
         end
         local st = self.stats
-        if st then
+        if st and not InCombatLockdown() then
             GameTooltip:AddLine(" ")
-            GameTooltip:AddLine("All your buffs (Oath, aura and blessings):", 0.6, 0.6, 0.6)
-            GameTooltip:AddDoubleLine("  Missing", st.missing, 0.8, 0.8, 0.8, 1, 1, 1)
-            GameTooltip:AddDoubleLine("  Expiring soon", st.expiring, 0.8, 0.8, 0.8, 1, 1, 1)
-            if st.far > 0 then GameTooltip:AddDoubleLine("  Out of range", st.far, 0.8, 0.8, 0.8, 1, 1, 1) end
+            GameTooltip:AddDoubleLine("Missing", st.missing, 0.8, 0.8, 0.8, 1, 1, 1)
+            GameTooltip:AddDoubleLine("Expiring", st.expiring, 0.8, 0.8, 0.8, 1, 1, 1)
+            if st.far > 0 then GameTooltip:AddDoubleLine("Out of range", st.far, 0.8, 0.8, 0.8, 1, 1, 1) end
+            if (st.held or 0) > 0 then GameTooltip:AddDoubleLine("Hand active", st.held, 0.8, 0.8, 0.8, 1, 1, 1) end
             local warn = ns.db.reagentWarn or 0
             if warn > 0 and ns.KnowsAnyGreater() then
                 local n = ns.ReagentCount()
-                if n and n < warn then GameTooltip:AddDoubleLine("Symbols of Kings", n, 0.8, 0.8, 0.8, unpack(S.bad)) end
+                if n and n < warn then GameTooltip:AddDoubleLine("Symbol of Kings", n, 0.8, 0.8, 0.8, unpack(S.bad)) end
             end
-            if (st.held or 0) > 0 then GameTooltip:AddDoubleLine("  Under your Freedom / Protection", st.held, 0.8, 0.8, 0.8, 1, 1, 1) end
         end
         GameTooltip:AddLine(" ")
-        if not InCombatLockdown() and ns.oathCap[ns.Me()] then
-            GameTooltip:AddLine("Right-click: Oath of Light", 0.6, 0.6, 0.6)
-            if ns.selfSpell then GameTooltip:AddLine("Alt + key: " .. ns.selfSpell .. " on yourself", 0.6, 0.6, 0.6) end
-        end
-        local key = BindingText()
-        GameTooltip:AddLine(key and ("Keybind: " .. key) or "Set a keybind: Esc > Options > Keybindings > PallyPulse", 0.6, 0.6, 0.6, true)
+        if ns.oathCap[me] then GameTooltip:AddLine("Right-click: Oath of Light", 0.6, 0.6, 0.6) end
+        if ns.selfSpell then GameTooltip:AddLine("Alt: " .. ns.selfSpell .. " (self)", 0.6, 0.6, 0.6) end
+        if not key then GameTooltip:AddLine("Not bound", 0.6, 0.6, 0.6) end
         GameTooltip:Show()
     end)
     s:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -292,9 +270,9 @@ local function BuildMinis()
                 local cname = LOCALIZED_CLASS_NAMES_MALE[self.class] or self.class
                 GameTooltip:AddDoubleLine(bl, cname, 1, 1, 1, W.ClassColor(self.class))
                 if (self.need or 0) == 0 then
-                    GameTooltip:AddLine("Everyone is covered", unpack(S.good))
+                    GameTooltip:AddLine("All buffed", unpack(S.good))
                 else
-                    GameTooltip:AddLine(("%d of %d need it"):format(self.need, self.total or 0), unpack(S.warn))
+                    GameTooltip:AddLine(("%d/%d missing"):format(self.need, self.total or 0), unpack(S.warn))
                     for n, name in ipairs(self.missing or {}) do
                         if n > 8 then GameTooltip:AddLine("...", unpack(S.dim)) break end
                         GameTooltip:AddLine("  " .. name, unpack(S.text))
@@ -302,12 +280,9 @@ local function BuildMinis()
                 end
                 GameTooltip:AddLine(" ")
                 local left = ns.CastNames(self.key, self.class)
-                local why = ns.GreaterSkipReason(self.key, self.class)
-                GameTooltip:AddLine("Left-click: " .. tostring(left), 0.6, 0.6, 0.6)
-                if why then GameTooltip:AddLine("  Normal blessing: " .. why, 0.5, 0.75, 0.5) end
-                GameTooltip:AddLine("Right-click: normal blessing", 0.6, 0.6, 0.6)
-                GameTooltip:AddLine("Shift-click: normal blessing on your target (works in combat)", 0.6, 0.6, 0.6)
-                if not InCombatLockdown() then GameTooltip:AddLine("Players are listed beside the bar: click one to buff just them", 0.6, 0.6, 0.6, true) end
+                GameTooltip:AddLine("Click: " .. tostring(left), 0.6, 0.6, 0.6)
+                GameTooltip:AddLine("Right-click: single", 0.6, 0.6, 0.6)
+                GameTooltip:AddLine("Shift-click: single on target", 0.6, 0.6, 0.6)
             end
             GameTooltip:Show()
             ShowFlyout(self)
@@ -330,12 +305,12 @@ local function BuildMinis()
         PlaceTip(self)
         GameTooltip:AddDoubleLine("Oath of Light", tostring(ns.oath[ns.Me()]), S.paladin[1], S.paladin[2], S.paladin[3], 1, 1, 1)
         if self.left then
-            GameTooltip:AddLine(W.FormatTime(self.left) .. " remaining", unpack(self.left < ns.OATH.warn and S.warn or S.good))
+            GameTooltip:AddLine(W.FormatTime(self.left), unpack(self.left < ns.OATH.warn and S.warn or S.good))
         else
-            GameTooltip:AddLine("Not active", unpack(S.bad))
+            GameTooltip:AddLine("Expired", unpack(S.bad))
         end
-        GameTooltip:AddLine("Click: cast Oath of Light on your Oath target", 0.6, 0.6, 0.6)
-        GameTooltip:AddLine("Shift-click: Oath on your target instead (they become your Oath target)", 0.6, 0.6, 0.6, true)
+        GameTooltip:AddLine("Click: cast", 0.6, 0.6, 0.6)
+        GameTooltip:AddLine("Shift-click: cast on target", 0.6, 0.6, 0.6)
         GameTooltip:Show()
     end)
     o:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -351,8 +326,7 @@ local function BuildMinis()
         PlaceTip(self)
         local a = self.aura and ns.AURA_BY_KEY[self.aura]
         GameTooltip:AddLine(a and a.name or "Aura", unpack(S.gold))
-        GameTooltip:AddLine(self.on and "On" or "Off - click to turn it on", unpack(self.on and S.good or S.bad))
-        GameTooltip:AddLine("Your assigned aura (change it on the Blessings tab)", 0.6, 0.6, 0.6, true)
+        GameTooltip:AddLine(self.on and "On" or "Off", unpack(self.on and S.good or S.bad))
         GameTooltip:Show()
     end)
     au:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -380,7 +354,8 @@ local function BuildMinis()
         PlaceTip(self)
         local cur = CurrentSeal()
         GameTooltip:AddLine(cur and cur.name or "Seal", unpack(S.gold))
-        GameTooltip:AddLine("Click: cast   Wheel: change seal", 0.6, 0.6, 0.6)
+        GameTooltip:AddLine("Click: cast", 0.6, 0.6, 0.6)
+        GameTooltip:AddLine("Wheel: change", 0.6, 0.6, 0.6)
         GameTooltip:Show()
     end)
     se:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -445,8 +420,7 @@ local function BuildFlyout()
             GameTooltip:SetPoint("TOPLEFT", fly, "BOTTOMLEFT", 0, -4)
             GameTooltip:AddLine(ns.FirstName(e.name), W.ClassColor(e.class))
             if self.key then GameTooltip:AddLine("Click: " .. ns.BY_KEY[self.key].single, 1, 1, 1) end
-            GameTooltip:AddLine("Wheel: change their blessing", 0.6, 0.6, 0.6)
-            if self.own then GameTooltip:AddLine("Right-click the Players tab cell to reset", 0.6, 0.6, 0.6) end
+            GameTooltip:AddLine("Wheel: change", 0.6, 0.6, 0.6)
             GameTooltip:Show()
         end)
         r:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -491,7 +465,7 @@ function ShowFlyout(btn)
             r.name:SetTextColor(W.ClassColor(e.class))
             local alive = ns.Eligible(e)
             local left = alive and ns.MemberRemaining(e, key)
-            r.time:SetText(not alive and "dead" or (left and W.FormatTime(left)) or "missing")
+            r.time:SetText(not alive and "Dead" or (left and W.FormatTime(left)) or "Missing")
             r.time:SetTextColor(unpack((alive and not left) and S.bad or S.dim))
             r:SetAlpha((single and ns.InRange(single, e.unit) == false) and 0.45 or 1)
             r:Show()
@@ -559,12 +533,12 @@ function ns.BuildBar()
     bar.menuBtn = SmallIconButton(bar, "menu")
     bar.menuBtn:SetPoint("TOPRIGHT", -5, -5)
     bar.menuBtn:SetScript("OnClick", function() ns.ToggleWindow() end)
-    W.Tip(bar.menuBtn, function(t) t:AddLine("Assignments", 1, 1, 1); t:AddLine("Right-click the bar also opens them", 0.6, 0.6, 0.6) end)
+    W.Tip(bar.menuBtn, function(t) t:AddLine("Assignments", 1, 1, 1) end)
 
     bar.foldBtn = SmallIconButton(bar, "fold")
     bar.foldBtn:SetPoint("TOP", bar.menuBtn, "BOTTOM", 0, -3)
     bar.foldBtn:SetScript("OnClick", function() ns.db.collapsed = not ns.db.collapsed; ns.dirty = true end)
-    W.Tip(bar.foldBtn, function(t) t:AddLine(ns.db.collapsed and "Show class buttons" or "Hide class buttons", 1, 1, 1) end)
+    W.Tip(bar.foldBtn, function(t) t:AddLine(ns.db.collapsed and "Expand" or "Collapse", 1, 1, 1) end)
 
     -- Compact layout's drag dot: drag to move, click to fold the rows, right-click for assignments
     local hd = CreateFrame("Button", nil, bar)
@@ -582,8 +556,7 @@ function ns.BuildBar()
     end)
     W.Tip(hd, function(t)
         t:AddLine("PallyPulse", unpack(S.gold))
-        t:AddLine("Drag to move", 0.8, 0.8, 0.8)
-        t:AddLine(ns.db.collapsed and "Click: show the rows" or "Click: hide the rows", 0.8, 0.8, 0.8)
+        t:AddLine(ns.db.collapsed and "Click: expand" or "Click: collapse", 0.8, 0.8, 0.8)
         t:AddLine("Right-click: assignments", 0.8, 0.8, 0.8)
     end)
     hd:Hide()
@@ -875,19 +848,19 @@ function ns.RefreshBar()
         bar.line1:SetTextColor(unpack(S.gold))
         local otxt = ""
         if ounit and ns.oathCap[me] then
-            otxt = "   " .. W.Hex(unpack(S.paladin)) .. "Oath " .. (oleft and W.FormatTime(oleft) or "down") .. "|r"
+            otxt = "   " .. W.Hex(unpack(S.paladin)) .. "Oath " .. (oleft and W.FormatTime(oleft) or "Expired") .. "|r"
         end
         local far = ns.InRange(cnext.spell, cnext.unit) == false
         if far then
             -- protected code can't skip them; a press fails (or self-casts with Auto Self Cast on)
-            bar.line2:SetText("Out of range - press skips them" .. otxt)
+            bar.line2:SetText("Out of range" .. otxt)
             bar.line2:SetTextColor(unpack(S.bad))
             s.icon:SetDesaturated(true)
         elseif cnext.combatRebless then
-            bar.line2:SetText("Re-bless your target" .. otxt)
+            bar.line2:SetText("Re-bless target" .. otxt)
             bar.line2:SetTextColor(unpack(S.text))
         else
-            bar.line2:SetText(("Combat queue: %d left%s"):format(cleft, otxt))
+            bar.line2:SetText(("Queue: %d%s"):format(cleft, otxt))
             bar.line2:SetTextColor(unpack(S.text))
         end
     elseif combat and cnext == "oath" then
@@ -905,11 +878,11 @@ function ns.RefreshBar()
         bar.line1:SetText(("Oath  %s%s|r"):format(W.Hex(r, g, b), ns.FirstName(ns.oath[me] or "?")))
         bar.line1:SetTextColor(unpack(S.paladin))
         if not oleft then
-            bar.line2:SetText("Expired - press to recast"); bar.line2:SetTextColor(unpack(S.bad))
+            bar.line2:SetText("Expired"); bar.line2:SetTextColor(unpack(S.bad))
         elseif oleft < ns.OATH.warn then
-            bar.line2:SetText(W.FormatTime(oleft) .. " left - recast soon"); bar.line2:SetTextColor(unpack(S.warn))
+            bar.line2:SetText(W.FormatTime(oleft)); bar.line2:SetTextColor(unpack(S.warn))
         else
-            bar.line2:SetText(W.FormatTime(oleft) .. " left"); bar.line2:SetTextColor(unpack(S.dim))
+            bar.line2:SetText(W.FormatTime(oleft)); bar.line2:SetTextColor(unpack(S.dim))
         end
     elseif combat then
         s.icon:SetDesaturated(true)
@@ -917,7 +890,7 @@ function ns.RefreshBar()
         s:SetBackdropBorderColor(unpack(S.border))
         s.glow:Hide(); s.pulse:Stop()
         bar.line1:SetText("In combat"); bar.line1:SetTextColor(unpack(S.dim))
-        bar.line2:SetText("Everyone was buffed at the pull")
+        bar.line2:SetText("Queue empty")
     elseif job then
         s.timer:SetText("")
         s.icon:SetTexture(job.icon or W.QUESTION)
@@ -951,13 +924,13 @@ function ns.RefreshBar()
         s.glow:Hide(); s.pulse:Stop()
         if #minis == 0 then
             bar.line1:SetText("No assignments"); bar.line1:SetTextColor(unpack(S.dim))
-            bar.line2:SetText("Right-click to assign")
+            bar.line2:SetText("")
         elseif stats and stats.far > 0 then
             bar.line1:SetText("Out of range"); bar.line1:SetTextColor(unpack(S.warn))
-            bar.line2:SetText(stats.far .. " still need a buff")
+            bar.line2:SetText(stats.far .. " out of range")
         else
             bar.line1:SetText("All buffed"); bar.line1:SetTextColor(unpack(S.good))
-            bar.line2:SetText(soonest and ("Next refresh in " .. W.FormatTime(math.max(0, soonest - ns.db.refresh))) or "")
+            bar.line2:SetText(soonest and ("Refresh in " .. W.FormatTime(math.max(0, soonest - ns.db.refresh))) or "")
         end
         bar.line2:SetTextColor(unpack(S.dim))
     end
@@ -1000,7 +973,7 @@ end
 function ns.ToggleBar()
     if not bar then return end
     if bar:IsShown() then
-        bar:Hide(); ns.Print("Bar hidden. /pulse bar shows it again.")
+        bar:Hide(); ns.Print("Bar hidden (/pulse bar)")
     else
         bar:Show(); ns.dirty = true
     end

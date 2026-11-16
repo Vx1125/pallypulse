@@ -275,25 +275,25 @@ local function OnChat(msg, author)
             if k then keys[#keys + 1] = k end
         end
         if #keys == 0 then
-            if IAnswer() then Whisper(author, "Which blessing? e.g. !bless want might") end
+            if IAnswer() then Whisper(author, "Usage: !bless want might|wisdom|kings|light") end
             return
         end
         ns.SetRequest(e.name, keys, false)
         if IAnswer() then
             local names = {}
             for _, k in ipairs(keys) do names[#names + 1] = ns.BY_KEY[k].single:gsub("^Blessing of ", "") end
-            Whisper(author, "Got it: " .. table.concat(names, ", ") .. ". !bless clear to undo.")
+            Whisper(author, table.concat(names, ", ") .. " set.")
         end
     elseif sub == "clear" then
         ns.SetRequest(e.name, nil, false)
-        if IAnswer() then Whisper(author, "Back to your normal blessings.") end
+        if IAnswer() then Whisper(author, "Cleared.") end
     elseif sub == "missing" then
         if IAnswer() then
             local m = MissingFor(e)
-            Whisper(author, #m == 0 and "You have all your blessings." or ("Missing: " .. table.concat(m, ", ")))
+            Whisper(author, #m == 0 and "Nothing missing." or ("Missing: " .. table.concat(m, ", ")))
         end
     else
-        if IAnswer() then Whisper(author, "!bless want <might/wisdom/kings/light>, !bless clear, !bless missing") end
+        if IAnswer() then Whisper(author, "!bless want might|wisdom|kings|light, !bless clear, !bless missing") end
     end
 end
 

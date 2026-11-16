@@ -1,19 +1,14 @@
 local ADDON, ns = ...
 
--- Smart buffing: one button (or keybind) that casts the next buff you owe.
+-- Smart Buff: one key casts the next buff you owe.
 --
--- OUT OF COMBAT the queue is fully live. Priority, most urgent first:
---   1. your Oath of Light target, if it is missing it        (5-minute buff, usually the tank)
---   2. anyone missing a blessing you are assigned to give
---   3. your Oath of Light, if under a minute left
---   4. anyone whose blessing will run out within the refresh window (soonest first)
--- Dead, offline, out-of-sight and out-of-range players are skipped.
+-- Out of combat (live): aura, Righteous Fury, missing Oath, missing blessings, Oath under a
+-- minute, then blessings inside the refresh window. Out-of-range players are skipped. With
+-- nothing to do the key refreshes Oath.
 --
--- IN COMBAT Blizzard does not let addons read buffs and choose a target. What is allowed:
--- a list frozen at the moment combat starts, stepped through by a secure snippet that runs
--- inside the game's protected code. Each press casts the next name on the list (anyone dead
--- right now is skipped); once the list is used up the button casts Oath of Light.
--- Right-click (or the second keybind) always casts Oath of Light.
+-- In combat addons can't read buffs or pick targets, so the list is frozen at the pull and a
+-- secure snippet steps through it. After the list: re-bless a friendly target, else Oath.
+-- Right-click casts Oath.
 
 local recent = {}          -- "name|KEY" -> GetTime() of a successful cast
 local RECENT_WINDOW = 3    -- seconds a fresh cast counts as applied before its aura shows up
@@ -419,7 +414,7 @@ function ns.WireSmart(btn)
             ns.reblessExact = header:GetAttribute("uiu") and true or false
         end)
     end
-    if not ok then ns.Print("In-combat queue unavailable on this client; Smart Buff will cast Oath in combat.") end
+    if not ok then ns.Print("Combat queue unavailable.") end
 end
 
 -- What the combat queue will cast next (for the bar). Returns job or "oath" or nil, and how many left.
@@ -536,7 +531,7 @@ end)
 
 -- Keybinding labels (Bindings.xml)
 BINDING_HEADER_PALLYPULSE = "PallyPulse"
-_G["BINDING_NAME_CLICK PallyPulseSmartButton:LeftButton"] = "Smart buff (next missing blessing)"
-_G["BINDING_NAME_CLICK PallyPulseOathTarget:LeftButton"] = "Oath of Light on mouseover / target"
-BINDING_NAME_PALLYPULSE_TOGGLE = "Show / hide assignments"
+_G["BINDING_NAME_CLICK PallyPulseSmartButton:LeftButton"] = "Smart Buff"
+_G["BINDING_NAME_CLICK PallyPulseOathTarget:LeftButton"] = "Oath of Light (Mouseover)"
+BINDING_NAME_PALLYPULSE_TOGGLE = "Toggle Window"
 function PallyPulse_ToggleWindow() if ns.ToggleWindow then ns.ToggleWindow() end end

@@ -240,5 +240,5 @@ function ns.DebugFrames()
             ns.Print(("%s  unit=%s"):format(f:GetName() or "?", tostring(FrameUnit(f))))
         end
     end
-    if n == 0 then ns.Print("No visible party/raid frames found. Are you in a group with Blizzard's frames shown?") end
+    if n == 0 then ns.Print("No party/raid frames found.") end
 end

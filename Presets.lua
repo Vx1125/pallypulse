@@ -46,7 +46,7 @@ function ns.DeletePreset(name)
 end
 
 StaticPopupDialogs["PALLYPULSE_SAVE_PRESET"] = {
-    text = "Save current assignments as preset:",
+    text = "Preset name:",
     button1 = ACCEPT,
     button2 = CANCEL,
     hasEditBox = 1,
@@ -93,7 +93,7 @@ local function GetItem(i)
         ns.DeletePreset(it.name); ns.RefreshPresetMenu()
     end)
     it.del:SetPoint("RIGHT")
-    W.Tip(it.del, function(t) t:AddLine("Delete preset", 1, 0.5, 0.5) end)
+    W.Tip(it.del, function(t) t:AddLine("Delete", 1, 0.5, 0.5) end)
     menu.items[i] = it
     return it
 end
@@ -125,8 +125,8 @@ local function Build()
     menu.items = {}
     menu.empty = W.Text(menu, 11, S.dim, "CENTER")
     menu.empty:SetPoint("TOP", 0, -10); menu.empty:SetWidth(MENU_W - 16)
-    menu.empty:SetText("No presets saved yet")
-    menu.save = W.Button(menu, "+  Save current...", MENU_W - 12, ITEM_H, function()
+    menu.empty:SetText("No presets")
+    menu.save = W.Button(menu, "Save...", MENU_W - 12, ITEM_H, function()
         menu:Hide()
         StaticPopup_Show("PALLYPULSE_SAVE_PRESET")
     end, true)

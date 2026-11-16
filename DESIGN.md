@@ -75,10 +75,10 @@ CurseForge 1809219 (detected as the Forever flavor, game version 1.60.1) and Git
 Needs the CF_API_KEY secret and "Read and write" workflow permissions.
 
 ## Debugging in game
-- /pulse trace: every Smart Buff press, plus the list at the pull
+- /pulse debug trace: every Smart Buff press, plus the list at the pull
 - /pulse debug: assignments, Oath, combat-queue availability
-- /pulse test: dry run of the queue and guessed roles
-- /pulse frames: which Blizzard frames were found
+- /pulse debug test: dry run of the queue and guessed roles
+- /pulse debug frames: which Blizzard frames were found
 - /pulse check: opens the ready check window (also opens on every ready check)
-- /pulse auras: buffs on you with spell id and caster, and what the aura check finds
-- /pulse versions
+- /pulse debug auras: buffs on you with spell id and caster, and what the aura check finds
+- Versions tab: who runs PallyPulse or PallyPower

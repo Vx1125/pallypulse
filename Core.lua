@@ -512,7 +512,7 @@ end
 -- ---------------------------------------------------------------------------
 function ns.Announce()
     local chan = GroupChannel()
-    if not chan then ns.Print("You are not in a group."); return end
+    if not chan then ns.Print("Not in a group."); return end
     local names = LOCALIZED_CLASS_NAMES_MALE or {}
     local sent = false
     for _, pal in ipairs(ns.paladins) do
@@ -545,7 +545,7 @@ function ns.Announce()
             end
         end
     end
-    if not sent then ns.Print("No assignments to announce.") end
+    if not sent then ns.Print("No assignments.") end
 end
 
 -- ---------------------------------------------------------------------------
@@ -848,24 +848,31 @@ SLASH_PALLYPULSE2 = "/pallypulse"
 SlashCmdList.PALLYPULSE = function(msg)
     msg = (msg or ""):lower()
     local cmd, arg = msg:match("^(%S*)%s*(.-)$")
-    if cmd == "" or cmd == "config" or cmd == "assign" then
+    if cmd == "" then
         if ns.ToggleWindow then ns.ToggleWindow() end
     elseif cmd == "bar" then
         if ns.ToggleBar then ns.ToggleBar() end
-    elseif cmd == "options" or cmd == "settings" then
+    elseif cmd == "options" then
         if ns.ToggleSettings then ns.ToggleSettings() end
-    elseif cmd == "players" then
-        if ns.win and not ns.win:IsShown() then ns.win:Show() end
-        if ns.ShowTab then ns.ShowTab("players") end
-    elseif cmd == "versions" or cmd == "version" or cmd == "group" then
-        ns.RequestVersions()
-        ns.PrintVersions()
-        if ns.win and ns.win:IsShown() and ns.ShowTab then ns.ShowTab("group") end
-    elseif cmd == "test" then
-        -- Dry run: what Smart Buff would do right now, without casting anything.
+    elseif cmd == "check" then
+        if ns.ToggleReadyCheck then ns.ToggleReadyCheck() end
+    elseif cmd == "announce" then
+        ns.Announce()
+    elseif cmd == "debug" then
+        ns.Debug(arg)
+    else
+        ns.Print("/pulse  |  bar  |  options  |  check  |  announce")
+    end
+end
+
+-- /pulse debug [test | trace | frames | auras]
+function ns.Debug(arg)
+    local me = ns.Me()
+    if arg == "test" then
+        -- what Smart Buff would do right now, without casting anything
         if ns.BeginScan then ns.BeginScan() end
         local jobs, st = ns.Candidates()
-        ns.Print(("Dry run: %d missing, %d expiring, %d out of range."):format(st.missing, st.expiring, st.far))
+        ns.Print(("Missing %d, expiring %d, out of range %d"):format(st.missing, st.expiring, st.far))
         for i, j in ipairs(jobs) do
             if i > 12 then ns.Print("  ...") break end
             ns.Print(("  %d. %s -> %s%s%s"):format(i, j.spell, j.name or j.unit, j.near and "" or " (out of range)",
@@ -873,14 +880,16 @@ SlashCmdList.PALLYPULSE = function(msg)
         end
         for _, e in ipairs(ns.roster) do
             local role, why = ns.GuessRole(e)
-            local key = ns.KeyFor(Me(), e)
-            ns.Print(("  %s: role=%s (%s), you give %s"):format(e.name, tostring(role), tostring(why), tostring(key)))
+            ns.Print(("  %s: role=%s (%s), you give %s"):format(e.name, tostring(role), tostring(why), tostring(ns.KeyFor(me, e))))
         end
-    elseif cmd == "lock" then
-        ns.db.locked = not ns.db.locked
-        ns.dirty = true
-    elseif cmd == "debug" then
-        local me = ns.Me()
+    elseif arg == "trace" then
+        ns.trace = not ns.trace
+        ns.Print("Trace " .. (ns.trace and "on" or "off"))
+    elseif arg == "frames" then
+        if ns.DebugFrames then ns.DebugFrames() end
+    elseif arg == "auras" then
+        if ns.DebugAuras then ns.DebugAuras() end
+    else
         ns.Print(("you = '%s', paladins in group = %d, combat = %s"):format(tostring(me), #ns.paladins, tostring(InCombatLockdown())))
         local any = false
         for class, key in pairs(ns.assign[me] or {}) do
@@ -889,11 +898,10 @@ SlashCmdList.PALLYPULSE = function(msg)
             ns.Print(("%s: %s  left=%s  right=%s  members=%d"):format(class, key, tostring(g), tostring(s),
                 ns.byClass[class] and #ns.byClass[class] or 0))
         end
-        if not any then ns.Print("No blessings are assigned to you. Open /pulse and click your row.") end
+        if not any then ns.Print("No assignments") end
         local ounit, oleft = ns.OathStatus()
         ns.Print(("Oath of Light: known=%s target=%s unit=%s remaining=%s"):format(tostring(ns.oathCap[me]),
-            tostring(ns.oath[me]), tostring(ounit),
-            oleft and ("%ds"):format(oleft) or "missing"))
+            tostring(ns.oath[me]), tostring(ounit), oleft and ("%ds"):format(oleft) or "missing"))
         ns.Print(("Combat queue available=%s, exact re-bless matching=%s"):format(
             tostring(ns.combatQueueAvailable), tostring(ns.reblessExact)))
         if ns.bar then
@@ -904,44 +912,6 @@ SlashCmdList.PALLYPULSE = function(msg)
                 end
             end
         end
-    elseif cmd == "trace" then
-        ns.trace = not ns.trace
-        ns.Print("Trace " .. (ns.trace and "ON: every Smart Buff press prints what it cast. /pulse trace again to stop." or "OFF."))
-    elseif cmd == "frames" then
-        if ns.DebugFrames then ns.DebugFrames() end
-    elseif cmd == "auras" then
-        if ns.DebugAuras then ns.DebugAuras() end
-    elseif cmd == "check" then
-        if ns.ToggleReadyCheck then ns.ToggleReadyCheck() end
-    elseif cmd == "preview" then
-        if ns.TogglePreview then ns.TogglePreview() end
-    elseif cmd == "compat" then
-        if arg == "on" or arg == "off" then ns.db.compat = (arg == "on") end
-        ns.Print("PallyPower compatibility is " .. (ns.db.compat and "ON" or "OFF") .. ". Usage: /pulse compat on|off")
-    elseif cmd == "announce" then
-        ns.Announce()
-    elseif cmd == "auto" then
-        ns.AutoAssign()
-    elseif cmd == "sync" then
-        ns.RequestSync()
-    elseif cmd == "refresh" then
-        local n = tonumber(arg)
-        if n and n >= 0 then
-            ns.db.refresh = n * 60
-            ns.dirty = true
-            ns.Print(("Blessings count as missing under %d minute(s) remaining."):format(n))
-        else
-            ns.Print(("Refresh threshold is %d minute(s). Usage: /pulse refresh <minutes>"):format(ns.db.refresh / 60))
-        end
-    elseif cmd == "scale" then
-        local n = tonumber(arg)
-        if n and n >= 0.5 and n <= 2 then
-            ns.db.scale = n
-            if ns.ApplyScale then ns.ApplyScale() end
-        else
-            ns.Print("Usage: /pulse scale <0.5 - 2>")
-        end
-    else
-        ns.Print("/pulse (window) | players | versions | options | bar | lock | auto | announce | sync | test | trace | debug | frames | auras | check | preview")
+        ns.Print("/pulse debug test | trace | frames | auras")
     end
 end

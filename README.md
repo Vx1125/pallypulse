@@ -1,7 +1,6 @@
 # PallyPulse
 
-Paladin blessings for WoW Forever: one-button smart buffing (in combat too), spec-aware
-assignments, auras, Oath of Light, party-frame icons and PallyPower sync.
+Paladin blessing assignments and one-key buffing for WoW Forever.
 
 CurseForge project: 1809219
 
@@ -17,5 +16,6 @@ Settings > Actions > General > Workflow permissions set to "Read and write".
 
 ## Commands
 
-`/pulse` window, `/pulse players`, `/pulse versions`, `/pulse options`, `/pulse test`,
-`/pulse trace`, `/pulse debug`, `/pulse frames`, `/pulse auras`, `/pulse check`
+`/pulse`, `/pulse bar`, `/pulse options`, `/pulse check`, `/pulse announce`
+
+Debug: `/pulse debug`, `/pulse debug test | trace | frames | auras`

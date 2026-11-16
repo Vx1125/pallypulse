@@ -25,8 +25,8 @@ local function Col(key, label, icon, names, from)
     for _, n in ipairs(names) do set[n] = true end
     COLS[#COLS + 1] = { key = key, label = label, icon = ICON .. icon, names = set, from = from, raid = true }
 end
-Col("FORT",   "Stamina",   "Spell_Holy_WordFortitude",  { "Power Word: Fortitude", "Prayer of Fortitude" }, { PRIEST = true })
-Col("MOTW",   "Mark",      "Spell_Nature_Regeneration", { "Mark of the Wild", "Gift of the Wild" }, { DRUID = true })
+Col("FORT",   "Fortitude",   "Spell_Holy_WordFortitude",  { "Power Word: Fortitude", "Prayer of Fortitude" }, { PRIEST = true })
+Col("MOTW",   "Mark of the Wild",      "Spell_Nature_Regeneration", { "Mark of the Wild", "Gift of the Wild" }, { DRUID = true })
 Col("INT",    "Intellect", "Spell_Holy_MagicalSentry",  { "Arcane Intellect", "Arcane Brilliance" }, { MAGE = true })
 Col("SPIRIT", "Spirit",    "Spell_Holy_DivineSpirit",   { "Divine Spirit", "Prayer of Spirit" }, { PRIEST = true })
 Col("FOOD",   "Food",      "INV_Misc_Food_14",          { "Well Fed" })
@@ -109,7 +109,7 @@ local function Build()
         h:EnableMouse(true)
         W.Tip(h, function(t)
             t:AddLine(col.label, 1, 1, 1)
-            if col.blessing then t:AddLine("Red: yours   Orange: another paladin's", unpack(S.dim)) end
+            if col.blessing then t:AddLine("Red: yours. Orange: others.", unpack(S.dim)) end
         end)
         win.heads[i] = h
     end
@@ -301,7 +301,7 @@ function ns.RefreshReadyCheck()
             local owe, expect, got = inf.owe, inf.expect, inf.got
             if not alive then
                 row.name:SetTextColor(unpack(S.dim))
-                row.bcount:SetText("dead"); row.bcount:SetTextColor(unpack(S.dim))
+                row.bcount:SetText("Dead"); row.bcount:SetTextColor(unpack(S.dim))
             elseif expect > 0 then
                 checked = checked + 1
                 local okb = got >= expect
@@ -345,14 +345,14 @@ function ns.RefreshReadyCheck()
         end
     end
 
-    win.title:SetText("Ready check")
+    win.title:SetText("Ready Check")
     win.count:SetText(("%d/%d ready"):format(ready, total))
     if checked == 0 then
         win.summary:SetText("")
     elseif short == 0 then
         win.summary:SetText(W.Hex(unpack(S.good)) .. "|TInterface\\RaidFrame\\ReadyCheck-Ready:14|t All blessed|r")
     else
-        win.summary:SetText(W.Hex(unpack(S.bad)) .. short .. " short|r")
+        win.summary:SetText(W.Hex(unpack(S.bad)) .. short .. " missing|r")
     end
 
     -- one line per paladin with something to do:  Billy: [Wisdom] Bob, Sam  [Kings] Vexa

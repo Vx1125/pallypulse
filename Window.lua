@@ -33,7 +33,7 @@ local current = "blessings"
 -- ---------------------------------------------------------------------------
 local function CanEdit(pal)
     if ns.CanEditRow(pal) then return true end
-    ns.Print("Only that paladin, or a raid leader / assistant, can change this.")
+    ns.Print("Requires leader or assist.")
     return false
 end
 
@@ -236,7 +236,7 @@ local function BuildTitle()
     W.MakeDraggable(win, tb, "win", false)
 
     local x = PAD
-    for _, t in ipairs({ { "blessings", "Blessings" }, { "players", "Players" }, { "group", "Group" }, { "options", "Options" } }) do
+    for _, t in ipairs({ { "blessings", "Blessings" }, { "players", "Players" }, { "group", "Versions" }, { "options", "Options" } }) do
         local b = CreateFrame("Button", nil, win)
         b.text = W.Text(b, 12, S.dim, "CENTER", S.head)
         b.text:SetPoint("CENTER", 0, 1)
@@ -295,15 +295,16 @@ local function BuildBlessings(P)
         local l = W.Text(h, 10, color, "CENTER", S.head)
         l:SetPoint("BOTTOM", 0, 2); l:SetWidth(w + 10); l:SetText(label)
         h:SetScript("OnEnter", function(self)
+            if not tip then return end
             GameTooltip:SetOwner(self, "ANCHOR_TOP"); GameTooltip:AddLine(label, unpack(color))
             GameTooltip:AddLine(tip, 0.8, 0.8, 0.8, true); GameTooltip:Show()
         end)
         h:SetScript("OnLeave", function() GameTooltip:Hide() end)
         return h
     end
-    P.auraHead = Head(AURA_X, CELL, "Aura", S.gold, "One aura per paladin. Auto-assign gives each paladin a different one. Click a cell to choose.")
+    P.auraHead = Head(AURA_X, CELL, "Aura", S.gold)
     P.auraHead.icon:SetTexture(ns.AURA_BY_KEY.DEVOTION.icon)
-    P.oathHead = Head(OATH_X, OATH_W, "Oath", S.paladin, "Holy talent. Boosts that paladin's own heals on the target for 5 minutes. Auto-assign puts it on your tanks.")
+    P.oathHead = Head(OATH_X, OATH_W, "Oath", S.paladin)
 
     for _, x in ipairs({ AURA_X - 6, OATH_X - 5 }) do
         local div = P:CreateTexture(nil, "ARTWORK")
@@ -350,9 +351,9 @@ local function BuildBlessings(P)
             cell:SetScript("OnEnter", function(self)
                 local key = ns.assign[self.pal] and ns.assign[self.pal][self.class]
                 local r, g, b = W.ClassColor(self.class)
-                Tip(self, W.Hex(r, g, b) .. (LOCALIZED_CLASS_NAMES_MALE[self.class] or self.class) .. "|r  from  " .. ns.FirstName(self.pal),
-                    key and ns.BY_KEY[key].single or "No blessing",
-                    ns.CanEditRow(self.pal) and "Click: choose   Wheel: cycle   Right-click: clear" or "Read-only (not your row)")
+                Tip(self, W.Hex(r, g, b) .. (LOCALIZED_CLASS_NAMES_MALE[self.class] or self.class) .. "|r - " .. ns.FirstName(self.pal),
+                    key and ns.BY_KEY[key].single or "None",
+                    ns.CanEditRow(self.pal) and "Click: choose   Wheel: cycle   Right-click: clear" or nil)
             end)
             row.cells[i] = cell
         end
@@ -368,9 +369,9 @@ local function BuildBlessings(P)
         end)
         ac:SetScript("OnEnter", function(self)
             local k = ns.AuraFor(self.pal)
-            Tip(self, W.Hex(unpack(S.gold)) .. "Aura|r  from  " .. ns.FirstName(self.pal),
-                k and ns.AURA_BY_KEY[k].name or "No aura",
-                ns.CanEditRow(self.pal) and "Click: choose   Right-click: clear" or "Read-only (not your row)")
+            Tip(self, W.Hex(unpack(S.gold)) .. "Aura|r - " .. ns.FirstName(self.pal),
+                k and ns.AURA_BY_KEY[k].name or "None",
+                ns.CanEditRow(self.pal) and "Click: choose   Right-click: clear" or nil)
         end)
         row.aura = ac
 
@@ -390,9 +391,9 @@ local function BuildBlessings(P)
             end
         end)
         oc:SetScript("OnEnter", function(self)
-            Tip(self, W.Hex(unpack(S.paladin)) .. "Oath of Light|r  from  " .. ns.FirstName(self.pal),
-                ns.oath[self.pal] or "No target",
-                ns.CanEditRow(self.pal) and "Click: set to your current target   Right-click: clear" or "Read-only (not your row)")
+            Tip(self, W.Hex(unpack(S.paladin)) .. "Oath of Light|r - " .. ns.FirstName(self.pal),
+                ns.oath[self.pal] or "None",
+                ns.CanEditRow(self.pal) and "Click: set to target   Right-click: clear" or nil)
         end)
         row.oath = oc
 
@@ -402,7 +403,7 @@ local function BuildBlessings(P)
 
     P.empty = W.Text(P, 12, S.dim, "CENTER")
     P.empty:SetPoint("TOP", 0, -(ROWS_Y + 8)); P.empty:SetWidth(WIDTH - 40)
-    P.empty:SetText("No paladins in your group yet.\nJoin a party or raid and they will appear here.")
+    P.empty:SetText("No paladins in group")
 
     P.status = W.Text(P, 11, S.dim)
     P.status:SetPoint("BOTTOMLEFT", PAD, 40); P.status:SetWidth(WIDTH - PAD * 2)
@@ -411,7 +412,12 @@ local function BuildBlessings(P)
     auto:SetPoint("BOTTOMLEFT", PAD - 2, 10)
     local presets = W.Button(P, "Presets", 72, 22, function(self) ns.TogglePresetMenu(self) end)
     presets:SetPoint("LEFT", auto, "RIGHT", 2, 0)
-    local clear = W.Button(P, "Clear", 60, 22, function() ns.ClearAll() end)
+    StaticPopupDialogs["PALLYPULSE_CLEAR"] = {
+        text = "Clear all assignments?", button1 = YES or "Yes", button2 = NO or "No",
+        OnAccept = function() ns.ClearAll() end,
+        timeout = 0, whileDead = true, hideOnEscape = true, preferredIndex = 3,
+    }
+    local clear = W.Button(P, "Clear", 60, 22, function() StaticPopup_Show("PALLYPULSE_CLEAR") end)
     clear:SetPoint("LEFT", presets, "RIGHT", 2, 0)
     local announce = W.Button(P, "Announce", 84, 22, function() ns.Announce() end)
     announce:SetPoint("BOTTOMRIGHT", -PAD + 2, 10)
@@ -419,10 +425,8 @@ local function BuildBlessings(P)
     sync:SetPoint("RIGHT", announce, "LEFT", -2, 0)
     W.Tip(auto, function(t)
         t:AddLine("Auto-assign", 1, 1, 1)
-        t:AddLine("Blessings by class, exceptions by role (tanks, healers, ferals...), one aura per paladin, Oaths on tanks. Requests from \"!bless want\" come first.", 0.7, 0.7, 0.7, true)
+        t:AddLine("Blessings, auras and Oaths by class and role", 0.7, 0.7, 0.7, true)
     end)
-    W.Tip(presets, function(t) t:AddLine("Presets", 1, 1, 1); t:AddLine("Save and load whole layouts", 0.7, 0.7, 0.7) end)
-    W.Tip(announce, function(t) t:AddLine("Announce", 1, 1, 1); t:AddLine("Post the assignments to group chat", 0.7, 0.7, 0.7) end)
 end
 
 local function RefreshBlessings(P)
@@ -472,14 +476,14 @@ local function RefreshBlessings(P)
             local tgt = ns.oath[pal]
             oc.plus:Hide()
             if ns.oathCap[pal] == false then
-                oc.text:SetText("no talent"); oc.text:SetTextColor(S.dim[1], S.dim[2], S.dim[3], 0.6); oc.baseBorder = S.border
+                oc.text:SetText("No talent"); oc.text:SetTextColor(S.dim[1], S.dim[2], S.dim[3], 0.6); oc.baseBorder = S.border
             elseif tgt then
                 local unit = ns.UnitForName(tgt)
                 if unit then
                     local _, cls = UnitClass(unit)
                     oc.text:SetText(ns.FirstName(tgt)); oc.text:SetTextColor(W.ClassColor(cls or "PALADIN")); oc.baseBorder = S.border
                 else
-                    oc.text:SetText(ns.FirstName(tgt) .. " (gone)"); oc.text:SetTextColor(unpack(S.dim)); oc.baseBorder = S.warn
+                    oc.text:SetText(ns.FirstName(tgt) .. " (left)"); oc.text:SetTextColor(unpack(S.dim)); oc.baseBorder = S.warn
                 end
             else
                 oc.text:SetText("+"); oc.text:SetTextColor(unpack(S.dim)); oc.baseBorder = S.border
@@ -495,11 +499,11 @@ local function RefreshBlessings(P)
     if #ns.paladins == 0 then
         text, color = "", S.dim
     elseif ncon > 0 then
-        text = ("|T%s:12|t  %d duplicate blessing%s on the same class"):format(W.NOTREADY, ncon, ncon == 1 and "" or "s"); color = S.bad
+        text = ("|T%s:12|t  %d duplicate%s"):format(W.NOTREADY, ncon, ncon == 1 and "" or "s"); color = S.bad
     elseif #uncovered > 0 then
-        text = ("|T%s:12|t  No blessing for: %s"):format(W.WAITING, ClassNames(uncovered, 3)); color = S.warn
+        text = ("|T%s:12|t  Unassigned: %s"):format(W.WAITING, ClassNames(uncovered, 3)); color = S.warn
     else
-        text = ("|T%s:12|t  Every class is covered"):format(W.READY); color = S.good
+        text = ("|T%s:12|t  All classes covered"):format(W.READY); color = S.good
     end
     P.status:SetText(text); P.status:SetTextColor(unpack(color))
     return ROWS_Y + math.max(npal, 1) * ROW_H + BOTTOM + 4
@@ -542,10 +546,9 @@ local function BuildPlayers(P)
             local e = self:GetParent().e
             local role, why = ns.GuessRole(e)
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-            GameTooltip:AddLine("Role: " .. (role and ns.ROLE_LABEL[role] or "unknown"), 1, 1, 1)
-            GameTooltip:AddLine("From: " .. tostring(why), 0.7, 0.7, 0.7)
-            GameTooltip:AddLine("Click: set it yourself   Right-click: back to guessing", 0.6, 0.6, 0.6, true)
-            GameTooltip:AddLine("Auto-assign uses roles to give exceptions (e.g. Kings for a druid tank).", 0.6, 0.6, 0.6, true)
+            GameTooltip:AddLine("Role: " .. (role and ns.ROLE_LABEL[role] or "Unknown"), 1, 1, 1)
+            GameTooltip:AddLine(why == "set by hand" and "Manual" or "Auto", 0.7, 0.7, 0.7)
+            GameTooltip:AddLine("Click: set   Right-click: auto", 0.6, 0.6, 0.6)
             GameTooltip:Show()
         end)
         r.role:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -569,9 +572,9 @@ local function BuildPlayers(P)
             local me = ns.Me()
             local key = ns.KeyFor(me, e)
             local _, kind = ns.IsException(me, e)
-            Tip(self, "Your blessing for " .. ns.FirstName(e.name),
-                (key and ns.BY_KEY[key].single or "None") .. (kind == "hand" and "  (set by hand)" or kind == "auto" and "  (from their role)" or ""),
-                "Click: choose an exception for this player   Right-click: back to their class blessing")
+            Tip(self, ns.FirstName(e.name),
+                (key and ns.BY_KEY[key].single or "None") .. (kind == "hand" and " (manual)" or kind == "auto" and " (auto)" or ""),
+                "Click: override   Right-click: reset")
         end)
         r.cell.row = r
 
@@ -580,7 +583,7 @@ local function BuildPlayers(P)
     end)
     P.note = W.Text(P, 11, S.dim)
     P.note:SetWidth(WIDTH - PAD * 2)
-    P.note:SetText("Players can ask in chat: !bless want might  (or wisdom, kings, light).  !bless clear undoes it.")
+    P.note:SetText("")
 end
 
 local function RefreshPlayers(P)
@@ -600,7 +603,7 @@ local function RefreshPlayers(P)
         local isEx, kind = ns.IsException(me, e)
         if key and ns.BY_KEY[key] then r.cell.icon:SetTexture(ns.BY_KEY[key].icon); r.cell.plus:Hide()
         else r.cell.icon:SetTexture(nil); r.cell.plus:Show() end
-        r.cell.badge:SetText(kind == "hand" and "H" or kind == "auto" and "A" or "")
+        r.cell.badge:SetText(isEx and "*" or "")
         r.cell.baseBorder = isEx and S.gold or S.border
         r.cell:SetBackdropBorderColor(unpack(r.cell.baseBorder))
         local req = ns.db.requests[e.name]
@@ -612,12 +615,12 @@ local function RefreshPlayers(P)
             r.wants:SetText("-"); r.wants:SetTextColor(unpack(S.dim))
         end
         if not ns.Eligible(e) then
-            r.stat:SetText("dead / offline"); r.stat:SetTextColor(unpack(S.dim))
+            r.stat:SetText((e.dead or ns.SafeUnit(UnitIsDeadOrGhost, e.unit, false)) and "Dead" or "Offline"); r.stat:SetTextColor(unpack(S.dim))
         elseif key then
             local left = ns.MemberRemaining(e, key)
             local far = e.name ~= me and ns.InRange(ns.BY_KEY[key].single, e.unit) == false
-            if not left then r.stat:SetText(far and "missing (far)" or "missing"); r.stat:SetTextColor(unpack(S.bad))
-            else r.stat:SetText(W.FormatTime(left) ~= "" and W.FormatTime(left) or "up"); r.stat:SetTextColor(unpack(far and S.dim or S.good)) end
+            if not left then r.stat:SetText(far and "Out of range" or "Missing"); r.stat:SetTextColor(unpack(S.bad))
+            else r.stat:SetText(W.FormatTime(left) ~= "" and W.FormatTime(left) or "Up"); r.stat:SetTextColor(unpack(far and S.dim or S.good)) end
         else
             r.stat:SetText("");
         end
@@ -663,9 +666,9 @@ local function RefreshGroup(P)
         elseif v.addon == "PallyPower" then
             pp = pp + 1
             r.addon:SetText("PallyPower"); r.addon:SetTextColor(unpack(S.warn))
-            r.ver:SetText("synced"); r.ver:SetTextColor(unpack(S.dim))
+            r.ver:SetText("Synced"); r.ver:SetTextColor(unpack(S.dim))
         else
-            r.addon:SetText(v.class == "PALADIN" and "none found" or "-"); r.addon:SetTextColor(unpack(S.dim))
+            r.addon:SetText(v.class == "PALADIN" and "None" or "-"); r.addon:SetTextColor(unpack(S.dim))
             r.ver:SetText("")
         end
     end
@@ -673,7 +676,7 @@ local function RefreshGroup(P)
     local h = SizeList(P.list, n)
     P.footer:ClearAllPoints()
     P.footer:SetPoint("TOPLEFT", PAD, -(TOP + 22 + h + 10))
-    P.footer:SetText(("You: PallyPulse %s   -   %d PallyPulse, %d PallyPower in group"):format(ns.VERSION, pulse, pp))
+    P.footer:SetText(("v%s  |  %d PallyPulse, %d PallyPower"):format(ns.VERSION, pulse, pp))
     P.refresh:ClearAllPoints()
     P.refresh:SetPoint("TOPRIGHT", P, "TOPRIGHT", -PAD, -(TOP + 22 + h + 5))
     return TOP + 22 + h + 40
@@ -717,7 +720,7 @@ end
 function ns.RefreshWindow()
     if not win or not win:IsShown() then return end
     local grp = IsInRaid() and "Raid" or (IsInGroup() and "Party" or "Solo")
-    win.sub:SetText(("%s  -  %d paladin%s"):format(grp, #ns.paladins, #ns.paladins == 1 and "" or "s"))
+    win.sub:SetText(("%s  |  %d paladin%s"):format(grp, #ns.paladins, #ns.paladins == 1 and "" or "s"))
     local h
     if current == "blessings" then h = RefreshBlessings(panels.blessings)
     elseif current == "players" then h = RefreshPlayers(panels.players)
