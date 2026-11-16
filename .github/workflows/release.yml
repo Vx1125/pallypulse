@@ -61,3 +61,6 @@ jobs:
 
       - name: Package and upload
         uses: BigWigsMods/packager@v2
+        with:
+          # zip "PallyPulse-v1.0.3.zip", shown on CurseForge as "PallyPulse v1.0.3"
+          args: -n "{package-name}-{project-version}:{package-name} {project-version}"
