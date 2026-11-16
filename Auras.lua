@@ -75,7 +75,7 @@ end
 -- ---------------------------------------------------------------------------
 -- Is a buff of yours on a unit? Returns expiration (0 = no duration) or nil.
 -- ---------------------------------------------------------------------------
-function ns.FindAura(unit, name, filter)
+local function ScanAura(unit, name, filter)
     local modern = C_UnitAuras and C_UnitAuras.GetAuraDataByIndex
     for i = 1, 40 do
         local n, e, fin = nil, nil, false
@@ -96,6 +96,56 @@ function ns.FindAura(unit, name, filter)
         end
     end
     return nil
+end
+
+function ns.FindAura(unit, name, filter)
+    local r = ScanAura(unit, name, filter)
+    if r then return r end
+    -- On yourself the client may not flag your own paladin aura as "cast by player", so the
+    -- PLAYER filter misses it. Anything with this name on you counts.
+    if unit == "player" and filter and filter:find("PLAYER") then
+        r = ScanAura(unit, name, (filter:gsub("|PLAYER", "")))
+        if r then return r end
+        if C_UnitAuras and C_UnitAuras.GetAuraDataBySpellName then
+            local ok, d = pcall(C_UnitAuras.GetAuraDataBySpellName, "player", name, "HELPFUL")
+            if ok and d then
+                local e = 0
+                pcall(function() if ns.Readable(d.expirationTime) then e = d.expirationTime or 0 end end)
+                return e
+            end
+        end
+    end
+    return nil
+end
+
+-- /pulse auras: what the client says is on you, to track down aura-detection problems.
+function ns.DebugAuras()
+    local me = ns.Me()
+    local key = ns.AuraFor(me)
+    local a = key and ns.AURA_BY_KEY[key]
+    ns.Print(("assigned aura = %s, known = %s, FindAura(PLAYER filter) = %s, any caster = %s"):format(
+        tostring(key), tostring(ns.auraCaps[me] and ns.auraCaps[me][key]),
+        tostring(a and ScanAura("player", a.name, "HELPFUL|PLAYER")),
+        tostring(a and ScanAura("player", a.name, "HELPFUL"))))
+    local modern = C_UnitAuras and C_UnitAuras.GetAuraDataByIndex
+    for i = 1, 40 do
+        local line
+        if modern then
+            local ok, d = pcall(C_UnitAuras.GetAuraDataByIndex, "player", i, "HELPFUL")
+            if not ok then line = "(unreadable)"
+            elseif not d then break
+            else
+                pcall(function()
+                    line = ("%s  id=%s  source=%s"):format(tostring(d.name), tostring(d.spellId), tostring(d.sourceUnit))
+                end)
+            end
+        else
+            local ok, n, _, _, _, _, _, caster, _, _, id = pcall(UnitBuff, "player", i)
+            if not ok then line = "(unreadable)" elseif not n then break
+            else line = ("%s  id=%s  source=%s"):format(tostring(n), tostring(id), tostring(caster)) end
+        end
+        ns.Print("  " .. i .. ". " .. tostring(line))
+    end
 end
 
 -- Your assigned aura: key, whether it's on, whether you know it.

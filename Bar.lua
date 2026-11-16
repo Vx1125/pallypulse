@@ -292,7 +292,7 @@ function ns.BuildBar()
     ns.bar = bar
 
     -- drag by the panel itself; right-click the panel to open assignments
-    W.MakeDraggable(bar, bar, "bar", true)
+    W.MakeDraggable(bar, bar, "bar", true, true)
     bar:SetScript("OnMouseUp", function(_, btn) if btn == "RightButton" then ns.ToggleWindow() end end)
 
     BuildSmart()

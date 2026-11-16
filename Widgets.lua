@@ -188,16 +188,30 @@ function W.RestorePos(frame, key, default)
     frame:SetPoint(p[1], UIParent, p[2], p[3], p[4])
 end
 
-function W.MakeDraggable(frame, handle, key, respectLock)
+-- noCombatMove: the frame has secure buttons anchored to it (the buff bar). The game refuses to
+-- move such a frame in combat, so say so instead of attempting it.
+function W.MakeDraggable(frame, handle, key, respectLock, noCombatMove)
     frame:SetMovable(true)
     frame:SetClampedToScreen(true)
     handle:EnableMouse(true)
     handle:RegisterForDrag("LeftButton")
+    local moving = false
+    local lastMsg = 0
     handle:SetScript("OnDragStart", function()
         if respectLock and ns.db.locked then return end
+        if noCombatMove and InCombatLockdown() then
+            if GetTime() - lastMsg > 5 then
+                lastMsg = GetTime()
+                ns.Print("The buff bar can't be moved in combat (the game blocks it). Move it after combat.")
+            end
+            return
+        end
+        moving = true
         frame:StartMoving()
     end)
     handle:SetScript("OnDragStop", function()
+        if not moving then return end
+        moving = false
         frame:StopMovingOrSizing()
         W.SavePos(frame, key)
     end)
