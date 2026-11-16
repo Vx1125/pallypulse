@@ -134,6 +134,76 @@ function W.Check(parent, label, get, set, tip)
 end
 
 -- Label with [-] value [+]. get() -> number, set(number)
+-- Keybind row: click the button, press a key (with Shift / Ctrl / Alt if you like) to bind it.
+-- Escape cancels, right-click clears. Uses the game's own bindings, so it's the same as setting
+-- it under Key Bindings > AddOns.
+function W.KeyBind(parent, label, command, tip)
+    local f = CreateFrame("Frame", nil, parent)
+    f:SetSize(236, 24)
+    local txt = W.Text(f, 12, S.text)
+    txt:SetPoint("LEFT", 4, 0); txt:SetText(label)
+    local b = W.Button(f, "", 96, 20)
+    b:SetPoint("RIGHT")
+    b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+
+    local capturing = false
+    local function Save()
+        pcall(function() SaveBindings(GetCurrentBindingSet and GetCurrentBindingSet() or 1) end)
+    end
+    local function ClearAll()
+        local keys = { GetBindingKey(command) }
+        for _, k in ipairs(keys) do SetBinding(k) end
+    end
+    local function Stop()
+        capturing = false
+        b:EnableKeyboard(false)
+        b:SetScript("OnKeyDown", nil)
+        f:Refresh()
+    end
+    local function Bind(key)
+        ClearAll()
+        local mod = (IsAltKeyDown() and "ALT-" or "") .. (IsControlKeyDown() and "CTRL-" or "") .. (IsShiftKeyDown() and "SHIFT-" or "")
+        SetBinding(mod .. key, command)
+        Save()
+        Stop()
+    end
+
+    function f:Refresh()
+        if capturing then return end
+        local k = GetBindingKey(command)
+        b:SetText(k and (GetBindingText and GetBindingText(k, "KEY_") or k) or "Not bound")
+    end
+
+    b:SetScript("OnClick", function(_, btn)
+        if InCombatLockdown() then return end          -- the game blocks binding changes in combat
+        if btn == "RightButton" then
+            if capturing then Stop() return end
+            ClearAll(); Save(); f:Refresh()
+            return
+        end
+        if capturing then Stop() return end
+        capturing = true
+        b:SetText("Press a key")
+        b:EnableKeyboard(true)
+        pcall(b.SetPropagateKeyboardInput, b, false)
+        b:SetScript("OnKeyDown", function(_, key)
+            if key == "ESCAPE" then Stop() return end
+            if key:find("SHIFT$") or key:find("CTRL$") or key:find("ALT$") then return end   -- wait for the real key
+            Bind(key)
+        end)
+    end)
+    b:SetScript("OnMouseDown", function(_, btn)
+        if not capturing then return end
+        local map = { MiddleButton = "BUTTON3", Button4 = "BUTTON4", Button5 = "BUTTON5" }
+        if map[btn] then Bind(map[btn]) end
+    end)
+    b:SetScript("OnHide", function() if capturing then Stop() end end)
+
+    if tip then f:EnableMouse(true); AddTip(f, label, tip .. " Right-click the key to clear it.") end
+    f:Refresh()
+    return f
+end
+
 function W.Stepper(parent, label, get, set, step, minv, maxv, fmt, tip)
     local f = CreateFrame("Frame", nil, parent)
     f:SetSize(236, 24)

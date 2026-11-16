@@ -58,6 +58,13 @@ function ns.BuildOptions(P, top)
         function(v) ns.db.frameIconSize = v; if ns.RefreshFrameIcons then ns.RefreshFrameIcons() end end,
         2, 14, 40, function(v) return ("%d"):format(v) end))
 
+    Section("Keybinds")
+    Add(W.KeyBind(P, "Smart Buff", "CLICK PallyPulseSmartButton:LeftButton",
+        "Casts the next buff you owe. Alt + key blesses yourself."))
+    Add(W.KeyBind(P, "Oath on mouseover", "CLICK PallyPulseOathTarget:LeftButton",
+        "Oath of Light on your mouseover, else target, else you."))
+    Add(W.KeyBind(P, "Open PallyPulse", "PALLYPULSE_TOGGLE", "Shows or hides the assignments window."))
+
     Section("Smart Buff")
     Add(W.Stepper(P, "Refresh at (min left)", function() return ns.db.refresh / 60 end,
         function(v) ns.db.refresh = v * 60; ns.dirty = true end, 1, 0, 30, function(v) return ("%d"):format(v) end,
@@ -101,10 +108,10 @@ function ns.BuildOptions(P, top)
 
     -- two columns
     local colX, y0 = { 16, 270 }, -(top or 60)
-    -- column 1: Buff bar, Compact layout, frames; column 2: Smart Buff and the rest
+    -- column 1: Buff bar, Compact layout, frames, keybinds; column 2: Smart Buff and the rest
     local headings = {}
     for i, r in ipairs(rows) do if r.heading then headings[#headings + 1] = i end end
-    local split = headings[4] or math.ceil(#rows / 2)    -- column 2 starts at "Smart Buff"
+    local split = headings[5] or math.ceil(#rows / 2)    -- column 2 starts at "Smart Buff"
     local maxY = 0
     local y, col = y0, 1
     for i, r in ipairs(rows) do
