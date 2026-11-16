@@ -60,6 +60,15 @@ function ns.PreviewBuffs(e)
     return have
 end
 
+-- Pretend paladins for the ready check window: Liadra gives Light to everyone, Tomas gives
+-- Might to melee and Wisdom to everyone else.
+local MELEE = { WARRIOR = true, ROGUE = true, HUNTER = true }
+function ns.PreviewOwed(e)
+    local owe = { LIGHT = "Liadra" }
+    if MELEE[e.class] or e.name == "Grokka" then owe.MIGHT = "Tomas" else owe.WISDOM = "Tomas" end
+    return owe
+end
+
 -- wrap the roster and status functions
 local origScan = ns.ScanRoster
 function ns.ScanRoster(...)

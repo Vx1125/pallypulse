@@ -106,7 +106,7 @@ local function Build()
         h:EnableMouse(true)
         W.Tip(h, function(t)
             t:AddLine(col.label, 1, 1, 1)
-            if col.blessing then t:AddLine("Red outline: yours to give", unpack(S.dim)) end
+            if col.blessing then t:AddLine("Red: yours   Orange: another paladin's", unpack(S.dim)) end
         end)
         win.heads[i] = h
     end
@@ -133,6 +133,14 @@ local function Build()
             c.tex = c:CreateTexture(nil, "ARTWORK")
             c.tex:SetPoint("TOPLEFT", 1, -1); c.tex:SetPoint("BOTTOMRIGHT", -1, 1)
             c.tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+            c:EnableMouse(true)
+            c:SetScript("OnEnter", function(self)
+                if not self.tip then return end
+                GameTooltip:SetOwner(self, "ANCHOR_TOP")
+                GameTooltip:AddLine(self.tip, 1, 1, 1)
+                GameTooltip:Show()
+            end)
+            c:SetScript("OnLeave", function() GameTooltip:Hide() end)
             row.cells[i] = c
         end
         row:Hide()
@@ -140,7 +148,8 @@ local function Build()
     end
 
     win.foot = W.Text(win, 11, S.dim, "LEFT")
-    win.foot:SetPoint("BOTTOMLEFT", PAD, 9)
+    win.foot:SetPoint("BOTTOMLEFT", PAD, 8)
+    win.foot:SetSpacing(4)
 
     local elapsed = 0
     win:SetScript("OnUpdate", function(self, dt)
@@ -152,6 +161,19 @@ local function Build()
         end
         if not InCombatLockdown() then ns.RefreshReadyCheck() end
     end)
+end
+
+-- Who should give each blessing to this player: { KEY = paladin name }
+local function Owed(e)
+    local owe = {}
+    for _, pal in ipairs(ns.paladins or {}) do
+        local k = ns.KeyFor(pal, e)
+        if k and not owe[k] then owe[k] = pal end
+    end
+    if e.fake and ns.PreviewOwed then
+        for k, pal in pairs(ns.PreviewOwed(e)) do if not owe[k] then owe[k] = pal end end
+    end
+    return owe
 end
 
 local function SortedRoster()
@@ -195,8 +217,9 @@ function ns.RefreshReadyCheck()
     end
     local width = x0 + #shownCols * (CELL + GAP) - GAP + PAD
 
-    local ready, total, mine = 0, 0, 0
+    local ready, total = 0, 0
     local short, checked = 0, 0
+    local todo, todoOrder = {}, {}    -- [paladin] = { [KEY] = { names } }
     local npal = #(ns.paladins or {})
     local n = math.min(#list, MAXROWS)
     for r = 1, MAXROWS do
@@ -224,16 +247,11 @@ function ns.RefreshReadyCheck()
             local alive = not ns.SafeUnit(UnitIsDeadOrGhost, e.unit, false)
             local have
             if e.fake then alive, have = not e.dead, ns.PreviewBuffs(e) else have = BuffsOn(e.unit) end
-            local myKey = ns.KeyFor(me, e)
-
-            -- how many blessings they should have (one from each paladin, distinct) vs have
-            local expect, want = 0, {}
-            for _, pal in ipairs(ns.paladins or {}) do
-                local k = ns.KeyFor(pal, e)
-                if k and not want[k] then want[k] = true; expect = expect + 1 end
-            end
+            -- how many blessings they should have (one per paladin, distinct) vs have
+            local owe = Owed(e)
+            local expect = 0
+            for _ in pairs(owe) do expect = expect + 1 end
             if expect == 0 then expect = math.min(npal, 4) end
-            if ns.preview and e.fake then expect = 3 end          -- pretend 3 paladins
             local got = 0
             for _, col in ipairs(COLS) do
                 if col.blessing and HasCol(have, col) then got = got + 1 end
@@ -254,7 +272,8 @@ function ns.RefreshReadyCheck()
                 local col, c = COLS[ci], row.cells[ci]
                 c:ClearAllPoints(); c:SetPoint("LEFT", row, "LEFT", x0 - 6 + (k - 1) * (CELL + GAP), 0)
                 local ic = HasCol(have, col)
-                local yours = col.blessing and myKey == col.key
+                local owner = col.blessing and owe[col.key]
+                c.tip = nil
                 if ic then
                     c.tex:SetTexture(type(ic) ~= "boolean" and ic or col.icon); c.tex:Show()
                     if c.SetBackdrop then c:SetBackdropColor(0, 0, 0, 0.6); c:SetBackdropBorderColor(0, 0, 0, 1) end
@@ -262,8 +281,13 @@ function ns.RefreshReadyCheck()
                     c.tex:Hide()
                     if c.SetBackdrop then
                         c:SetBackdropColor(0, 0, 0, 0.35)
-                        if yours and alive then
-                            c:SetBackdropBorderColor(S.bad[1], S.bad[2], S.bad[3], 1); mine = mine + 1
+                        if owner and alive then
+                            local col2 = (owner == me) and S.bad or S.warn
+                            c:SetBackdropBorderColor(col2[1], col2[2], col2[3], 1)
+                            c.tip = (owner == me) and "You" or ns.FirstName(owner)
+                            if not todo[owner] then todo[owner] = {}; todoOrder[#todoOrder + 1] = owner end
+                            todo[owner][col.key] = todo[owner][col.key] or {}
+                            table.insert(todo[owner][col.key], ns.FirstName(e.name))
                         else
                             c:SetBackdropBorderColor(S.border[1], S.border[2], S.border[3], 0.6)
                         end
@@ -282,18 +306,37 @@ function ns.RefreshReadyCheck()
     if checked == 0 then
         win.summary:SetText("")
     elseif short == 0 then
-        win.summary:SetText(W.Hex(unpack(S.good)) .. "|TInterface\\RaidFrame\\ReadyCheck-Ready:14|t Everyone has all their blessings|r")
+        win.summary:SetText(W.Hex(unpack(S.good)) .. "|TInterface\\RaidFrame\\ReadyCheck-Ready:14|t All blessed|r")
     else
-        win.summary:SetText(W.Hex(unpack(S.bad)) .. short .. (short == 1 and " player is" or " players are") .. " short a blessing|r")
+        win.summary:SetText(W.Hex(unpack(S.bad)) .. short .. " short|r")
     end
-    if mine > 0 then
-        local key = GetBindingKey and GetBindingKey("CLICK PallyPulseSmartButton:LeftButton")
-        win.foot:SetText(W.Hex(unpack(S.bad)) .. mine .. " of your blessings missing|r" ..
-            (key and ("  -  press " .. (GetBindingText and GetBindingText(key, "KEY_") or key) .. " (Smart Buff)") or "  -  use Smart Buff"))
-    else
-        win.foot:SetText(W.Hex(unpack(S.good)) .. "All your blessings are up|r")
+
+    -- one line per paladin with something to do:  Billy: [Wisdom] Bob, Sam  [Kings] Vexa
+    table.sort(todoOrder, function(a, b)
+        if a == me then return true end
+        if b == me then return false end
+        return a < b
+    end)
+    local lines = {}
+    for _, pal in ipairs(todoOrder) do
+        local parts = {}
+        for _, b in ipairs(ns.BLESSINGS) do
+            local names = todo[pal][b.key]
+            if names then
+                local shown = {}
+                for i = 1, math.min(#names, 4) do shown[i] = names[i] end
+                local txt = table.concat(shown, ", ")
+                if #names > 4 then txt = txt .. " +" .. (#names - 4) end
+                parts[#parts + 1] = ("|T%s:14|t %s"):format(b.icon, txt)
+            end
+        end
+        local who = (pal == me) and (W.Hex(unpack(S.bad)) .. "You|r")
+            or (W.Hex(unpack(S.warn)) .. ns.FirstName(pal) .. "|r")
+        lines[#lines + 1] = who .. ":  " .. W.Hex(unpack(S.text)) .. table.concat(parts, "   ") .. "|r"
     end
-    win:SetSize(math.max(width, 390), TOP + n * (ROW_H + 1) + FOOT + 4)
+    win.foot:SetText(table.concat(lines, "\n"))
+    local footH = (#lines > 0) and (#lines * 16 + 12) or 8
+    win:SetSize(math.max(width, 330), TOP + n * (ROW_H + 1) + footH)
 end
 
 function ns.ShowReadyCheck(auto)

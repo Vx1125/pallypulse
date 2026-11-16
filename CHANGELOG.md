@@ -1,7 +1,7 @@
 # PallyPulse
 
 ## 1.0.5
-- Ready check window: each player shows a blessing count like 3/3 (green) or 2/3 (red), based on how many paladins are assigned to bless them, and the top line says "Everyone has all their blessings" or how many players are short one.
+- Ready check window: each player shows a blessing count like 3/3 (green) or 2/3 (red), and the top line says "All blessed" or how many are short. Missing blessings are outlined red if they're yours and orange if they're another paladin's (hover for who), and the bottom lists who owes what, e.g. "Billy: [Wisdom] Bob, Sam".
 - New preview mode for testing while solo: /pulse preview (or Options > Preview a raid) adds a pretend 13-person raid with a mix of buffed, expiring, missing and dead players, so you can see the bar, the Blessings and Players tabs and the ready check window filled in. The ready check window opens with it. Nothing is cast on the pretend players, and a /reload turns it off.
 - New ready check window. When a ready check starts it opens with everyone's ready status and blessings. Blessings that are yours to give and missing get a red outline, and it tells you how many you owe. Turn on "also show raid buffs, food, flask" in Options to add Stamina, Mark of the Wild, Intellect, Spirit, food and flask. Open it any time with /pulse check; turn it off under Options > Ready check window.
 - Fixed your aura turning red in combat while it was still on. The aura is now read from the stance bar, which the game still shows in combat.
