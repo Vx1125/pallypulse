@@ -126,10 +126,11 @@ local function BuildSmart()
         local st = self.stats
         if st then
             GameTooltip:AddLine(" ")
-            GameTooltip:AddDoubleLine("Missing", st.missing, 0.8, 0.8, 0.8, 1, 1, 1)
-            GameTooltip:AddDoubleLine("Expiring soon", st.expiring, 0.8, 0.8, 0.8, 1, 1, 1)
-            if st.far > 0 then GameTooltip:AddDoubleLine("Out of range", st.far, 0.8, 0.8, 0.8, 1, 1, 1) end
-            if (st.held or 0) > 0 then GameTooltip:AddDoubleLine("Under your Freedom / Protection", st.held, 0.8, 0.8, 0.8, 1, 1, 1) end
+            GameTooltip:AddLine("All your buffs (Oath, aura and blessings):", 0.6, 0.6, 0.6)
+            GameTooltip:AddDoubleLine("  Missing", st.missing, 0.8, 0.8, 0.8, 1, 1, 1)
+            GameTooltip:AddDoubleLine("  Expiring soon", st.expiring, 0.8, 0.8, 0.8, 1, 1, 1)
+            if st.far > 0 then GameTooltip:AddDoubleLine("  Out of range", st.far, 0.8, 0.8, 0.8, 1, 1, 1) end
+            if (st.held or 0) > 0 then GameTooltip:AddDoubleLine("  Under your Freedom / Protection", st.held, 0.8, 0.8, 0.8, 1, 1, 1) end
         end
         GameTooltip:AddLine(" ")
         if not InCombatLockdown() and ns.oathCap[ns.Me()] then
