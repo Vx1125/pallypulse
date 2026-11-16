@@ -1,8 +1,6 @@
 <Bindings>
 	<Binding name="CLICK PallyPulseSmartButton:LeftButton" header="PALLYPULSE" category="ADDONS">
 	</Binding>
-	<Binding name="CLICK PallyPulseSmartButton:RightButton" category="ADDONS">
-	</Binding>
 	<Binding name="CLICK PallyPulseOathTarget:LeftButton" category="ADDONS">
 	</Binding>
 	<Binding name="PALLYPULSE_TOGGLE" category="ADDONS">

@@ -1,6 +1,7 @@
 # PallyPulse
 
 ## 1.0.8
+- Removed the separate "Smart buff: Oath of Light" keybind; the new Oath keybind and the Smart Buff key cover it. Right-clicking the Smart Buff button still casts Oath.
 - Put Oath of Light on anyone quickly: a new keybind, "Oath of Light on mouseover / target" (Key Bindings > AddOns > PallyPulse), casts it on whoever your mouse is over, otherwise your target, otherwise you, and makes them your Oath target. Shift-click the Oath row on the bar does the same. Works in combat; the Oath row and Smart Buff switch to the new target after combat.
 
 ## 1.0.7
