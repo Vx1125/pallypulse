@@ -12,7 +12,8 @@ local PREFIX = "pulsepreview"
 -- Fake paladins and what they start with
 local PALS = {
     { name = "Liadra", blessing = "KINGS", aura = "DEVOTION" },
-    { name = "Tomas",  blessing = "LIGHT", aura = "CONCENTRATION", oath = "Brannock" },
+    { name = "Tomas",  blessing = { WARRIOR = "MIGHT", ROGUE = "MIGHT", HUNTER = "MIGHT" }, other = "WISDOM",
+      aura = "CONCENTRATION", oath = "Brannock" },
 }
 
 -- name, class, role, your blessing ("ok" / "low" / "missing"), fake paladins whose blessing
@@ -82,7 +83,9 @@ local function Seed()
     for _, p in ipairs(PALS) do
         if not ns.assign[p.name] then
             ns.assign[p.name] = {}
-            for _, c in ipairs(ns.CLASSES) do ns.assign[p.name][c] = p.blessing end
+            for _, c in ipairs(ns.CLASSES) do
+                ns.assign[p.name][c] = type(p.blessing) == "table" and (p.blessing[c] or p.other) or p.blessing
+            end
         end
         if ns.db.auraAssign[p.name] == nil then ns.db.auraAssign[p.name] = p.aura end
         if p.oath and ns.oath[p.name] == nil then ns.oath[p.name] = p.oath end

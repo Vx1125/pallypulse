@@ -1,6 +1,7 @@
 # PallyPulse
 
 ## 1.1.0
+- Removed Blessing of Light (replaced by Oath of Light on Forever).
 - Test mode moved to a button at the top of the window.
 - Test mode adds two fake paladins you can assign like real ones; fake players' buffs follow the assignments, so changes show everywhere at once.
 

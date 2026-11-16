@@ -219,7 +219,6 @@ local ALIASES = {
     might = "MIGHT", bom = "MIGHT", ap = "MIGHT",
     wisdom = "WISDOM", wis = "WISDOM", bow = "WISDOM", mana = "WISDOM",
     kings = "KINGS", king = "KINGS", bok = "KINGS",
-    light = "LIGHT", bol = "LIGHT",
 }
 
 local function ParseBlessing(word)
@@ -275,7 +274,7 @@ local function OnChat(msg, author)
             if k then keys[#keys + 1] = k end
         end
         if #keys == 0 then
-            if IAnswer() then Whisper(author, "Usage: !bless want might|wisdom|kings|light") end
+            if IAnswer() then Whisper(author, "Usage: !bless want might|wisdom|kings") end
             return
         end
         ns.SetRequest(e.name, keys, false)
@@ -293,7 +292,7 @@ local function OnChat(msg, author)
             Whisper(author, #m == 0 and "Nothing missing." or ("Missing: " .. table.concat(m, ", ")))
         end
     else
-        if IAnswer() then Whisper(author, "!bless want might|wisdom|kings|light, !bless clear, !bless missing") end
+        if IAnswer() then Whisper(author, "!bless want might|wisdom|kings, !bless clear, !bless missing") end
     end
 end
 

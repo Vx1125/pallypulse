@@ -207,7 +207,7 @@ local function Evaluate(e, npal)
     local owe = Owed(e)
     local expect = 0
     for _ in pairs(owe) do expect = expect + 1 end
-    if expect == 0 then expect = math.min(npal, 4) end
+    if expect == 0 then expect = math.min(npal, #ns.BLESSINGS) end
     local got = 0
     for _, col in ipairs(COLS) do
         if col.blessing and HasCol(have, col) then got = got + 1 end

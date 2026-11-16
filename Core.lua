@@ -800,6 +800,12 @@ core:SetScript("OnEvent", function(_, event, ...)
                 end
             end
         end
+        for player, keys in pairs(ns.db.requests or {}) do
+            if type(keys) == "table" then
+                for i = #keys, 1, -1 do if not ns.BY_KEY[keys[i]] then table.remove(keys, i) end end
+                if #keys == 0 then ns.db.requests[player] = nil end
+            end
+        end
         if ns.LocalizeSpells then ns.LocalizeSpells() end
     elseif event == "PLAYER_LOGIN" then
         ns.ComputeOwnCaps()

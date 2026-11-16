@@ -18,7 +18,6 @@ ns.BLESSINGS = {
     { key = "MIGHT",      single = "Blessing of Might",      greater = "Greater Blessing of Might",      icon = ICON .. "Spell_Holy_FistOfJustice" },
     { key = "WISDOM",     single = "Blessing of Wisdom",     greater = "Greater Blessing of Wisdom",     icon = ICON .. "Spell_Holy_SealOfWisdom" },
     { key = "KINGS",      single = "Blessing of Kings",      greater = "Greater Blessing of Kings",      icon = ICON .. "Spell_Magic_MageArmor" },
-    { key = "LIGHT",      single = "Blessing of Light",      greater = "Greater Blessing of Light",      icon = ICON .. "Spell_Holy_PrayerOfHealing02" },
 }
 
 -- Rank-1 spell ids (same ids PallyPower uses): { single, greater }
@@ -26,7 +25,6 @@ local IDS = {
     MIGHT     = { 19740, 25782 },
     WISDOM    = { 19742, 25894 },
     KINGS     = { 20217, 25898 },
-    LIGHT     = { 19977, 25890 },
 }
 for _, b in ipairs(ns.BLESSINGS) do
     b.singleId, b.greaterId = IDS[b.key][1], IDS[b.key][2]
@@ -42,15 +40,15 @@ end
 
 -- Preference order per class, used by Auto-assign. First entries win.
 ns.PREFS = {
-    WARRIOR = { "MIGHT", "KINGS", "LIGHT", "WISDOM" },
-    ROGUE   = { "MIGHT", "KINGS", "LIGHT", "WISDOM" },
-    HUNTER  = { "MIGHT", "KINGS", "WISDOM", "LIGHT" },
-    MAGE    = { "WISDOM", "KINGS", "LIGHT", "MIGHT" },
-    WARLOCK = { "WISDOM", "KINGS", "LIGHT", "MIGHT" },
-    PRIEST  = { "WISDOM", "KINGS", "LIGHT", "MIGHT" },
-    DRUID   = { "WISDOM", "KINGS", "MIGHT", "LIGHT" },
-    SHAMAN  = { "WISDOM", "KINGS", "MIGHT", "LIGHT" },
-    PALADIN = { "WISDOM", "KINGS", "MIGHT", "LIGHT" },
+    WARRIOR = { "MIGHT", "KINGS", "WISDOM" },
+    ROGUE   = { "MIGHT", "KINGS", "WISDOM" },
+    HUNTER  = { "MIGHT", "KINGS", "WISDOM" },
+    MAGE    = { "WISDOM", "KINGS", "MIGHT" },
+    WARLOCK = { "WISDOM", "KINGS", "MIGHT" },
+    PRIEST  = { "WISDOM", "KINGS", "MIGHT" },
+    DRUID   = { "WISDOM", "KINGS", "MIGHT" },
+    SHAMAN  = { "WISDOM", "KINGS", "MIGHT" },
+    PALADIN = { "WISDOM", "KINGS", "MIGHT" },
 }
 
 -- Auras. pp = PallyPower's aura number, so aura assignments sync with PallyPower users.
@@ -81,10 +79,10 @@ ns.VIGIL = { name = "Light's Vigil", icon = ICON .. "Spell_Holy_Restoration" }
 
 -- Role guessing (spec-aware assignments). What each kind of player wants, best first.
 ns.ROLE_PREFS = {
-    TANK   = { "KINGS", "LIGHT", "MIGHT", "WISDOM" },
-    MELEE  = { "MIGHT", "KINGS", "LIGHT", "WISDOM" },
-    CASTER = { "WISDOM", "KINGS", "LIGHT", "MIGHT" },
-    HEALER = { "WISDOM", "KINGS", "LIGHT", "MIGHT" },
+    TANK   = { "KINGS", "MIGHT", "WISDOM" },
+    MELEE  = { "MIGHT", "KINGS", "WISDOM" },
+    CASTER = { "WISDOM", "KINGS", "MIGHT" },
+    HEALER = { "WISDOM", "KINGS", "MIGHT" },
 }
 ns.ROLE_LABEL = { TANK = "Tank", MELEE = "Melee", CASTER = "Caster", HEALER = "Healer" }
 

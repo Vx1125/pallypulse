@@ -27,7 +27,7 @@ local ID_CLASS = {}
 for class, id in pairs(CLASS_ID) do ID_CLASS[id] = class end
 local MAX_CLASSES = 9
 
-local BLESS_ID = { WISDOM = 1, MIGHT = 2, KINGS = 3, LIGHT = 5 }
+local BLESS_ID = { WISDOM = 1, MIGHT = 2, KINGS = 3 }      -- Light (5) doesn't exist on Forever
 local ID_BLESS = {}
 for key, id in pairs(BLESS_ID) do ID_BLESS[id] = key end
 
