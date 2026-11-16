@@ -1,7 +1,7 @@
 # PallyPulse
 
 ## 1.0.5
-- New preview mode for testing while solo: /pulse preview (or Options > Preview a raid) adds a pretend 13-person raid with a mix of buffed, expiring, missing and dead players, so you can see the bar, the Blessings and Players tabs and the ready check window filled in. Nothing is cast on the pretend players, and a /reload turns it off.
+- New preview mode for testing while solo: /pulse preview (or Options > Preview a raid) adds a pretend 13-person raid with a mix of buffed, expiring, missing and dead players, so you can see the bar, the Blessings and Players tabs and the ready check window filled in. The ready check window opens with it. Nothing is cast on the pretend players, and a /reload turns it off.
 - New ready check window. When a ready check starts it opens with everyone's ready status and blessings. Blessings that are yours to give and missing get a red outline, and it tells you how many you owe. Turn on "also show raid buffs, food, flask" in Options to add Stamina, Mark of the Wild, Intellect, Spirit, food and flask. Open it any time with /pulse check; turn it off under Options > Ready check window.
 - Fixed your aura turning red in combat while it was still on. The aura is now read from the stance bar, which the game still shows in combat.
 

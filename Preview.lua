@@ -126,11 +126,13 @@ function ns.SetPreview(on)
     if ns.AutoOverrides then ns.AutoOverrides() end
     ns.dirty = true
     if ns.RefreshWindow then pcall(ns.RefreshWindow) end
-    if ns.RefreshReadyCheck then ns.RefreshReadyCheck() end
     if ns.preview then
+        if ns.ShowReadyCheck then ns.ShowReadyCheck() end    -- show the ready check window filled in
         ns.Print("Preview ON: a pretend 13-person raid is added so you can see how everything looks. "
-            .. "Nothing is cast on them. /pulse check shows the ready check window. /pulse preview again to stop.")
+            .. "Nothing is cast on them. /pulse preview again to stop.")
     else
+        local rc = _G.PallyPulseReadyCheck
+        if rc then rc:Hide() end
         ns.Print("Preview OFF.")
     end
 end
