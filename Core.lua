@@ -451,7 +451,17 @@ function ns.AutoOathSelf()
     local me = Me()
     if not ns.oathCap[me] then return end
     local tanks = ns.FindTanks()
-    if #tanks == 0 then return end
+    if #tanks == 0 then
+        -- No tank to follow. If the saved target isn't in the group (you went solo, or they
+        -- left), put Oath on yourself so the button still works. A target who is still in
+        -- the group is left alone.
+        local cur = ns.oath[me]
+        if not (cur and UnitForName(cur)) and cur ~= me then
+            ns.db.oathAutoPick = me
+            ns.SetOath(me, me, true)
+        end
+        return
+    end
 
     local isTank = {}
     for _, t in ipairs(tanks) do isTank[t] = true end
