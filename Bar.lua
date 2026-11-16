@@ -63,8 +63,19 @@ function ns.PickOathFromCast()
     if name ~= ns.oath[me] then ns.SetOath(me, name, true) end
 end
 
+-- Alert sounds to pick from in Options (game sound kit ids)
+ns.SOUNDS = {
+    { name = "Raid warning",   id = 8959 },
+    { name = "Ready check",    id = 8960 },
+    { name = "Whisper",        id = 3081 },
+    { name = "Quest complete", id = 878 },
+    { name = "Level up",       id = 888 },
+    { name = "Map ping",       id = 3175 },
+}
+
 function ns.Alert()
-    pcall(PlaySound, (SOUNDKIT and SOUNDKIT.RAID_WARNING) or 8959, "Master")
+    local snd = ns.SOUNDS[ns.db.alertSound or 1] or ns.SOUNDS[1]
+    pcall(PlaySound, snd.id, "Master")
 end
 local ROW_COLORS = {
     ok   = { 0.16, 0.42, 0.16, 0.85 },   -- everyone covered

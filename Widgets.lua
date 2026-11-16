@@ -204,7 +204,7 @@ function W.KeyBind(parent, label, command, tip)
     return f
 end
 
-function W.Stepper(parent, label, get, set, step, minv, maxv, fmt, tip)
+function W.Stepper(parent, label, get, set, step, minv, maxv, fmt, tip, valW)
     local f = CreateFrame("Frame", nil, parent)
     f:SetSize(236, 24)
     if tip then f:EnableMouse(true); AddTip(f, label, tip) end
@@ -218,7 +218,7 @@ function W.Stepper(parent, label, get, set, step, minv, maxv, fmt, tip)
     local plus = W.Button(f, "+", 24, 20, function() bump(1) end)
     plus:SetPoint("RIGHT")
     local val = W.Text(f, 12, S.gold, "CENTER", S.head)
-    val:SetPoint("RIGHT", plus, "LEFT", -2, 0); val:SetWidth(52)
+    val:SetPoint("RIGHT", plus, "LEFT", -2, 0); val:SetWidth(valW or 52); val:SetWordWrap(false)
     local minus = W.Button(f, "-", 24, 20, function() bump(-1) end)
     minus:SetPoint("RIGHT", val, "LEFT", -2, 0)
     function f:Refresh() val:SetText(fmt and fmt(get()) or tostring(get())) end

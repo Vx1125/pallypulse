@@ -82,8 +82,6 @@ function ns.BuildOptions(P, top)
     Add(W.Check(P, "Auto Oath of Light on tanks", function() return ns.db.autoOath end,
         function(v) ns.db.autoOath = v; if v then ns.AutoOathSelf() end end,
         "Oath of Light goes on the group's tank, or on you when solo."))
-    Add(W.Check(P, "Sound: Oath about to expire", function() return ns.db.oathSound end,
-        function(v) ns.db.oathSound = v end, "Plays a sound when your Oath of Light has 30 seconds left."))
 
     Section("Group")
     Add(W.Check(P, "Answer \"!bless\" chat requests", function() return ns.db.chatRequests end,
@@ -97,8 +95,6 @@ function ns.BuildOptions(P, top)
     Add(W.Check(P, "Show raid buffs too", function() return ns.db.readyCheckRaid end,
         function(v) ns.db.readyCheckRaid = v; if ns.RefreshReadyCheck then ns.RefreshReadyCheck() end end,
         "Adds Stamina, Mark, Intellect, Spirit, food and flask."))
-    Add(W.Check(P, "Sound if my blessings are missing", function() return ns.db.readyCheckSound end,
-        function(v) ns.db.readyCheckSound = v end, "Plays a sound when a ready check starts and you owe blessings."))
     Add(W.Stepper(P, "Ready check size", function() return ns.RCScale() end,
         function(v)
             ns.db.rcScale = v; ns.ApplyScale()
@@ -107,6 +103,17 @@ function ns.BuildOptions(P, top)
             if not (rc and rc:IsShown()) and ns.ShowReadyCheck then ns.ShowReadyCheck() end
         end, 0.1, 0.6, 1.5, function(v) return ("%.1f"):format(v) end,
         "Size of the ready check window. Changing it opens the window so you can see."))
+
+    Section("Sounds")
+    Add(W.Check(P, "Oath about to expire", function() return ns.db.oathSound end,
+        function(v) ns.db.oathSound = v end, "Plays when your Oath of Light has 30 seconds left."))
+    Add(W.Check(P, "Ready check: I owe blessings", function() return ns.db.readyCheckSound end,
+        function(v) ns.db.readyCheckSound = v end, "Plays when a ready check starts and you owe blessings."))
+    Add(W.Stepper(P, "Sound", function() return ns.db.alertSound or 1 end,
+        function(v) ns.db.alertSound = v; ns.Alert() end, 1, 1, #ns.SOUNDS,
+        function(v) return (ns.SOUNDS[v] or ns.SOUNDS[1]).name end,
+        "Which sound both alerts use. Each one plays as you pick it.", 104))
+    Add(W.Button(P, "Test sound", 110, 22, function() ns.Alert() end))
 
     Section("Testing")
     Add(W.Check(P, "Preview a raid", function() return ns.preview end,
