@@ -204,6 +204,80 @@ function W.KeyBind(parent, label, command, tip)
     return f
 end
 
+-- Dropdown row: a button showing the current choice; click it for a list (mouse wheel scrolls
+-- long lists). list() returns { {name=...}, ... }; current() returns the chosen name.
+function W.Dropdown(parent, label, list, current, onPick, tip, btnW)
+    local f = CreateFrame("Frame", nil, parent)
+    f:SetSize(236, 24)
+    local txt = W.Text(f, 12, S.text)
+    txt:SetPoint("LEFT", 4, 0); txt:SetText(label)
+    local b = W.Button(f, "", btnW or 140, 20)
+    b:SetPoint("RIGHT")
+    if b.label then b.label:SetWordWrap(false); b.label:SetWidth((btnW or 140) - 22) end
+    local arrow = b:CreateTexture(nil, "OVERLAY")
+    arrow:SetSize(12, 12); arrow:SetPoint("RIGHT", -5, 0)
+    arrow:SetTexture("Interface\\ChatFrame\\ChatFrameExpandArrow")
+    arrow:SetRotation(-math.pi / 2)
+
+    local ROWS, RH = 12, 18
+    local menu = W.Panel(UIParent, (btnW or 140) + 40, 20)
+    menu:SetFrameStrata("FULLSCREEN_DIALOG")
+    menu:SetClampedToScreen(true)
+    menu:Hide()
+    menu.anchor = b
+    W.AutoClose(menu)
+    menu.offset = 0
+    menu.rows = {}
+    for i = 1, ROWS do
+        local r = CreateFrame("Button", nil, menu)
+        r:SetHeight(RH)
+        r:SetPoint("TOPLEFT", 6, -6 - (i - 1) * RH); r:SetPoint("RIGHT", -6, 0)
+        r.text = W.Text(r, 11, S.text, "LEFT")
+        r.text:SetPoint("LEFT", 4, 0); r.text:SetPoint("RIGHT", -4, 0); r.text:SetWordWrap(false)
+        r.hl = r:CreateTexture(nil, "HIGHLIGHT"); r.hl:SetAllPoints(); r.hl:SetColorTexture(1, 1, 1, 0.12)
+        r:SetScript("OnClick", function(self)
+            if self.item then onPick(self.item); menu:Hide(); f:Refresh() end
+        end)
+        menu.rows[i] = r
+    end
+    local function Fill()
+        local items = list()
+        local cur = current()
+        local maxOff = math.max(0, #items - ROWS)
+        menu.offset = math.max(0, math.min(menu.offset, maxOff))
+        local shown = math.min(ROWS, #items)
+        for i = 1, ROWS do
+            local r, item = menu.rows[i], items[i + menu.offset]
+            r.item = item
+            if item and i <= shown then
+                r.text:SetText(item.name)
+                r.text:SetTextColor(unpack(item.name == cur and S.gold or S.text))
+                r:Show()
+            else
+                r:Hide()
+            end
+        end
+        menu:SetHeight(12 + shown * RH)
+    end
+    menu:EnableMouseWheel(true)
+    menu:SetScript("OnMouseWheel", function(_, d) menu.offset = menu.offset - d * 3; Fill() end)
+    b:SetScript("OnClick", function()
+        if menu:IsShown() then menu:Hide() return end
+        -- open scrolled so the current choice is visible
+        local items, cur = list(), current()
+        for i, item in ipairs(items) do if item.name == cur then menu.offset = i - 3 end end
+        menu:SetScale(f:GetEffectiveScale() / UIParent:GetEffectiveScale())
+        menu:ClearAllPoints(); menu:SetPoint("TOPRIGHT", b, "BOTTOMRIGHT", 0, -2)
+        Fill(); menu:Show()
+    end)
+    f:SetScript("OnHide", function() menu:Hide() end)
+
+    function f:Refresh() b:SetText(current() or "") end
+    if tip then f:EnableMouse(true); AddTip(f, label, tip) end
+    f:Refresh()
+    return f
+end
+
 function W.Stepper(parent, label, get, set, step, minv, maxv, fmt, tip, valW)
     local f = CreateFrame("Frame", nil, parent)
     f:SetSize(236, 24)
