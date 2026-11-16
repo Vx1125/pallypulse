@@ -1,11 +1,19 @@
 name: Package and release
 
-# Push a tag like v1.0.2 and this builds PallyPulse and uploads it to CurseForge
-# (project 1809219, from the TOC) and to GitHub Releases.
+# Two ways to release PallyPulse to CurseForge (project 1809219, from the TOC):
+#   1. Change the number in VERSION and push to main. This workflow tags vX.Y.Z and releases.
+#   2. Push (or create on GitHub) a tag like v1.0.2.
 on:
   push:
+    branches:
+      - main
+    paths:
+      - VERSION
     tags:
-      - '**'
+      - 'v*'
+
+permissions:
+  contents: write
 
 jobs:
   release:
@@ -19,5 +27,19 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Tag the new version (when VERSION changed on main)
+        if: github.ref_type == 'branch'
+        run: |
+          v="v$(tr -d ' \r\n' < VERSION)"
+          if git rev-parse -q --verify "refs/tags/$v" >/dev/null; then
+            echo "Tag $v already exists; nothing to release."
+            echo "SKIP_RELEASE=true" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          git tag "$v"
+          git push origin "$v"
+          echo "Tagged $v"
+
       - name: Package and upload
+        if: env.SKIP_RELEASE != 'true'
         uses: BigWigsMods/packager@v2
