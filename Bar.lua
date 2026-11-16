@@ -22,6 +22,24 @@ local bar
 
 local function Compact() return ns.db.barLayout == "compact" end
 -- width taken by the two text lines beside Smart Buff (off unless "Show text" is on)
+-- Tooltips and the player list open beside the bar, on the side facing the middle of the
+-- screen, so they never cover the bar's own buttons.
+local function SideRight()
+    local cx = bar:GetCenter()
+    if not cx then return true end
+    return cx * bar:GetEffectiveScale() < (UIParent:GetWidth() * UIParent:GetEffectiveScale()) / 2
+end
+
+local function PlaceTip(owner)
+    GameTooltip:SetOwner(owner, "ANCHOR_NONE")
+    GameTooltip:ClearAllPoints()
+    if SideRight() then
+        GameTooltip:SetPoint("TOPLEFT", bar, "TOPRIGHT", 4, 0)
+    else
+        GameTooltip:SetPoint("TOPRIGHT", bar, "TOPLEFT", -4, 0)
+    end
+end
+
 local function TextW() return ns.db.barText and (TEXT_W + 8) or 0 end
 local ShowFlyout   -- defined below; the class buttons call it
 
@@ -86,7 +104,7 @@ local function BuildSmart()
     s.key:SetPoint("TOPLEFT", 2, -2)
 
     s:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_BOTTOMRIGHT")
+        PlaceTip(self)
         GameTooltip:AddLine("Smart Buff", unpack(S.gold))
         local job = self.job
         if InCombatLockdown() then
@@ -171,7 +189,7 @@ local function BuildMinis()
             b.cicon:Hide()
         end
         b:SetScript("OnEnter", function(self)
-            GameTooltip:SetOwner(self, "ANCHOR_TOP")
+            PlaceTip(self)
             if self.key then
                 local bl = ns.BY_KEY[self.key].single
                 local cname = LOCALIZED_CLASS_NAMES_MALE[self.class] or self.class
@@ -192,7 +210,7 @@ local function BuildMinis()
                 if why then GameTooltip:AddLine("  Normal blessing: " .. why, 0.5, 0.75, 0.5) end
                 GameTooltip:AddLine("Right-click: normal blessing", 0.6, 0.6, 0.6)
                 GameTooltip:AddLine("Shift-click: normal blessing on your target (works in combat)", 0.6, 0.6, 0.6)
-                if not InCombatLockdown() then GameTooltip:AddLine("Players are listed below: click one to buff just them", 0.6, 0.6, 0.6, true) end
+                if not InCombatLockdown() then GameTooltip:AddLine("Players are listed beside the bar: click one to buff just them", 0.6, 0.6, 0.6, true) end
             end
             GameTooltip:Show()
             ShowFlyout(self)
@@ -207,7 +225,7 @@ local function BuildMinis()
     o:RegisterForClicks("AnyDown", "AnyUp")
     o.strip:SetColorTexture(S.paladin[1], S.paladin[2], S.paladin[3], 1)
     o:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+        PlaceTip(self)
         GameTooltip:AddDoubleLine("Oath of Light", tostring(ns.oath[ns.Me()]), S.paladin[1], S.paladin[2], S.paladin[3], 1, 1, 1)
         if self.left then
             GameTooltip:AddLine(W.FormatTime(self.left) .. " remaining", unpack(self.left < ns.OATH.warn and S.warn or S.good))
@@ -227,7 +245,7 @@ local function BuildMinis()
     au:RegisterForClicks("AnyDown", "AnyUp")
     au.strip:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 1)
     au:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+        PlaceTip(self)
         local a = self.aura and ns.AURA_BY_KEY[self.aura]
         GameTooltip:AddLine(a and a.name or "Aura", unpack(S.gold))
         GameTooltip:AddLine(self.on and "On" or "Off - click to turn it on", unpack(self.on and S.good or S.bad))
@@ -309,13 +327,24 @@ function ShowFlyout(btn)
     fly:SetSize(FLY_W, 10 + n * FLY_H)
     fly.anchor = btn
     fly:ClearAllPoints()
-    if Compact() then
-        fly:SetPoint("TOPLEFT", btn, "TOPRIGHT", 4, 0)
+    -- beside the bar, level with the button; the button's tooltip moves under the list
+    local yoff = (btn:GetTop() or 0) - (bar:GetTop() or 0)
+    local right = SideRight()
+    if right then
+        fly:SetPoint("TOPLEFT", bar, "TOPRIGHT", 4, yoff)
     else
-        fly:SetPoint("TOP", btn, "BOTTOM", 0, -4)
+        fly:SetPoint("TOPRIGHT", bar, "TOPLEFT", -4, yoff)
     end
     fly:SetScale(1)
     fly:Show()
+    if GameTooltip:IsOwned(btn) then
+        GameTooltip:ClearAllPoints()
+        if right then
+            GameTooltip:SetPoint("TOPLEFT", fly, "BOTTOMLEFT", 0, -4)
+        else
+            GameTooltip:SetPoint("TOPRIGHT", fly, "BOTTOMRIGHT", 0, -4)
+        end
+    end
 end
 
 function ns.BuildBar()
