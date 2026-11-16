@@ -1,7 +1,7 @@
 # PallyPulse
 
 ## 1.0.8
-- New Sounds section in Options: pick from six alert sounds (each plays as you pick it) and a Test sound button.
+- New Sounds section in Options: pick an alert sound (each plays as you pick it) and a Test sound button. Besides six game sounds, it lists sounds your other addons share through LibSharedMedia, such as DBM, BigWigs, WeakAuras or Details.
 - Separate sizes in Options: Bar size, Window size (the main window) and Ready check size. Changing the ready check size opens that window so you can see it.
 - Set your PallyPulse keybinds right in Options (new Keybinds section): click a button, press a key. Right-click clears it.
 - Removed the separate "Smart buff: Oath of Light" keybind; the new Oath keybind and the Smart Buff key cover it. Right-clicking the Smart Buff button still casts Oath.

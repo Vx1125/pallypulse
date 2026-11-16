@@ -109,10 +109,15 @@ function ns.BuildOptions(P, top)
         function(v) ns.db.oathSound = v end, "Plays when your Oath of Light has 30 seconds left."))
     Add(W.Check(P, "Ready check: I owe blessings", function() return ns.db.readyCheckSound end,
         function(v) ns.db.readyCheckSound = v end, "Plays when a ready check starts and you owe blessings."))
-    Add(W.Stepper(P, "Sound", function() return ns.db.alertSound or 1 end,
-        function(v) ns.db.alertSound = v; ns.Alert() end, 1, 1, #ns.SOUNDS,
-        function(v) return (ns.SOUNDS[v] or ns.SOUNDS[1]).name end,
-        "Which sound both alerts use. Each one plays as you pick it.", 104))
+    Add(W.Stepper(P, "Sound", function() local _, i = ns.CurrentSound(); return i end,
+        function(v)
+            local list = ns.SoundList()
+            if v > #list then v = #list end
+            ns.db.alertSoundName = list[v].name
+            ns.Alert()
+        end, 1, 1, 500,
+        function(v) local list = ns.SoundList(); return (list[math.min(v, #list)] or list[1]).name end,
+        "Which sound both alerts use. Each one plays as you pick it. Sounds shared by your other addons are listed after PallyPulse's own.", 130))
     Add(W.Button(P, "Test sound", 110, 22, function() ns.Alert() end))
 
     Section("Testing")

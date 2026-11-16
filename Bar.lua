@@ -63,7 +63,9 @@ function ns.PickOathFromCast()
     if name ~= ns.oath[me] then ns.SetOath(me, name, true) end
 end
 
--- Alert sounds to pick from in Options (game sound kit ids)
+-- Alert sounds to pick from in Options: six game sounds, plus any sounds other installed
+-- addons share through LibSharedMedia (Details, WeakAuras, DBM, BigWigs...). PallyPulse
+-- doesn't ship the library; it only uses it when another addon has loaded it.
 ns.SOUNDS = {
     { name = "Raid warning",   id = 8959 },
     { name = "Ready check",    id = 8960 },
@@ -73,9 +75,36 @@ ns.SOUNDS = {
     { name = "Map ping",       id = 3175 },
 }
 
+function ns.SoundList()
+    local list = {}
+    for _, snd in ipairs(ns.SOUNDS) do list[#list + 1] = snd end
+    local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
+    if LSM then
+        local seen = {}
+        for _, snd in ipairs(ns.SOUNDS) do seen[snd.name] = true end
+        local ok, names = pcall(LSM.List, LSM, "sound")
+        for _, name in ipairs(ok and names or {}) do
+            if name ~= "None" and not seen[name] then
+                local file = LSM:Fetch("sound", name, true)
+                if file then seen[name] = true; list[#list + 1] = { name = name, file = file } end
+            end
+        end
+    end
+    return list
+end
+
+-- The chosen sound (saved by name, so the list can grow without changing your pick)
+function ns.CurrentSound()
+    local list = ns.SoundList()
+    local want = ns.db.alertSoundName or (ns.SOUNDS[ns.db.alertSound or 1] or ns.SOUNDS[1]).name
+    for i, snd in ipairs(list) do if snd.name == want then return snd, i, list end end
+    return list[1], 1, list
+end
+
 function ns.Alert()
-    local snd = ns.SOUNDS[ns.db.alertSound or 1] or ns.SOUNDS[1]
-    pcall(PlaySound, snd.id, "Master")
+    local snd = ns.CurrentSound()
+    if snd.file then pcall(PlaySoundFile, snd.file, "Master")
+    else pcall(PlaySound, snd.id, "Master") end
 end
 local ROW_COLORS = {
     ok   = { 0.16, 0.42, 0.16, 0.85 },   -- everyone covered
