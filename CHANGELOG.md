@@ -1,6 +1,7 @@
 # PallyPulse
 
 ## 1.0.8
+- New "Radiation ticker" alert sound: a Geiger counter that speeds up.
 - New Sounds section in Options: pick an alert sound from a dropdown (it plays when you pick it) and a Test sound button. Besides six game sounds, it lists sounds your other addons share through LibSharedMedia, such as DBM, BigWigs, WeakAuras or Details.
 - Separate sizes in Options: Bar size, Window size (the main window) and Ready check size. Changing the ready check size opens that window so you can see it.
 - Set your PallyPulse keybinds right in Options (new Keybinds section): click a button, press a key. Right-click clears it.

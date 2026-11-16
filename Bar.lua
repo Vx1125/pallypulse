@@ -73,6 +73,7 @@ ns.SOUNDS = {
     { name = "Quest complete", id = 878 },
     { name = "Level up",       id = 888 },
     { name = "Map ping",       id = 3175 },
+    { name = "Radiation ticker", file = "Interface\\AddOns\\PallyPulse\\Sounds\\RadiationTicker.ogg" },
 }
 
 function ns.SoundList()
