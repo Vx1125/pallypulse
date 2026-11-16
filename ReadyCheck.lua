@@ -8,6 +8,7 @@ local S, W = ns.STYLE, ns.W
 
 local ICON = "Interface\\Icons\\"
 local ROW_H, NAME_W, CELL, GAP, PAD = 18, 104, 18, 3, 10
+local COUNT_W = 44        -- the "3/3" blessing count column
 local TOP = 52            -- title + column headers
 local FOOT = 26
 local MAXROWS = 40
@@ -89,6 +90,8 @@ local function Build()
     win.title:SetPoint("TOPLEFT", PAD, -9)
     win.count = W.Text(win, 12, S.text, "LEFT", S.head)
     win.count:SetPoint("LEFT", win.title, "RIGHT", 10, 0)
+    win.summary = W.Text(win, 11, S.text, "LEFT")
+    win.summary:SetPoint("LEFT", win.count, "RIGHT", 12, 0)
 
     local close = CreateFrame("Button", nil, win, "UIPanelCloseButton")
     close:SetPoint("TOPRIGHT", 2, 2)
@@ -118,6 +121,8 @@ local function Build()
         row.ready:SetSize(14, 14); row.ready:SetPoint("LEFT", 2, 0)
         row.name = W.Text(row, 12, S.text, "LEFT", S.head)
         row.name:SetPoint("LEFT", 20, 0); row.name:SetWidth(NAME_W - 22); row.name:SetWordWrap(false)
+        row.bcount = W.Text(row, 12, S.text, "CENTER", S.num, "OUTLINE")
+        row.bcount:SetPoint("LEFT", NAME_W - 6, 0); row.bcount:SetWidth(COUNT_W - 4)
         row.cells = {}
         for i = 1, #COLS do
             local c = CreateFrame("Frame", nil, row, BackdropTemplateMixin and "BackdropTemplate" or nil)
@@ -181,7 +186,7 @@ function ns.RefreshReadyCheck()
         if show then shownCols[#shownCols + 1] = i end
     end
 
-    local x0 = PAD + NAME_W
+    local x0 = PAD + NAME_W + COUNT_W
     for i, h in ipairs(win.heads) do h:Hide() end
     for n, ci in ipairs(shownCols) do
         local h = win.heads[ci]
@@ -191,6 +196,8 @@ function ns.RefreshReadyCheck()
     local width = x0 + #shownCols * (CELL + GAP) - GAP + PAD
 
     local ready, total, mine = 0, 0, 0
+    local short, checked = 0, 0
+    local npal = #(ns.paladins or {})
     local n = math.min(#list, MAXROWS)
     for r = 1, MAXROWS do
         local row = win.rows[r]
@@ -218,6 +225,30 @@ function ns.RefreshReadyCheck()
             local have
             if e.fake then alive, have = not e.dead, ns.PreviewBuffs(e) else have = BuffsOn(e.unit) end
             local myKey = ns.KeyFor(me, e)
+
+            -- how many blessings they should have (one from each paladin, distinct) vs have
+            local expect, want = 0, {}
+            for _, pal in ipairs(ns.paladins or {}) do
+                local k = ns.KeyFor(pal, e)
+                if k and not want[k] then want[k] = true; expect = expect + 1 end
+            end
+            if expect == 0 then expect = math.min(npal, 4) end
+            if ns.preview and e.fake then expect = 3 end          -- pretend 3 paladins
+            local got = 0
+            for _, col in ipairs(COLS) do
+                if col.blessing and HasCol(have, col) then got = got + 1 end
+            end
+            if not alive then
+                row.bcount:SetText("dead"); row.bcount:SetTextColor(unpack(S.dim))
+            elseif expect > 0 then
+                checked = checked + 1
+                local okb = got >= expect
+                if not okb then short = short + 1 end
+                row.bcount:SetText(("%d/%d"):format(math.min(got, expect), expect))
+                row.bcount:SetTextColor(unpack(okb and S.good or S.bad))
+            else
+                row.bcount:SetText("")
+            end
             for i, c in ipairs(row.cells) do c:Hide() end
             for k, ci in ipairs(shownCols) do
                 local col, c = COLS[ci], row.cells[ci]
@@ -248,6 +279,13 @@ function ns.RefreshReadyCheck()
 
     win.title:SetText("Ready check")
     win.count:SetText(("%d/%d ready"):format(ready, total))
+    if checked == 0 then
+        win.summary:SetText("")
+    elseif short == 0 then
+        win.summary:SetText(W.Hex(unpack(S.good)) .. "|TInterface\\RaidFrame\\ReadyCheck-Ready:14|t Everyone has all their blessings|r")
+    else
+        win.summary:SetText(W.Hex(unpack(S.bad)) .. short .. (short == 1 and " player is" or " players are") .. " short a blessing|r")
+    end
     if mine > 0 then
         local key = GetBindingKey and GetBindingKey("CLICK PallyPulseSmartButton:LeftButton")
         win.foot:SetText(W.Hex(unpack(S.bad)) .. mine .. " of your blessings missing|r" ..
@@ -255,7 +293,7 @@ function ns.RefreshReadyCheck()
     else
         win.foot:SetText(W.Hex(unpack(S.good)) .. "All your blessings are up|r")
     end
-    win:SetSize(math.max(width, 300), TOP + n * (ROW_H + 1) + FOOT + 4)
+    win:SetSize(math.max(width, 390), TOP + n * (ROW_H + 1) + FOOT + 4)
 end
 
 function ns.ShowReadyCheck(auto)
