@@ -1,5 +1,11 @@
 # PallyPulse
 
+## 1.0.3
+- Oath of Light now defaults to yourself when you're solo or your target left the group.
+- Fixed your own aura (e.g. Retribution Aura) showing as "Off" when it was on.
+- The buff bar now says it can't be moved in combat instead of silently failing.
+- New /pulse auras command lists the buffs on you, for troubleshooting.
+
 ## 1.0.2
 - First CurseForge release.
 - Removed Blessing of Sanctuary (no longer in WoW Forever).

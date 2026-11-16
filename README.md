@@ -18,4 +18,4 @@ Settings > Actions > General > Workflow permissions set to "Read and write".
 ## Commands
 
 `/pulse` window, `/pulse players`, `/pulse versions`, `/pulse options`, `/pulse test`,
-`/pulse trace`, `/pulse debug`, `/pulse frames`
+`/pulse trace`, `/pulse debug`, `/pulse frames`, `/pulse auras`
