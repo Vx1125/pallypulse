@@ -244,6 +244,7 @@ function ns.ArmCombatQueue()
     end
     btn:SetAttribute("cq-n", #queue)
     btn:SetAttribute("cq-i", 1)
+    btn:SetAttribute("cq-cur", nil); btn:SetAttribute("cq-t", nil)
 
     -- Which click edge actually casts (key down by default on modern clients).
     local castDown = true
@@ -328,12 +329,30 @@ local SNIPPET = [=[
     -- 2. No friendly target (e.g. you're targeting a mob): anyone missing a blessing at the pull.
     local n = self:GetAttribute("cq-n") or 0
     local i = self:GetAttribute("cq-i") or 1
+
+    -- Protected code can't see whether a cast worked, so the queue moves on with each press.
+    -- A press during the global cooldown fails, and would skip that player. Within 1.5 s of
+    -- the last queue cast, press the same entry again instead of moving on.
+    local now = GetTime and GetTime()
+    local cur, last = self:GetAttribute("cq-cur"), self:GetAttribute("cq-t")
+    if now and cur and last and now - last < 1.5 then
+        local u = self:GetAttribute("cq-u" .. cur)
+        if u and UnitExists(u) then
+            self:SetAttribute("type1", "spell")
+            self:SetAttribute("spell1", self:GetAttribute("cq-s" .. cur))
+            self:SetAttribute("unit1", u)
+            return
+        end
+    end
+
     while i <= n do
         local u = self:GetAttribute("cq-u" .. i)
         local s = self:GetAttribute("cq-s" .. i)
         i = i + 1
         if u and UnitExists(u) and not (UnitIsDead and UnitIsDead(u)) and not (UnitIsGhost and UnitIsGhost(u)) then
             self:SetAttribute("cq-i", i)
+            self:SetAttribute("cq-cur", i - 1)
+            if now then self:SetAttribute("cq-t", now) end
             self:SetAttribute("type1", "spell")
             self:SetAttribute("spell1", s)
             self:SetAttribute("unit1", u)

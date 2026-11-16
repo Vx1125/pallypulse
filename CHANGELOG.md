@@ -3,6 +3,7 @@
 ## 1.0.4
 - New Compact bar layout in the style of PallyPower: a thin column of rows, green when everyone is buffed, tan when expiring, red when someone is missing it. Drag the green dot to move it, click the dot to fold the rows, right-click it for assignments. It's the default for new installs; pick it under Options > Bar layout.
 - The other bar layouts drop the two lines of text beside Smart Buff, so the panel is much slimmer. Turn them back on with Options > Show text beside Smart Buff. The low Symbols warning is now also in the Smart Buff tooltip.
+- Smart Buff in combat no longer skips a player when you press the key during the global cooldown; it presses the same blessing again instead of moving on.
 - Tooltips and the player list now open beside the bar instead of on top of it.
 - The Smart Buff tooltip makes clear its counts cover all your buffs (Oath, aura and blessings).
 
