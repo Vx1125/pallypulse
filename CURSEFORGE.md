@@ -50,9 +50,16 @@
 - Timers on each class, plus aura and seal buttons.
 - Can fade when idle.
 
+## Raid frames
+
+![Click the icon to re-bless](https://raw.githubusercontent.com/Vx1125/pallypulse/main/media/frame-click.jpg)
+
+- Your blessing on every party and raid frame, with time left. Missing: red, pulsing.
+- Click the icon to cast it, in combat too.
+- Also shows your hand blessings, Oath of Light, Light's Vigil and Forbearance.
+
 ## Also
 
-- Blessing icons on raid frames.
 - Key bindings set right in Options.
 - Alert sounds, plus any LibSharedMedia sounds from your other addons.
 - Test mode: a fake raid to try everything solo.
