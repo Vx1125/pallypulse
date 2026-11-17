@@ -1,12 +1,11 @@
 # PallyPulse
 
 ## 1.1.1
-- Bar no longer fades while you hover the player list.
+- Player list on the bar works in combat: hover a class, click a player (e.g. after Blessing of Protection).
 - Blessings you cast in combat no longer show as Missing.
-- Player list on the bar works in combat (re-bless after Blessing of Protection).
 - Oath of Light no longer shows as missing in combat when it is up.
 - Esc closes the ready check window.
-- Class row tooltip hides "Right-click: single" when a click already casts the single blessing.
+- Class tooltip hides "Right-click: single" when a click already casts it.
 
 ## 1.1.0
 - Removed Blessing of Light (replaced by Oath of Light on Forever).
