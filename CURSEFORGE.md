@@ -20,7 +20,7 @@
 ![Blessings tab](https://raw.githubusercontent.com/Vx1125/pallypulse/main/media/blessings.jpg)
 
 - Blessings by class, plus aura and Oath of Light for every paladin.
-- Auto-assign by class and role.
+- Auto-assign by spec: hybrids and warriors are inspected out of combat, and each class gets the blessing most of its players want.
 - Presets, Announce, and Sync with paladins running PallyPower.
 - Each holy paladin's Oath goes on a different tank.
 
@@ -29,9 +29,9 @@
 ![Players tab](https://raw.githubusercontent.com/Vx1125/pallypulse/main/media/players.jpg)
 
 - Give one player a different blessing from the rest of their class, such as Might on an Enhancement Shaman.
-- Exceptions are set automatically from spec and role, or by hand.
+- Exceptions are set automatically from spec, or by hand.
 - From the bar, hover a class and use the mouse wheel on a player.
-- Players can type `!bless want might`.
+- Players without the addon can use chat commands (below).
 
 ## Ready check
 
@@ -46,7 +46,7 @@
 ![Bar layouts](https://raw.githubusercontent.com/Vx1125/pallypulse/main/media/layouts.jpg)
 
 - Compact, Row, Wrap or Column layout.
-- Hover a class to list its players; click one to bless just them, in or out of combat.
+- Hover a class to list its players, with range bars; click one to bless just them, in or out of combat.
 - Timers on each class, plus aura and seal buttons.
 - Can fade when idle.
 
@@ -56,6 +56,16 @@
 - Key bindings set right in Options.
 - Alert sounds, plus any LibSharedMedia sounds from your other addons.
 - Test mode: a fake raid to try everything solo.
+
+## Chat commands
+
+For anyone in the group, in party, raid or a whisper:
+
+- `!bless want might, kings`: ask for blessings, in order.
+- `!bless clear`: back to normal.
+- `!bless missing`: your missing blessings. `!bless missing all`: everyone's.
+- `!bless report`: which paladin blesses which class.
+- Leader or assistant: `!bless assign` runs Auto-assign; `!bless want <name> kings` sets it for someone else.
 
 ## Commands
 
