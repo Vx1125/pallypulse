@@ -123,6 +123,7 @@ ns.DEFAULTS = {
     chatRequests = true,  -- answer "!bless" chat commands
     frameIcons = true,    -- big blessing icons on Blizzard's party / raid frames
     frameIconSize = 22,
+    frameIconClick = true, -- click the blessing icon on a frame to cast it
     autoOath = true,      -- Oath of Light follows the tank
     collapsed = false,
     showMinimap = true,

@@ -9,8 +9,10 @@ local S, W = ns.STYLE, ns.W
 --   [hand]      your Freedom / Protection / Sacrifice while it's on them (blue border).
 --   [oath]      your Oath of Light, on your Oath target (pink border).
 --
--- The icons are plain textures parented to Blizzard's frames. They never take mouse input,
--- so clicking and click-casting on the frames work exactly as before, in or out of combat.
+-- The icons are plain textures parented to Blizzard's frames and never take mouse input.
+-- The one exception: a click spot over the blessing icon casts that player's blessing, in
+-- combat too ("Click icon to bless"). It's a secure button set up out of combat, with a fixed
+-- place (the blessing icon is always the rightmost), so nothing about it changes in combat.
 
 local overlays = {}      -- blizzard frame -> overlay
 local frameList = {}
@@ -79,6 +81,40 @@ local function GetOverlay(f)
     return o
 end
 
+-- Out of combat only: point the click spot at this player and your blessing for them.
+local function SetClick(o, f, unit, spell)
+    if InCombatLockdown() then return end
+    local b = o.click
+    if not b then
+        if not spell then return end
+        -- parented to Blizzard's frame, not the overlay, so the overlay can still be shown
+        -- and hidden in combat
+        local ok
+        ok, b = pcall(CreateFrame, "Button", nil, f, "SecureActionButtonTemplate")
+        if not ok or not b then return end
+        b:SetFrameLevel(o:GetFrameLevel() + 2)
+        b:RegisterForClicks("LeftButtonUp", "LeftButtonDown")
+        b:EnableMouse(false)
+        o.click = b
+    end
+    local on = spell and unit and ns.db.frameIconClick ~= false and true or false
+    local sz = Size()
+    if b.sz ~= sz then
+        b:SetSize(sz, sz)
+        b:ClearAllPoints()
+        b:SetPoint("RIGHT", f, "RIGHT", -4, 0)
+        b.sz = sz
+    end
+    if b.on ~= on or b.unit ~= unit or b.spell ~= spell then
+        b:SetAttribute("type1", on and "spell" or nil)
+        b:SetAttribute("spell1", on and spell or nil)
+        b:SetAttribute("unit1", on and unit or nil)
+        b:SetAttribute("unit", on and unit or nil)      -- keeps mouseover macros working here
+        b:EnableMouse(on)
+        b.on, b.unit, b.spell = on, unit, spell
+    end
+end
+
 local function Resize(o)
     local sz = Size()
     for _, s in ipairs({ o.bless, o.hand, o.oath, o.vigil, o.forb }) do
@@ -141,7 +177,10 @@ local function UpdateFrame(f)
     local unit = f:IsVisible() and FrameUnit(f)
     local e = unit and ns.SafeUnit(UnitExists, unit, false) and EntryForUnit(unit)
     if not Enabled() or not e then
-        if o then o:Hide() end
+        if o then
+            o:Hide()
+            SetClick(o, f, nil, nil)
+        end
         return
     end
     o = GetOverlay(f)
@@ -159,8 +198,11 @@ local function UpdateFrame(f)
         local far = e.name ~= me and ns.InRange and ns.InRange(ns.BY_KEY[key].single, e.unit) == false
         SetSlot(o.bless, ns.BY_KEY[key].icon, left, not left, far)
         slots[#slots + 1] = o.bless
+        local _, single = ns.CastNames(key, e.class)
+        SetClick(o, f, (not e.fake) and unit or nil, single)
     else
         o.bless:Hide()
+        if alive or not key then SetClick(o, f, nil, nil) end   -- dead: keep it, they may be rezzed
     end
 
     -- your Freedom / Protection / Sacrifice

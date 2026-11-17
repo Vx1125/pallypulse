@@ -50,6 +50,9 @@ function ns.BuildOptions(P, top)
     Section("Raid frames")
     Add(W.Check(P, "Blessing icons", function() return ns.db.frameIcons end,
         function(v) ns.db.frameIcons = v; if ns.RefreshFrameIcons then ns.RefreshFrameIcons() end end))
+    Add(W.Check(P, "Click icon to bless", function() return ns.db.frameIconClick ~= false end,
+        function(v) ns.db.frameIconClick = v; if ns.RefreshFrameIcons then ns.RefreshFrameIcons() end end,
+        "Works in combat."))
     Add(W.Stepper(P, "Icon size", function() return ns.db.frameIconSize or 22 end,
         function(v) ns.db.frameIconSize = v; if ns.RefreshFrameIcons then ns.RefreshFrameIcons() end end,
         2, 14, 40, function(v) return ("%d"):format(v) end))

@@ -1,5 +1,8 @@
 # PallyPulse
 
+## 1.2.1
+- Click the blessing icon on a party or raid frame to cast it, in combat too (Options: Click icon to bless).
+
 ## 1.2.0
 - Specs: hybrids and warriors are inspected out of combat (kept 60 days), so roles and Auto-assign follow spec.
 - Auto-assign gives each class the blessing most of its players want.
