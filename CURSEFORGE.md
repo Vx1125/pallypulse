@@ -52,7 +52,7 @@
 
 ## Raid frames
 
-![Click the icon to re-bless](https://raw.githubusercontent.com/Vx1125/pallypulse/main/media/frame-click.jpg)
+![Click the icon to re-bless](https://raw.githubusercontent.com/Vx1125/pallypulse/main/media/frame-click-v2.jpg)
 
 - Your blessing on every party and raid frame, with time left. Missing: red, pulsing.
 - Click the icon to cast it, in combat too.
