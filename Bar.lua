@@ -364,15 +364,53 @@ local function BuildMinis()
 end
 
 -- ---------------------------------------------------------------------------
--- Player flyout: hover a class button (out of combat) to see everyone in that class and
--- click one to buff just them. Out of combat only: the game blocks showing click-to-cast
--- buttons during combat.
+-- Player flyout: hover a class button to see everyone in that class and click one to buff
+-- just them. Out of combat it's filled live. In combat the game only lets protected code
+-- show it, so at the pull each class button gets its player list (ArmFlyout) and a secure
+-- OnEnter snippet shows the flyout from that.
 -- ---------------------------------------------------------------------------
 local fly
 local FLY_MAX, FLY_H, FLY_W = 12, 20, 168
 
+local flyHeader
+
+-- shown by protected code in combat
+local FLY_SNIPPET = [=[
+    if not owner:GetAttribute("on") then return end
+    local fly = owner:GetFrameRef("fly")
+    local n = self:GetAttribute("fn") or 0
+    for i = 1, 12 do
+        local r = owner:GetFrameRef("row" .. i)
+        if i <= n then
+            local u, sp = self:GetAttribute("fu" .. i), self:GetAttribute("fs" .. i)
+            r:SetAttribute("type1", sp and "spell" or nil); r:SetAttribute("spell1", sp); r:SetAttribute("unit1", u)
+            r:SetAttribute("type2", sp and "spell" or nil); r:SetAttribute("spell2", sp); r:SetAttribute("unit2", u)
+            r:Show()
+        else
+            r:Hide()
+        end
+    end
+    if n == 0 then fly:Hide() return end
+    fly:SetHeight(10 + n * 20)
+    fly:ClearAllPoints()
+    fly:SetPoint(self:GetAttribute("fp"), self, self:GetAttribute("frp"), self:GetAttribute("fx") or 0, 0)
+    fly:Show()
+    fly:RegisterAutoHide(0.5)
+    fly:AddToAutoHide(self)
+]=]
+
 local function BuildFlyout()
-    fly = W.Panel(bar, FLY_W, 40)
+    fly = CreateFrame("Frame", "PallyPulseFlyout", bar,
+        "SecureHandlerBaseTemplate" .. (BackdropTemplateMixin and ",BackdropTemplate" or ""))
+    fly:SetSize(FLY_W, 40)
+    fly:SetBackdrop({
+        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 16, edgeSize = 14,
+        insets = { left = 3, right = 3, top = 3, bottom = 3 },
+    })
+    fly:SetBackdropColor(unpack(S.bg))
+    fly:SetBackdropBorderColor(unpack(S.frame))
     fly:SetFrameStrata("DIALOG")
     fly:SetClampedToScreen(true)
     fly:Hide()
@@ -438,38 +476,112 @@ local function BuildFlyout()
         self.away = (self.away or 0) + dt
         if self.away > 0.5 then self:Hide() end
     end)
+    -- combat: class buttons show the flyout through protected code
+    flyHeader = CreateFrame("Frame", nil, UIParent, "SecureHandlerBaseTemplate")
+    flyHeader:SetFrameRef("fly", fly)
+    for i = 1, FLY_MAX do flyHeader:SetFrameRef("row" .. i, fly.rows[i]) end
+    for _, b in ipairs(bar.buttons) do
+        pcall(SecureHandlerWrapScript, b, "OnEnter", flyHeader, FLY_SNIPPET)
+    end
+
     local ev = CreateFrame("Frame")
-    ev:RegisterEvent("PLAYER_REGEN_DISABLED")     -- last chance to hide it before combat locks it
-    ev:SetScript("OnEvent", function() if fly then fly:Hide() end end)
+    ev:RegisterEvent("PLAYER_REGEN_DISABLED")     -- last chance to set things up before combat locks it
+    ev:RegisterEvent("PLAYER_REGEN_ENABLED")
+    ev:SetScript("OnEvent", function(_, event)
+        if event == "PLAYER_REGEN_DISABLED" then
+            fly:Hide()
+            ns.ArmFlyout()
+        else
+            flyHeader:SetAttribute("on", nil)
+        end
+    end)
+end
+
+-- The players a class button lists, in flyout order.
+local function FlyEntries(class)
+    local out, me = {}, ns.Me()
+    for _, e in ipairs(ns.byClass[class] or {}) do
+        if #out >= FLY_MAX then break end
+        local key = ns.KeyFor(me, e)
+        if key and ns.BY_KEY[key] then
+            local _, single = ns.CastNames(key, e.class)
+            out[#out + 1] = { e = e, key = key, single = single }
+        end
+    end
+    return out
+end
+
+-- Where the flyout goes for a button: beside the bar, level with the button, on the side
+-- facing the middle of the screen. As an anchor on the button itself, for protected code.
+local function FlyAnchor(btn)
+    if SideRight() then
+        return "TOPLEFT", "TOPRIGHT", ((bar:GetRight() or 0) - (btn:GetRight() or 0)) + 2
+    elseif Compact() then
+        return "TOPRIGHT", "TOPLEFT", -2
+    end
+    return "TOPRIGHT", "TOPLEFT", -((btn:GetLeft() or 0) - (bar:GetLeft() or 0)) - 2
+end
+
+-- PLAYER_REGEN_DISABLED: give each class button its player list for the combat flyout.
+function ns.ArmFlyout()
+    if not flyHeader or InCombatLockdown() then return end
+    for _, b in ipairs(bar.buttons) do
+        local old = b:GetAttribute("fn") or 0
+        for i = 1, old do b:SetAttribute("fu" .. i, nil); b:SetAttribute("fs" .. i, nil) end
+        local n = 0
+        if b:IsShown() and b.class then
+            for i, it in ipairs(FlyEntries(b.class)) do
+                n = i
+                b:SetAttribute("fu" .. i, it.e.unit)
+                b:SetAttribute("fs" .. i, (not it.e.fake) and it.single or nil)   -- never cast on test players
+            end
+            local p, rp, x = FlyAnchor(b)
+            b:SetAttribute("fp", p); b:SetAttribute("frp", rp); b:SetAttribute("fx", x)
+        end
+        b:SetAttribute("fn", n)
+    end
+    flyHeader:SetAttribute("on", true)
+end
+
+-- Names, icons and times on the rows (allowed in combat; the click setup is not).
+local function FillRow(r, it)
+    local e, key = it.e, it.key
+    r.entry, r.key = e, key
+    r.own = ns.IsException(ns.Me(), e) and true or false
+    r.icon:SetTexture(ns.BY_KEY[key].icon)
+    r.name:SetText(ns.FirstName(e.name) .. (r.own and " *" or ""))
+    r.name:SetTextColor(W.ClassColor(e.class))
+    local alive = ns.Eligible(e)
+    local left = alive and ns.MemberRemaining(e, key)
+    r.time:SetText(not alive and "Dead" or (left and W.FormatTime(left)) or "Missing")
+    r.time:SetTextColor(unpack((alive and not left) and S.bad or S.dim))
 end
 
 function ShowFlyout(btn)
-    if InCombatLockdown() or not fly or not btn.class then return end
-    local list = ns.byClass[btn.class]
-    if not list then return end
-    local me, n = ns.Me(), 0
-    for _, e in ipairs(list) do
-        if n >= FLY_MAX then break end
-        local key = ns.KeyFor(me, e)
-        if key and ns.BY_KEY[key] then
-            n = n + 1
-            local r = fly.rows[n]
-            local _, single = ns.CastNames(key, e.class)
-            r:SetAttribute("type1", "spell"); r:SetAttribute("spell1", single); r:SetAttribute("unit1", e.unit)
-            r:SetAttribute("type2", "spell"); r:SetAttribute("spell2", single); r:SetAttribute("unit2", e.unit)
-            if e.fake then r:SetAttribute("type1", nil); r:SetAttribute("type2", nil) end   -- preview player
-            r.entry, r.key = e, key
-            r.own = ns.IsException(me, e) and true or false
-            r.icon:SetTexture(ns.BY_KEY[key].icon)
-            r.name:SetText(ns.FirstName(e.name) .. (r.own and " *" or ""))
-            r.name:SetTextColor(W.ClassColor(e.class))
-            local alive = ns.Eligible(e)
-            local left = alive and ns.MemberRemaining(e, key)
-            r.time:SetText(not alive and "Dead" or (left and W.FormatTime(left)) or "Missing")
-            r.time:SetTextColor(unpack((alive and not left) and S.bad or S.dim))
-            r:SetAlpha((single and ns.InRange(single, e.unit) == false) and 0.45 or 1)
-            r:Show()
+    if not fly or not btn.class then return end
+    if InCombatLockdown() then
+        -- the protected snippet has already shown it; just label the rows
+        for i, it in ipairs(FlyEntries(btn.class)) do FillRow(fly.rows[i], it) end
+        if fly:IsShown() and GameTooltip:IsOwned(btn) then
+            GameTooltip:ClearAllPoints()
+            if SideRight() then
+                GameTooltip:SetPoint("TOPLEFT", fly, "BOTTOMLEFT", 0, -4)
+            else
+                GameTooltip:SetPoint("TOPRIGHT", fly, "BOTTOMRIGHT", 0, -4)
+            end
         end
+        return
+    end
+    local n = 0
+    for i, it in ipairs(FlyEntries(btn.class)) do
+        n = i
+        local r, e, single = fly.rows[i], it.e, it.single
+        r:SetAttribute("type1", "spell"); r:SetAttribute("spell1", single); r:SetAttribute("unit1", e.unit)
+        r:SetAttribute("type2", "spell"); r:SetAttribute("spell2", single); r:SetAttribute("unit2", e.unit)
+        if e.fake then r:SetAttribute("type1", nil); r:SetAttribute("type2", nil) end   -- preview player
+        FillRow(r, it)
+        r:SetAlpha((single and ns.InRange(single, e.unit) == false) and 0.45 or 1)
+        r:Show()
     end
     for i = n + 1, FLY_MAX do fly.rows[i]:Hide() end
     if n == 0 then fly:Hide() return end
