@@ -38,6 +38,7 @@ local function CanEdit(pal)
 end
 
 local function BlessingOptions(pal)
+    if pal == ns.Me() then ns.ComputeOwnCaps() end     -- your spellbook, fresh
     local caps = ns.caps[pal]
     local list = { { key = "NONE", icon = W.NOTREADY, label = "No blessing" } }
     for _, b in ipairs(ns.BLESSINGS) do

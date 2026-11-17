@@ -445,7 +445,7 @@ local function BuildFlyout()
             local e = self.entry
             if InCombatLockdown() or not e then return end
             local me = ns.Me()
-            local caps = ns.caps[me]
+            local caps = ns.ComputeOwnCaps()
             local keys = {}
             for _, b in ipairs(ns.BLESSINGS) do
                 if not caps or caps[b.key] then keys[#keys + 1] = b.key end

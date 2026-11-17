@@ -1,5 +1,8 @@
 # PallyPulse
 
+## 1.2.2
+- Blessing pickers re-check your spellbook, so a blessing you know is never missing from the list.
+
 ## 1.2.1
 - Click the blessing icon on a party or raid frame to cast it, in combat too (Options: Click icon to bless).
 

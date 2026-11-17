@@ -941,6 +941,12 @@ function ns.Debug(arg)
         if ns.DebugAuras then ns.DebugAuras() end
     else
         ns.Print(("you = '%s', paladins in group = %d, combat = %s"):format(tostring(me), #ns.paladins, tostring(InCombatLockdown())))
+        local known = {}
+        for _, b in ipairs(ns.BLESSINGS) do
+            known[#known + 1] = ("%s=%s/%s"):format(b.key, tostring(ns.KnownSpell(b.single, b.singleId)),
+                tostring(ns.KnownSpell(b.greater, b.greaterId, true)))
+        end
+        ns.Print("Known (single/greater): " .. table.concat(known, " "))
         local any = false
         for class, key in pairs(ns.assign[me] or {}) do
             any = true
