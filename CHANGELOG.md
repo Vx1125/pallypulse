@@ -1,7 +1,7 @@
 # PallyPulse
 
 ## 1.2.2
-- Blessing pickers re-check your spellbook, so a blessing you know is never missing from the list.
+- Fixed: a blessing you know could be missing from the pickers (e.g. Wisdom after entering a dungeon).
 
 ## 1.2.1
 - Click the blessing icon on a party or raid frame to cast it, in combat too (Options: Click icon to bless).

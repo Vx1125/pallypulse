@@ -67,9 +67,35 @@ ns.SpellKnownById, ns.SpellKnownByName = SpellKnownById, SpellKnownByName
 
 -- Is this spell actually learned? strict = require a confirmed spell id (used for Greater
 -- Blessings, where a name lookup alone can match a spell the character can't cast).
+-- Is a spell with this name in your spellbook? Scans the book itself, so it doesn't depend on
+-- spell ids (ranks differ between clients) or on name lookups that can fail while zoning.
+local function InSpellbook(name)
+    local found = false
+    pcall(function()
+        if C_SpellBook and C_SpellBook.GetNumSpellBookSkillLines and C_SpellBook.GetSpellBookItemName then
+            for line = 1, C_SpellBook.GetNumSpellBookSkillLines() do
+                local info = C_SpellBook.GetSpellBookSkillLineInfo(line)
+                local off, n = info.itemIndexOffset or 0, info.numSpellBookItems or 0
+                for i = off + 1, off + n do
+                    if C_SpellBook.GetSpellBookItemName(i, Enum.SpellBookSpellBank.Player) == name then found = true return end
+                end
+            end
+        elseif GetNumSpellTabs and GetSpellTabInfo and GetSpellBookItemName then
+            for tab = 1, GetNumSpellTabs() do
+                local _, _, off, n = GetSpellTabInfo(tab)
+                for i = off + 1, off + n do
+                    if GetSpellBookItemName(i, BOOKTYPE_SPELL or "spell") == name then found = true return end
+                end
+            end
+        end
+    end)
+    return found
+end
+
 function ns.KnownSpell(name, id, strict)
     if id and SpellKnownById(id) then return true end
     if not name or name == "" then return false end
+    if InSpellbook(name) then return true end
     local sid
     pcall(function()
         if C_Spell and C_Spell.GetSpellInfo then
@@ -857,6 +883,10 @@ core:SetScript("OnEvent", function(_, event, ...)
         if ns.BuildUI then ns.BuildUI() end
     elseif event == "PLAYER_ENTERING_WORLD" or event == "SPELLS_CHANGED" then
         ns.ComputeOwnCaps()
+        if event == "PLAYER_ENTERING_WORLD" then
+            -- the spellbook can be incomplete right after a loading screen: check again shortly
+            C_Timer.After(3, function() ns.ComputeOwnCaps(); ns.BroadcastCaps(); ns.dirty = true end)
+        end
         ns.ScanRoster()
         ns.RequestSync()
         ns.ScheduleAutoOath()

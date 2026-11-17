@@ -543,6 +543,9 @@ watcher:SetScript("OnEvent", function(_, event, unit, a2, a3, a4)
     -- hidden. A Greater Blessing covers their whole class.
     local bkey = ns.NAME2KEY[name]
     if bkey then
+        -- you just cast it, so you know it
+        local mine = ns.caps[ns.Me()]
+        if mine and not mine[bkey] then mine[bkey] = true; ns.BroadcastCaps() end
         local target = sentTarget[spellID]
         sentTarget[spellID] = nil
         if not target and flyCast and GetTime() - flyCast.t < 2 then target = flyCast.name end
