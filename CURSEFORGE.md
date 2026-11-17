@@ -7,11 +7,13 @@
 ![Smart Buff](https://raw.githubusercontent.com/Vx1125/pallypulse/main/media/smart-buff.jpg)
 
 - One key casts the next thing you owe: aura, Righteous Fury, Oath of Light, missing or expiring blessings.
-- Works in combat.
+- Works in combat, from a list made at the pull: players missing a blessing, then Oath of Light.
 - Uses Greater Blessings when enough of a class is in the group.
 - Skips players who are out of range or dead.
 - Alt + key blesses yourself.
 - Warns when Symbols of Kings run low.
+
+**In combat:** the game hides buffs and won't let addons tell which player you're targeting. Smart Buff can't re-bless someone who loses a blessing mid-fight (after your Blessing of Protection, say). Hover their class on the bar and click their name instead.
 
 ## Assignments
 
@@ -44,6 +46,7 @@
 ![Bar layouts](https://raw.githubusercontent.com/Vx1125/pallypulse/main/media/layouts.jpg)
 
 - Compact, Row, Wrap or Column layout.
+- Hover a class to list its players; click one to bless just them, in or out of combat.
 - Timers on each class, plus aura and seal buttons.
 - Can fade when idle.
 
