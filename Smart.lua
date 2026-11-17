@@ -255,13 +255,18 @@ function ns.ArmCombatQueue()
     end)
     btn:SetAttribute("castdown", castDown and true or false)
 
-    -- Re-bless map for the snippet: every group member's unit and the normal blessing you give
-    -- their class. Used once the queue is done, to re-bless your current target (e.g. after
-    -- your Blessing of Freedom replaced their Kings).
+    -- Re-bless map for the snippet: every group member's unit, GUID and name, and the blessing
+    -- you give them, plus one blessing per class where the whole class gets the same one.
+    -- Used to re-bless your friendly target (e.g. after Blessing of Protection replaced their
+    -- Might).
     local oldR = btn:GetAttribute("rb-n") or 0
-    for i = 1, oldR do btn:SetAttribute("rb-u" .. i, nil); btn:SetAttribute("rb-s" .. i, nil) end
-    local row = ns.assign[ns.Me()] or {}
+    for i = 1, oldR do
+        btn:SetAttribute("rb-u" .. i, nil); btn:SetAttribute("rb-s" .. i, nil)
+        btn:SetAttribute("rb-g" .. i, nil); btn:SetAttribute("rb-nm" .. i, nil)
+    end
+    for _, c in ipairs(ns.CLASSES) do btn:SetAttribute("rc-" .. c, nil) end
     local rn, distinct, nDistinct, onlySpell = 0, {}, 0, nil
+    local byClass = {}          -- class -> its one spell, or false when players differ
     for _, e in ipairs(ns.roster) do
         local key = ns.KeyFor(ns.Me(), e)
         if key and ns.BY_KEY[key] then
@@ -270,10 +275,17 @@ function ns.ArmCombatQueue()
                 rn = rn + 1
                 btn:SetAttribute("rb-u" .. rn, e.unit)
                 btn:SetAttribute("rb-s" .. rn, single)
+                local g, nm
+                pcall(function() g = UnitGUID(e.unit); nm = UnitName(e.unit) end)
+                if ns.Readable(g) then btn:SetAttribute("rb-g" .. rn, g) end
+                if ns.Readable(nm) then btn:SetAttribute("rb-nm" .. rn, nm) end
                 if not distinct[single] then distinct[single] = true; nDistinct = nDistinct + 1; onlySpell = single end
+                if byClass[e.class] == nil then byClass[e.class] = single
+                elseif byClass[e.class] ~= single then byClass[e.class] = false end
             end
         end
     end
+    for c, sp in pairs(byClass) do if sp then btn:SetAttribute("rc-" .. c, sp) end end
     btn:SetAttribute("rb-n", rn)
     btn:SetAttribute("rb-one", nDistinct == 1 and onlySpell or nil)   -- used if the client can't match units
 
@@ -309,16 +321,30 @@ local SNIPPET = [=[
     -- 1. A friendly target: cast the blessing you're assigned to give *them*
     --    (target yourself to re-bless yourself, e.g. after Freedom).
     if SecureCmdOptionParse("[@target,help,nodead] 1") then
+        -- Match the target to a group member with whatever this client allows here.
         local s
+        local m = self:GetAttribute("rb-n") or 0
         if UnitIsUnit then
-            local m = self:GetAttribute("rb-n") or 0
             for k = 1, m do
                 local u = self:GetAttribute("rb-u" .. k)
                 if u and UnitIsUnit("target", u) then s = self:GetAttribute("rb-s" .. k) break end
             end
-        else
-            s = self:GetAttribute("rb-one")
+        elseif UnitGUID then
+            local g = UnitGUID("target")
+            for k = 1, m do
+                if g and self:GetAttribute("rb-g" .. k) == g then s = self:GetAttribute("rb-s" .. k) break end
+            end
+        elseif UnitName then
+            local nm = UnitName("target")
+            for k = 1, m do
+                if nm and self:GetAttribute("rb-nm" .. k) == nm then s = self:GetAttribute("rb-s" .. k) break end
+            end
         end
+        if not s and UnitClass then
+            local _, c = UnitClass("target")
+            if c then s = self:GetAttribute("rc-" .. c) end
+        end
+        if not s then s = self:GetAttribute("rb-one") end
         if s then
             self:SetAttribute("type1", "spell")
             self:SetAttribute("spell1", s)
@@ -410,8 +436,12 @@ function ns.WireSmart(btn)
     -- only works when you give every class the same blessing.
     if ok and header then
         pcall(function()
-            header:Execute([[ self:SetAttribute("uiu", UnitIsUnit ~= nil) ]])
-            ns.reblessExact = header:GetAttribute("uiu") and true or false
+            header:Execute([[
+                self:SetAttribute("rb-how", (UnitIsUnit and "unit") or (UnitGUID and "guid")
+                    or (UnitName and "name") or (UnitClass and "class") or "one")
+            ]])
+            ns.reblessHow = header:GetAttribute("rb-how") or "one"
+            ns.reblessExact = ns.reblessHow == "unit" or ns.reblessHow == "guid" or ns.reblessHow == "name"
         end)
     end
     if not ok then ns.Print("Combat queue unavailable.") end
@@ -428,18 +458,20 @@ function ns.CombatNext()
     if ns.SafeUnit(UnitExists, "target", false) and ns.SafeUnit(function(u) return UnitCanAssist("player", u) end, "target", false)
         and not ns.SafeUnit(UnitIsDeadOrGhost, "target", false) then
         local spell
+        local m = btn:GetAttribute("rb-n") or 0
         if ns.reblessExact ~= false then
-            local name = ns.FullName("target")
-            local m = btn:GetAttribute("rb-n") or 0
             for k = 1, m do
                 local u = btn:GetAttribute("rb-u" .. k)
                 if u and ns.SafeUnit(function(x) return UnitIsUnit("target", x) end, u, false) then
                     spell = btn:GetAttribute("rb-s" .. k) break
                 end
             end
-        else
-            spell = btn:GetAttribute("rb-one")
         end
+        if not spell and ns.reblessHow ~= "one" then
+            local c = ns.SafeUnit(function(u) return select(2, UnitClass(u)) end, "target", nil)
+            if c then spell = btn:GetAttribute("rc-" .. c) end
+        end
+        if not spell then spell = btn:GetAttribute("rb-one") end
         if spell then
             local key = ns.NAME2KEY[spell]
             return {

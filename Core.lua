@@ -931,8 +931,8 @@ function ns.Debug(arg)
         local ounit, oleft = ns.OathStatus()
         ns.Print(("Oath of Light: known=%s target=%s unit=%s remaining=%s"):format(tostring(ns.oathCap[me]),
             tostring(ns.oath[me]), tostring(ounit), (oleft == math.huge and "up") or (oleft and ("%ds"):format(oleft)) or "missing"))
-        ns.Print(("Combat queue available=%s, exact re-bless matching=%s"):format(
-            tostring(ns.combatQueueAvailable), tostring(ns.reblessExact)))
+        ns.Print(("Combat queue available=%s, re-bless target by=%s"):format(
+            tostring(ns.combatQueueAvailable), tostring(ns.reblessHow)))
         if ns.bar then
             for _, b in ipairs(ns.bar.buttons) do
                 if b:IsShown() then
