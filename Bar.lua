@@ -399,6 +399,8 @@ local FLY_SNIPPET = [=[
     fly:AddToAutoHide(self)
 ]=]
 
+local SetBars, RangeLevel     -- defined below
+
 local function BuildFlyout()
     fly = CreateFrame("Frame", "PallyPulseFlyout", bar,
         "SecureHandlerBaseTemplate" .. (BackdropTemplateMixin and ",BackdropTemplate" or ""))
@@ -423,9 +425,17 @@ local function BuildFlyout()
         r.icon:SetSize(16, 16); r.icon:SetPoint("LEFT", 2, 0)
         r.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
         r.name = W.Text(r, 11, S.text)
-        r.name:SetPoint("LEFT", r.icon, "RIGHT", 5, 0); r.name:SetWidth(92); r.name:SetWordWrap(false)
+        r.name:SetPoint("LEFT", r.icon, "RIGHT", 5, 0); r.name:SetWidth(86); r.name:SetWordWrap(false)
         r.time = W.Text(r, 10, S.dim, "RIGHT", S.num)
         r.time:SetPoint("RIGHT", -3, 0)
+        -- range: three signal bars, left of the time
+        r.bars = {}
+        for b = 1, 3 do
+            local t = r:CreateTexture(nil, "ARTWORK")
+            t:SetSize(3, 3 + b * 3)
+            t:SetPoint("BOTTOMRIGHT", r, "BOTTOMRIGHT", -36 - (3 - b) * 4, 5)
+            r.bars[b] = t
+        end
         r.hl = r:CreateTexture(nil, "HIGHLIGHT")
         r.hl:SetAllPoints(); r.hl:SetColorTexture(1, 1, 1, 0.10)
         r:SetPoint("TOPLEFT", 5, -5 - (i - 1) * FLY_H)
@@ -469,6 +479,14 @@ local function BuildFlyout()
     -- stays open while the mouse is on it, its button or the bar, with half a second of
     -- grace so crossing the gap between the bar and the list doesn't close it
     fly:SetScript("OnUpdate", function(self, dt)
+        -- range bars, twice a second, in or out of combat
+        self.rangeT = (self.rangeT or 0) + dt
+        if self.rangeT > 0.5 then
+            self.rangeT = 0
+            for _, r in ipairs(self.rows) do
+                if r:IsShown() and r.entry then SetBars(r, r.entry.fake and 3 or RangeLevel(r.entry, r.single)) end
+            end
+        end
         if InCombatLockdown() then return end
         if self:IsMouseOver() or (self.anchor and self.anchor:IsMouseOver()) or bar:IsMouseOver() then
             self.away = 0
@@ -544,7 +562,27 @@ function ns.ArmFlyout()
     flyHeader:SetAttribute("on", true)
 end
 
--- Names, icons and times on the rows (allowed in combat; the click setup is not).
+-- 3 = in blessing range, 2 = within 40 yards, 1 = nearby, 0 = far or unknown
+local RANGE_COLOR = { [3] = { 0.25, 0.9, 0.25 }, [2] = { 1, 0.82, 0 }, [1] = { 0.9, 0.25, 0.2 } }
+function RangeLevel(e, spell)
+    if e.name == ns.Me() then return 3 end
+    if spell and ns.InRange(spell, e.unit) == true then return 3 end
+    local inr
+    pcall(function() inr = UnitInRange(e.unit) end)
+    if ns.Readable(inr) and inr then return 2 end
+    if ns.SafeUnit(UnitIsVisible, e.unit, false) then return 1 end
+    return 0
+end
+
+function SetBars(r, level)
+    local c = RANGE_COLOR[level]
+    for b, t in ipairs(r.bars) do
+        if c and b <= level then t:SetColorTexture(c[1], c[2], c[3], 1)
+        else t:SetColorTexture(0.35, 0.35, 0.35, 0.6) end
+    end
+end
+
+-- Names, icons, range and times on the rows (allowed in combat; the click setup is not).
 local function FillRow(r, it)
     local e, key = it.e, it.key
     r.entry, r.key = e, key
@@ -556,6 +594,8 @@ local function FillRow(r, it)
     local left = alive and ns.MemberRemaining(e, key)
     r.time:SetText(not alive and "Dead" or (left and W.FormatTime(left)) or "Missing")
     r.time:SetTextColor(unpack((alive and not left) and S.bad or S.dim))
+    r.single = it.single
+    SetBars(r, e.fake and 3 or RangeLevel(e, it.single))
 end
 
 function ShowFlyout(btn)
@@ -581,7 +621,7 @@ function ShowFlyout(btn)
         r:SetAttribute("type2", "spell"); r:SetAttribute("spell2", single); r:SetAttribute("unit2", e.unit)
         if e.fake then r:SetAttribute("type1", nil); r:SetAttribute("type2", nil) end   -- preview player
         FillRow(r, it)
-        r:SetAlpha((single and ns.InRange(single, e.unit) == false) and 0.45 or 1)
+        r:SetAlpha(1)
         r:Show()
     end
     for i = n + 1, FLY_MAX do fly.rows[i]:Hide() end

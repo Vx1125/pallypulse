@@ -42,6 +42,141 @@ function ns.SetOverride(pal, player, key, broadcast)
 end
 
 -- ---------------------------------------------------------------------------
+-- Specs: inspect hybrids (and warriors, for Protection) out of combat, one at a time, and
+-- remember the main talent tree for 60 days. Works with talent trees (classic clients) or
+-- specializations (modern), whichever this client has.
+-- ---------------------------------------------------------------------------
+local SPEC_CLASSES = { WARRIOR = true, DRUID = true, SHAMAN = true, PALADIN = true }
+local SPEC_AGE = 60 * 86400
+
+-- tree / spec name (or its art file) -> role; casters before melee ("ShamanElementalCombat")
+local TREE_ROLES = {
+    { "TANK",   { "protection" } },
+    { "HEALER", { "holy", "restoration", "discipline" } },
+    { "CASTER", { "balance", "elemental", "shadow", "arcane", "fire", "frost", "affliction", "demonology", "destruction" } },
+    { "MELEE",  { "retribution", "enhancement", "feral", "arms", "fury", "combat", "assassination", "subtlety",
+                  "beast", "marksman", "survival" } },
+}
+local function TreeRole(text)
+    text = (text or ""):lower()
+    for _, r in ipairs(TREE_ROLES) do
+        for _, w in ipairs(r[2]) do if text:find(w, 1, true) then return r[1] end end
+    end
+end
+
+-- Main spec of the inspected unit (isInspect) or yourself: name, role.
+local function ReadSpec(isInspect, unit)
+    local name, role
+    pcall(function()
+        local id
+        if isInspect and GetInspectSpecialization then id = GetInspectSpecialization(unit)
+        elseif not isInspect and GetSpecialization and GetSpecializationInfo then
+            local i = GetSpecialization()
+            if i then id = (GetSpecializationInfo(i)) end
+        end
+        if id and id > 0 and GetSpecializationInfoByID then
+            local _, n, _, _, r = GetSpecializationInfoByID(id)
+            if n then name, role = n, (r == "TANK" or r == "HEALER") and r or TreeRole(n) end
+        end
+    end)
+    if name then return name, role end
+    pcall(function()
+        if not (GetNumTalentTabs and GetTalentTabInfo) then return end
+        local bestPts, best, bestFile = 0, nil, nil
+        for t = 1, GetNumTalentTabs(isInspect) or 0 do
+            local r = { GetTalentTabInfo(t, isInspect) }
+            local n, pts, file
+            if type(r[1]) == "number" then n, pts, file = r[2], r[5], r[6] else n, pts, file = r[1], r[3], r[4] end
+            if type(pts) == "number" and pts > bestPts then bestPts, best, bestFile = pts, n, file end
+        end
+        if best then name, role = best, TreeRole(tostring(bestFile or "") .. " " .. best) end
+    end)
+    return name, role
+end
+
+local specTried = {}      -- [name] = GetTime() of the last inspect this session
+local inspecting          -- { name, unit, guid, t }
+local replan = false
+
+local function StoreSpec(name, specName, role)
+    if not (specName and role and ns.Readable(specName)) then return end
+    local old = ns.db.specs[name]
+    if not old or old.role ~= role then replan = true end
+    ns.db.specs[name] = { name = specName, role = role, t = time() }
+    ns.dirty = true
+end
+
+local function InspectNext()
+    if not ns.db or InCombatLockdown() then return end
+    if inspecting then
+        if GetTime() - inspecting.t < 5 then return end
+        pcall(ClearInspectPlayer)
+        inspecting = nil
+    end
+    if InspectFrame and InspectFrame:IsShown() then return end   -- you're inspecting someone
+    local now = GetTime()
+    for _, e in ipairs(ns.roster) do
+        if not e.fake and SPEC_CLASSES[e.class] and not (specTried[e.name] and now - specTried[e.name] < 600)
+            and not (specTried[e.name] and ns.db.specs[e.name]) then
+            if e.name == ns.Me() then
+                specTried[e.name] = now
+                StoreSpec(e.name, ReadSpec(false))
+            else
+                local ok = false
+                pcall(function()
+                    ok = UnitIsConnected(e.unit) and CanInspect(e.unit) and CheckInteractDistance(e.unit, 1) and true or false
+                end)
+                if ok then
+                    specTried[e.name] = now
+                    inspecting = { name = e.name, unit = e.unit, guid = UnitGUID(e.unit), t = now }
+                    pcall(NotifyInspect, e.unit)
+                    return
+                end
+            end
+        end
+    end
+    -- queue done: re-plan exceptions once if anyone's role changed
+    if replan then
+        replan = false
+        if ns.AutoOverrides then ns.AutoOverrides() end
+    end
+end
+
+local specEv = CreateFrame("Frame")
+specEv:RegisterEvent("INSPECT_READY")
+pcall(specEv.RegisterEvent, specEv, "INSPECT_TALENT_READY")
+specEv:RegisterEvent("PLAYER_TALENT_UPDATE")
+specEv:SetScript("OnEvent", function(_, event, guid)
+    if not ns.db then return end
+    if event == "PLAYER_TALENT_UPDATE" then
+        specTried[ns.Me()] = nil
+        return
+    end
+    if not inspecting then return end
+    if guid and inspecting.guid and guid ~= inspecting.guid then return end
+    StoreSpec(inspecting.name, ReadSpec(true, inspecting.unit))
+    pcall(ClearInspectPlayer)
+    inspecting = nil
+end)
+
+local pruned = false
+local specTicker = CreateFrame("Frame")
+local specElapsed = 0
+specTicker:SetScript("OnUpdate", function(_, dt)
+    specElapsed = specElapsed + dt
+    if specElapsed < 2 then return end
+    specElapsed = 0
+    if not ns.db then return end
+    if not pruned then
+        pruned = true
+        for name, s in pairs(ns.db.specs) do
+            if type(s) ~= "table" or time() - (s.t or 0) > SPEC_AGE then ns.db.specs[name] = nil end
+        end
+    end
+    InspectNext()
+end)
+
+-- ---------------------------------------------------------------------------
 -- Roles
 -- ---------------------------------------------------------------------------
 local FIXED = { WARRIOR = "MELEE", ROGUE = "MELEE", HUNTER = "MELEE", MAGE = "CASTER", WARLOCK = "CASTER", PRIEST = "HEALER" }
@@ -57,11 +192,16 @@ function ns.GuessRole(e)
     pcall(function() role = UnitGroupRolesAssigned and UnitGroupRolesAssigned(u) end)
     if not ns.Readable(role) then role = nil end
     if role == "HEALER" then return "HEALER", "group role" end
-    if FIXED[e.class] then return FIXED[e.class], "class" end
-    -- hybrids
     local ptype
     pcall(function() ptype = UnitPowerType(u) end)
     if not ns.Readable(ptype) then ptype = nil end
+    local spec = ns.db.specs and ns.db.specs[e.name]
+    if spec and spec.role then
+        if spec.role == "MELEE" and e.class == "DRUID" and ptype == 1 then return "TANK", "spec", spec.name end
+        return spec.role, "spec", spec.name
+    end
+    if FIXED[e.class] then return FIXED[e.class], "class" end
+    -- hybrids
     if e.class == "DRUID" then
         if ptype == 1 then return "TANK", "bear form" end
         if ptype == 3 then return "MELEE", "cat form" end
@@ -209,17 +349,39 @@ end)
 
 -- ---------------------------------------------------------------------------
 -- "!bless" chat commands (anyone in the group, addon or not)
---   !bless want might kings   ask for these blessings (in order)
---   !bless clear              back to normal
---   !bless missing            whispers back which of your blessings are down
+--   !bless want might kings          ask for these blessings (in order)
+--   !bless want <name> kings         leader / assistant: set it for someone else
+--   !bless clear                     back to normal
+--   !bless missing                   your blessings that are down
+--   !bless missing all               everyone's
+--   !bless report                    which paladin blesses which class
+--   !bless assign                    leader / assistant: run Auto-assign
 --   !bless help
--- Also answers to "!pulse". Only one PallyPulse paladin replies, so the group isn't spammed.
+-- Also answers to "!pulse". Blessing names may have a typo or two. Only one PallyPulse
+-- paladin replies, so the group isn't spammed. Personal answers are whispered; report and
+-- "missing all" answer in the channel they were asked in.
 -- ---------------------------------------------------------------------------
 local ALIASES = {
-    might = "MIGHT", bom = "MIGHT", ap = "MIGHT",
-    wisdom = "WISDOM", wis = "WISDOM", bow = "WISDOM", mana = "WISDOM",
-    kings = "KINGS", king = "KINGS", bok = "KINGS",
+    might = "MIGHT", bom = "MIGHT", ap = "MIGHT", gbom = "MIGHT",
+    wisdom = "WISDOM", wis = "WISDOM", bow = "WISDOM", mana = "WISDOM", gbow = "WISDOM",
+    kings = "KINGS", king = "KINGS", bok = "KINGS", gbok = "KINGS",
 }
+local FULL = { might = "MIGHT", wisdom = "WISDOM", kings = "KINGS" }
+
+local function Distance(a, b)
+    local la, lb = #a, #b
+    local prev = {}
+    for j = 0, lb do prev[j] = j end
+    for i = 1, la do
+        local cur = { [0] = i }
+        for j = 1, lb do
+            local cost = (a:sub(i, i) == b:sub(j, j)) and 0 or 1
+            cur[j] = math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost)
+        end
+        prev = cur
+    end
+    return prev[lb]
+end
 
 local function ParseBlessing(word)
     word = (word or ""):lower():gsub("[^%a]", "")
@@ -228,7 +390,21 @@ local function ParseBlessing(word)
     for alias, key in pairs(ALIASES) do
         if #word >= 3 and alias:sub(1, #word) == word then return key end
     end
+    -- typos: "wisodm", "mihgt", "kigns"
+    if #word >= 4 then
+        local best, bestD, tie = nil, 3, false
+        for name, key in pairs(FULL) do
+            local d = Distance(word, name)
+            if d < bestD then best, bestD, tie = key, d, false elseif d == bestD then tie = true end
+        end
+        if best and not tie and bestD <= (#word >= 6 and 2 or 1) then return best end
+    end
 end
+
+local function Short(key) return (ns.BY_KEY[key].single:gsub("^Blessing of ", "")) end
+
+local CLASS_SHORT = { WARRIOR = "War", ROGUE = "Rog", HUNTER = "Hun", MAGE = "Mage", WARLOCK = "Lock",
+                      PRIEST = "Pri", DRUID = "Dru", SHAMAN = "Sham", PALADIN = "Pal" }
 
 -- The PallyPulse paladin who answers chat (alphabetically first that we know runs it).
 local function IAnswer()
@@ -245,18 +421,72 @@ local function Whisper(to, msg)
     pcall(SendChatMessage, "[PallyPulse] " .. msg, "WHISPER", nil, to)
 end
 
+local CHANNEL = {
+    CHAT_MSG_PARTY = "PARTY", CHAT_MSG_PARTY_LEADER = "PARTY",
+    CHAT_MSG_RAID = "RAID", CHAT_MSG_RAID_LEADER = "RAID",
+    CHAT_MSG_INSTANCE_CHAT = "INSTANCE_CHAT", CHAT_MSG_INSTANCE_CHAT_LEADER = "INSTANCE_CHAT",
+}
+-- answer in the channel the question came from (a whisper gets a whisper)
+local function Reply(event, author, msg)
+    local ch = CHANNEL[event]
+    if ch then pcall(SendChatMessage, "[PallyPulse] " .. msg, ch) else Whisper(author, msg) end
+end
+
 local function MissingFor(e)
     local out = {}
     for _, pal in ipairs(ns.paladins) do
         local key = ns.KeyFor(pal, e)
-        if key and not ns.MemberRemaining(e, key) then
-            out[#out + 1] = ns.BY_KEY[key].single:gsub("^Blessing of ", "") .. " (" .. ns.FirstName(pal) .. ")"
+        if key and ns.BY_KEY[key] and not ns.MemberRemaining(e, key) then
+            out[#out + 1] = Short(key) .. " (" .. ns.FirstName(pal) .. ")"
         end
     end
     return out
 end
 
-local function OnChat(msg, author)
+-- "Tomas: Might War/Rog/Hun, Wisdom rest (+1 single)"
+local function ReportLine(pal)
+    local row = ns.assign[pal] or {}
+    local count, classes = {}, {}
+    for _, class in ipairs(ns.CLASSES) do
+        local k = row[class]
+        if k and ns.BY_KEY[k] and ns.byClass[class] then
+            count[k] = (count[k] or 0) + 1
+            classes[k] = classes[k] or {}
+            table.insert(classes[k], CLASS_SHORT[class] or class)
+        end
+    end
+    local main, mainN = nil, 0
+    for k, n in pairs(count) do if n > mainN then main, mainN = k, n end end
+    if not main then return nil end
+    local parts = {}
+    for _, b in ipairs(ns.BLESSINGS) do
+        local k = b.key
+        if count[k] and k ~= main then parts[#parts + 1] = Short(k) .. " " .. table.concat(classes[k], "/") end
+    end
+    local text = #parts == 0 and Short(main) or (table.concat(parts, ", ") .. ", " .. Short(main) .. " rest")
+    local singles = 0
+    for _, e in ipairs(ns.roster) do if ns.IsException(pal, e) then singles = singles + 1 end end
+    if singles > 0 then text = text .. (" (+%d single)"):format(singles) end
+    return ns.FirstName(pal) .. ": " .. text
+end
+
+-- find a group member by name (full, first name, or the start of it)
+local function FindPlayer(word)
+    word = (word or ""):lower()
+    if #word < 3 then return nil end
+    local hit
+    for _, r in ipairs(ns.roster) do
+        local n = ns.FirstName(r.name):lower()
+        if n == word or r.name:lower() == word then return r end
+        if n:sub(1, #word) == word then
+            if hit then return nil end   -- ambiguous
+            hit = r
+        end
+    end
+    return hit
+end
+
+local function OnChat(event, msg, author)
     if not ns.db or not ns.db.chatRequests then return end
     if select(2, UnitClass("player")) ~= "PALADIN" then return end
     local cmd, rest = (msg or ""):lower():match("^%s*!%s*(%a+)%s*(.-)%s*$")
@@ -265,34 +495,77 @@ local function OnChat(msg, author)
     local e
     for _, r in ipairs(ns.roster) do if r.name == author or ns.FirstName(r.name) == author then e = r break end end
     if not e then return end
+    local lead = ns.HasAuthority(e.unit)
     local sub, args = rest:match("^(%a*)%s*(.-)$")
 
     if sub == "want" then
-        local keys = {}
-        for word in args:gmatch("%S+") do
+        local who, words = e, {}
+        for word in args:gmatch("[^%s,;/]+") do words[#words + 1] = word end
+        if words[1] and not ParseBlessing(words[1]) and lead then
+            local other = FindPlayer(words[1])
+            if other then who = other; table.remove(words, 1) end
+        end
+        local keys, seen = {}, {}
+        for _, word in ipairs(words) do
             local k = ParseBlessing(word)
-            if k then keys[#keys + 1] = k end
+            if k and not seen[k] then seen[k] = true; keys[#keys + 1] = k end
         end
         if #keys == 0 then
-            if IAnswer() then Whisper(author, "Usage: !bless want might|wisdom|kings") end
+            if IAnswer() then Whisper(author, "!bless want might, wisdom, kings") end
             return
         end
-        ns.SetRequest(e.name, keys, false)
+        ns.SetRequest(who.name, keys, false)
         if IAnswer() then
             local names = {}
-            for _, k in ipairs(keys) do names[#names + 1] = ns.BY_KEY[k].single:gsub("^Blessing of ", "") end
-            Whisper(author, table.concat(names, ", ") .. " set.")
+            for _, k in ipairs(keys) do names[#names + 1] = Short(k) end
+            Whisper(author, (who ~= e and (ns.FirstName(who.name) .. ": ") or "") .. table.concat(names, ", "))
         end
     elseif sub == "clear" then
-        ns.SetRequest(e.name, nil, false)
-        if IAnswer() then Whisper(author, "Cleared.") end
+        local who = e
+        if lead and args ~= "" then who = FindPlayer(args) or e end
+        ns.SetRequest(who.name, nil, false)
+        if IAnswer() then Whisper(author, (who ~= e and (ns.FirstName(who.name) .. ": ") or "") .. "Cleared") end
     elseif sub == "missing" then
-        if IAnswer() then
+        if not IAnswer() then return end
+        if args == "all" or args == "raid" or args == "group" then
+            local out, extra, len = {}, 0, 0
+            for _, r in ipairs(ns.roster) do
+                if not r.fake and ns.Eligible(r) then
+                    local m = {}
+                    for _, pal in ipairs(ns.paladins) do
+                        local key = ns.KeyFor(pal, r)
+                        if key and ns.BY_KEY[key] and not ns.MemberRemaining(r, key) then m[#m + 1] = Short(key) end
+                    end
+                    if #m > 0 then
+                        local item = ns.FirstName(r.name) .. " " .. table.concat(m, "/")
+                        if len + #item > 200 then extra = extra + 1
+                        else out[#out + 1] = item; len = len + #item + 2 end
+                    end
+                end
+            end
+            if #out == 0 then Reply(event, author, "All buffed")
+            else Reply(event, author, "Missing: " .. table.concat(out, ", ") .. (extra > 0 and (" +" .. extra) or "")) end
+        else
             local m = MissingFor(e)
-            Whisper(author, #m == 0 and "Nothing missing." or ("Missing: " .. table.concat(m, ", ")))
+            Whisper(author, #m == 0 and "All buffed" or ("Missing: " .. table.concat(m, ", ")))
         end
+    elseif sub == "report" then
+        if not IAnswer() then return end
+        local any = false
+        for _, pal in ipairs(ns.paladins) do
+            local line = not ns.IsFakeName(pal) and ReportLine(pal)
+            if line then any = true; Reply(event, author, line) end
+        end
+        if not any then Reply(event, author, "No assignments") end
+    elseif sub == "assign" then
+        if not lead or not IAnswer() then return end
+        if InCombatLockdown() then Whisper(author, "In combat") return end
+        ns.AutoAssign()
+        Reply(event, author, "Assigned")
     else
-        if IAnswer() then Whisper(author, "!bless want might|wisdom|kings, !bless clear, !bless missing") end
+        if IAnswer() then
+            Whisper(author, "!bless want might, wisdom, kings | clear | missing [all] | report" .. (lead and " | assign" or ""))
+        end
     end
 end
 
@@ -301,7 +574,7 @@ for _, ev in ipairs({ "CHAT_MSG_PARTY", "CHAT_MSG_PARTY_LEADER", "CHAT_MSG_RAID"
                       "CHAT_MSG_INSTANCE_CHAT", "CHAT_MSG_INSTANCE_CHAT_LEADER", "CHAT_MSG_WHISPER" }) do
     pcall(chat.RegisterEvent, chat, ev)
 end
-chat:SetScript("OnEvent", function(_, _, msg, author)
+chat:SetScript("OnEvent", function(_, event, msg, author)
     if not ns.Readable(msg) or not ns.Readable(author) then return end
-    pcall(OnChat, msg, author)
+    pcall(OnChat, event, msg, author)
 end)

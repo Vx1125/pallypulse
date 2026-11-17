@@ -115,6 +115,7 @@ ns.DEFAULTS = {
     autoOverride = {},    -- [paladin][player] = KEY   set by spec-aware auto-assign
     requests = {},        -- [player] = { KEY, ... }   from "!bless want" or the Players tab
     roleOverride = {},    -- [player] = ROLE           role set by hand on the Players tab
+    specs = {},           -- [player] = { name, role, t }  from inspect, kept 60 days
     auraAssign = {},      -- [paladin] = AURA KEY
     rfReminder = true,    -- put Righteous Fury in Smart Buff while you're marked as tank
     reagentWarn = 20,     -- warn under this many Symbols of Kings (0 = off)

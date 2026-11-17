@@ -396,6 +396,27 @@ end
 -- ---------------------------------------------------------------------------
 -- Auto-assign
 -- ---------------------------------------------------------------------------
+-- Blessing order for a class: what most of its players want (by role and requests), ties
+-- broken by the class default. Three shamans healing and one enhancement: Wisdom first.
+local function ClassOrder(class)
+    local score = {}
+    for _, e in ipairs(ns.byClass[class] or {}) do
+        local role = ns.GuessRole(e)
+        local list = (ns.db.requests[e.name]) or (role and ns.ROLE_PREFS[role]) or ns.PREFS[class]
+        for i, k in ipairs(list) do score[k] = (score[k] or 0) + (4 - math.min(i, 3)) end
+    end
+    local order = {}
+    for i, k in ipairs(ns.PREFS[class]) do order[i] = k end
+    local rank = {}
+    for i, k in ipairs(order) do rank[k] = i end
+    table.sort(order, function(a, b)
+        local sa, sb = score[a] or 0, score[b] or 0
+        if sa ~= sb then return sa > sb end
+        return rank[a] < rank[b]
+    end)
+    return order
+end
+
 function ns.AutoAssign()
     local me = Me()
     for _, pal in ipairs(ns.paladins) do
@@ -405,11 +426,11 @@ function ns.AutoAssign()
     end
     for _, class in ipairs(ns.CLASSES) do
         if ns.byClass[class] then
-            local used = {}
+            local used, order = {}, ClassOrder(class)
             for _, pal in ipairs(ns.paladins) do
                 if ns.CanEditRow(pal) then
                     local caps = ns.caps[pal]
-                    for _, key in ipairs(ns.PREFS[class]) do
+                    for _, key in ipairs(order) do
                         if not used[key] and (not caps or caps[key]) then
                             used[key] = true
                             ns.assign[pal][class] = key

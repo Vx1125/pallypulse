@@ -550,10 +550,11 @@ local function BuildPlayers(P)
         end)
         r.role:SetScript("OnEnter", function(self)
             local e = self:GetParent().e
-            local role, why = ns.GuessRole(e)
+            local role, why, specName = ns.GuessRole(e)
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
             GameTooltip:AddLine("Role: " .. (role and ns.ROLE_LABEL[role] or "Unknown"), 1, 1, 1)
-            GameTooltip:AddLine(why == "set by hand" and "Manual" or "Auto", 0.7, 0.7, 0.7)
+            GameTooltip:AddLine(why == "set by hand" and "Manual" or (why == "spec" and tostring(specName)) or "Auto",
+                0.7, 0.7, 0.7)
             GameTooltip:AddLine("Click: set   Right-click: auto", 0.6, 0.6, 0.6)
             GameTooltip:Show()
         end)

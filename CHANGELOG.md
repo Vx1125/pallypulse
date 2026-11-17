@@ -1,5 +1,12 @@
 # PallyPulse
 
+## 1.2.0
+- Specs: hybrids and warriors are inspected out of combat (kept 60 days), so roles and Auto-assign follow spec.
+- Auto-assign gives each class the blessing most of its players want.
+- Range bars in the player list.
+- !bless missing all, !bless report, !bless assign (leader), !bless want <name> (leader).
+- !bless accepts typos in blessing names.
+
 ## 1.1.1
 - Player list on the bar works in combat: hover a class, click a player (e.g. after Blessing of Protection).
 - Blessings you cast in combat no longer show as Missing.
