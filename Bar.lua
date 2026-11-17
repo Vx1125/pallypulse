@@ -1079,7 +1079,8 @@ end
 function ns.ApplyBarFade()
     if not bar then return end
     local a = 1
-    if ns.db.fadeIdle and bar.idle and not bar.pulseMoving and not bar:IsMouseOver() then a = 0.3 end
+    local hover = bar:IsMouseOver() or (fly and fly:IsShown() and fly:IsMouseOver())
+    if ns.db.fadeIdle and bar.idle and not bar.pulseMoving and not hover then a = 0.3 end
     if bar:GetAlpha() ~= a then bar:SetAlpha(a) end
 end
 

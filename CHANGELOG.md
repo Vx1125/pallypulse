@@ -1,6 +1,7 @@
 # PallyPulse
 
 ## 1.1.1
+- Bar no longer fades while you hover the player list.
 - Blessings you cast in combat no longer show as Missing.
 - Player list on the bar works in combat (re-bless after Blessing of Protection).
 - Oath of Light no longer shows as missing in combat when it is up.
