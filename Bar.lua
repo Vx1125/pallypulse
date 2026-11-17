@@ -462,6 +462,7 @@ local function BuildFlyout()
             GameTooltip:Show()
         end)
         r:SetScript("OnLeave", function() GameTooltip:Hide() end)
+        r:HookScript("PostClick", function(self) if self.entry then ns.NoteFlyCast(self.entry.name) end end)
         r:Hide()
         fly.rows[i] = r
     end

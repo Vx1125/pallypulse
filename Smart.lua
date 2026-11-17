@@ -499,10 +499,13 @@ local watcher = CreateFrame("Frame")
 watcher:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
 watcher:RegisterEvent("UNIT_SPELLCAST_SENT")
 local sentTarget = {}   -- spellID -> target name from UNIT_SPELLCAST_SENT
+local flyCast           -- { name, t }: last player-list click, if SENT gives no name
+
+function ns.NoteFlyCast(name) flyCast = { name = name, t = GetTime() } end
 watcher:SetScript("OnEvent", function(_, event, unit, a2, a3, a4)
     if unit ~= "player" then return end
     if event == "UNIT_SPELLCAST_SENT" then
-        -- (unit, targetName, castGUID, spellID): remember who a hand blessing is going to
+        -- (unit, targetName, castGUID, spellID): remember who a hand blessing or blessing is going to
         local target, spellID = a2, a4
         if ns.Readable(target) and ns.Readable(spellID) and type(target) == "string" and target ~= "" then
             sentTarget[spellID] = ns.StripRealm(target)
@@ -533,6 +536,33 @@ watcher:SetScript("OnEvent", function(_, event, unit, a2, a3, a4)
             ns.InvalidateScan(ns.UnitForName(target))
         end
         ns.dirty = true
+    end
+
+    -- A blessing you cast by any route (player list, class row, shift-click on target) counts
+    -- as on them for an hour, so the bar doesn't say Missing in combat while their auras are
+    -- hidden. A Greater Blessing covers their whole class.
+    local bkey = ns.NAME2KEY[name]
+    if bkey then
+        local target = sentTarget[spellID]
+        sentTarget[spellID] = nil
+        if not target and flyCast and GetTime() - flyCast.t < 2 then target = flyCast.name end
+        flyCast = nil
+        local te
+        if target then
+            for _, e in ipairs(ns.roster) do
+                if e.name == target or ns.FirstName(e.name) == target then te = e break end
+            end
+        end
+        if te then
+            local list = (name == ns.BY_KEY[bkey].greater and ns.byClass[te.class]) or { te }
+            local exp = GetTime() + 3600
+            for _, e in ipairs(list) do
+                ns.auraMemory[e.name .. "|" .. bkey] = exp
+                ns.handCast[e.name] = nil
+                MarkCast(e.name, bkey)
+            end
+            ns.dirty = true
+        end
     end
 
     -- Any Oath of Light you cast restarts its timer, even in combat when the aura itself

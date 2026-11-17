@@ -1,6 +1,7 @@
 # PallyPulse
 
 ## 1.1.1
+- Blessings you cast in combat no longer show as Missing.
 - Player list on the bar works in combat (re-bless after Blessing of Protection).
 - Oath of Light no longer shows as missing in combat when it is up.
 - Esc closes the ready check window.
