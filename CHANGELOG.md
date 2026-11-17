@@ -1,6 +1,7 @@
 # PallyPulse
 
 ## 1.1.1
+- Oath of Light no longer shows as missing in combat when it is up.
 - Esc closes the ready check window.
 - Class row tooltip hides "Right-click: single" when a click already casts the single blessing.
 

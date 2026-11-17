@@ -271,41 +271,64 @@ function ns.OathIcon()
 end
 
 -- Status of the player's own Oath. Returns unit (or nil if the target isn't in the group),
--- remaining seconds (nil when the buff is missing).
+-- remaining seconds (nil when the buff is missing, math.huge when it's there but the time
+-- can't be read).
+--
+-- In combat the target's auras can be hidden or lose their caster, so the "cast by you"
+-- scan can come back empty while the Oath is up. Then: any Oath of Light on them counts
+-- (each holy paladin keeps theirs on a different tank), and if the auras can't be read at
+-- all, the Oath is treated as still up rather than shown as missing.
+local function ScanOath(unit, filter)
+    local modern = C_UnitAuras and C_UnitAuras.GetAuraDataByIndex
+    local unsure = false
+    for i = 1, 40 do
+        local ok, name, e, fin = false, nil, nil, false
+        if modern then
+            local d
+            ok, d = pcall(C_UnitAuras.GetAuraDataByIndex, unit, i, filter)
+            if ok and not d then fin = true
+            elseif ok then pcall(function() name, e = d.name, d.expirationTime end) end
+        else
+            local n, x, ee
+            ok, n, x, x, x, x, ee = pcall(UnitBuff, unit, i, filter:find("PLAYER") and "PLAYER" or nil)
+            if ok and not n then fin = true elseif ok then name, e = n, ee end
+        end
+        if fin then break end
+        if not ok or not (name and Readable(name)) then
+            unsure = true
+        elseif name == ns.OATH.name then
+            return true, (Readable(e) and e and e > 0) and e or nil, unsure
+        end
+    end
+    return false, nil, unsure
+end
+
 function ns.OathStatus()
     local target = ns.oath[Me()]
     if not target then return nil, nil end
     local unit = UnitForName(target)
     if not unit then return nil, nil end
     local memKey = target .. "|OATH"
-    local now, exp = GetTime(), nil
-    local modern = C_UnitAuras and C_UnitAuras.GetAuraDataByIndex
-    -- "PLAYER" filter: only auras cast by us. Several holy paladins can each keep an Oath
-    -- on the same tank, and theirs must not count as ours.
-    for i = 1, 40 do
-        local name, e, fin = nil, nil, false
-        if modern then
-            local ok, d = pcall(C_UnitAuras.GetAuraDataByIndex, unit, i, "HELPFUL|PLAYER")
-            if ok and not d then fin = true
-            elseif ok then pcall(function() name, e = d.name, d.expirationTime end) end
-        else
-            local ok, n, _, _, _, _, ee = pcall(UnitBuff, unit, i, "PLAYER")
-            if ok and not n then fin = true elseif ok then name, e = n, ee end
-        end
-        if fin then break end
-        if name and Readable(name) and name == ns.OATH.name then
-            exp = (Readable(e) and e and e > 0) and e or (now + ns.OATH.duration)
-            break
-        end
+    local now, combat = GetTime(), InCombatLockdown()
+    local mem = ns.auraMemory[memKey]
+    if mem and mem <= now then mem = nil end
+
+    local found, e, unsure = ScanOath(unit, "HELPFUL|PLAYER")
+    if found then
+        e = e or mem or (now + ns.OATH.duration)
+        ns.auraMemory[memKey] = e
+        return unit, e - now
     end
-    if exp then
-        ns.auraMemory[memKey] = exp
-    elseif InCombatLockdown() and ns.auraMemory[memKey] and ns.auraMemory[memKey] > now then
-        exp = ns.auraMemory[memKey]
-    elseif not InCombatLockdown() then
+    if not combat and target ~= Me() then
         ns.auraMemory[memKey] = nil
+        return unit, nil
     end
-    return unit, exp and (exp - now) or nil
+    if combat and mem then return unit, mem - now end
+    local anyFound, anyE, anyUnsure = ScanOath(unit, "HELPFUL")
+    if anyFound then return unit, anyE and (anyE - now) or mem and (mem - now) or math.huge end
+    if not combat then ns.auraMemory[memKey] = nil; return unit, nil end
+    if unsure or anyUnsure then return unit, math.huge end
+    return unit, nil
 end
 
 local function RunSyncHooks()
@@ -907,7 +930,7 @@ function ns.Debug(arg)
         if not any then ns.Print("No assignments") end
         local ounit, oleft = ns.OathStatus()
         ns.Print(("Oath of Light: known=%s target=%s unit=%s remaining=%s"):format(tostring(ns.oathCap[me]),
-            tostring(ns.oath[me]), tostring(ounit), oleft and ("%ds"):format(oleft) or "missing"))
+            tostring(ns.oath[me]), tostring(ounit), (oleft == math.huge and "up") or (oleft and ("%ds"):format(oleft)) or "missing"))
         ns.Print(("Combat queue available=%s, exact re-bless matching=%s"):format(
             tostring(ns.combatQueueAvailable), tostring(ns.reblessExact)))
         if ns.bar then
