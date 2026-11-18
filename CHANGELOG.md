@@ -1,6 +1,7 @@
 # PallyPulse
 
 ## 1.2.3
+- Raid frames no longer show Forbearance.
 - Hunters default to Kings, then Wisdom, then Might (new Ranged role).
 
 ## 1.2.2

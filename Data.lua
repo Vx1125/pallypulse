@@ -74,7 +74,6 @@ ns.RF = { name = "Righteous Fury", id = 25780, icon = ICON .. "Spell_Holy_SealOf
 -- Greater Blessing reagent
 ns.REAGENT = { id = 21177, name = "Symbol of Kings" }
 
-ns.FORBEARANCE = "Forbearance"
 ns.VIGIL = { name = "Light's Vigil", icon = ICON .. "Spell_Holy_Restoration" }
 
 -- Role guessing (spec-aware assignments). What each kind of player wants, best first.

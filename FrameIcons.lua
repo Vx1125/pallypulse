@@ -76,7 +76,6 @@ local function GetOverlay(f)
     o.hand = MakeSlot(o, { 0.30, 0.60, 1.00, 1 })
     o.oath = MakeSlot(o, S.paladin)
     o.vigil = MakeSlot(o, { 1.00, 0.85, 0.40, 1 })
-    o.forb = MakeSlot(o, { 0.70, 0.20, 0.20, 1 })
     overlays[f] = o
     return o
 end
@@ -117,7 +116,7 @@ end
 
 local function Resize(o)
     local sz = Size()
-    for _, s in ipairs({ o.bless, o.hand, o.oath, o.vigil, o.forb }) do
+    for _, s in ipairs({ o.bless, o.hand, o.oath, o.vigil }) do
         s:SetSize(sz, sz)
         s.timer:SetFont(S.num, math.max(9, math.floor(sz * 0.42)), "OUTLINE")
         s.bang:SetFont(S.num, math.floor(sz * 0.7), "OUTLINE")
@@ -230,17 +229,6 @@ local function UpdateFrame(f)
         slots[#slots + 1] = o.vigil
     else
         o.vigil:Hide()
-    end
-
-    -- Forbearance: Blessing of Protection, Divine Shield and Templar's Bulwark won't work on them
-    local fexp = alive and ns.FindAura(e.unit, ns.FORBEARANCE, "HARMFUL")
-    if fexp then
-        SetSlot(o.forb, SpellIcon(ns.FORBEARANCE) or "Interface\\Icons\\Spell_Holy_RemoveCurse",
-            fexp > 0 and (fexp - GetTime()) or nil, false)
-        o.forb.icon:SetDesaturated(true)
-        slots[#slots + 1] = o.forb
-    else
-        o.forb:Hide()
     end
 
     Place(o, slots)
