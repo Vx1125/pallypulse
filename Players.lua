@@ -98,13 +98,67 @@ local specTried = {}      -- [name] = GetTime() of the last inspect this session
 local inspecting          -- { name, unit, guid, t }
 local replan = false
 
-local function StoreSpec(name, specName, role)
+-- Specs are shared with the other PallyPulse paladins, so each player is only inspected
+-- once per group: "S|name,ROLE,Spec,time;name,..." (batched to stay under the message size).
+local function SpecEntry(name, s)
+    return ("%s,%s,%s,%d"):format(name, s.role, (tostring(s.name):gsub("[,;|]", "")), s.t or 0)
+end
+
+local function SendSpecs(names)
+    local buf = {}
+    local len = 2
+    local function flush()
+        if #buf > 0 then ns.Send("S|" .. table.concat(buf, ";")) end
+        wipe(buf); len = 2
+    end
+    for _, name in ipairs(names) do
+        local s = ns.db.specs[name]
+        if s and s.role then
+            local item = SpecEntry(name, s)
+            if len + #item + 1 > 240 then flush() end
+            buf[#buf + 1] = item
+            len = len + #item + 1
+        end
+    end
+    flush()
+end
+
+local function StoreSpec(name, specName, role, when, shared)
     if not (specName and role and ns.Readable(specName)) then return end
     local old = ns.db.specs[name]
     if not old or old.role ~= role then replan = true end
-    ns.db.specs[name] = { name = specName, role = role, t = time() }
+    ns.db.specs[name] = { name = specName, role = role, t = when or time() }
     ns.dirty = true
+    if not shared then SendSpecs({ name }) end
 end
+
+ns.comm.S = function(sender, data)
+    if not ns.db or not data then return end
+    local inGroup = {}
+    for _, e in ipairs(ns.roster) do inGroup[e.name] = true end
+    for item in data:gmatch("[^;]+") do
+        local name, role, specName, t = item:match("^([^,]+),(%u+),([^,]*),(%d+)$")
+        t = tonumber(t)
+        if name and inGroup[name] and ns.ROLE_LABEL[role] and t and t <= time() + 60 then
+            local cur = ns.db.specs[name]
+            if not cur or (cur.t or 0) < t then
+                StoreSpec(name, specName, role, t, true)
+                specTried[name] = GetTime()        -- no need to inspect them ourselves
+            end
+        end
+    end
+end
+
+-- when someone asks for sync (joins, reloads): send the specs we know for this group,
+-- at most every 30 seconds
+local lastSpecSync = 0
+table.insert(ns.syncHooks, function()
+    if GetTime() - lastSpecSync < 30 then return end
+    lastSpecSync = GetTime()
+    local names = {}
+    for _, e in ipairs(ns.roster) do if not e.fake and ns.db.specs[e.name] then names[#names + 1] = e.name end end
+    SendSpecs(names)
+end)
 
 local function InspectNext()
     if not ns.db or InCombatLockdown() then return end

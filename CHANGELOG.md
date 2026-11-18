@@ -3,6 +3,15 @@
 ## 1.3.0
 - Bar layouts are now Vertical and Horizontal, both built from the class rows.
 - Removed the Row, Wrap and Column layouts and the Status text option.
+- Options has two pages: General and Advanced.
+- Flat style (1px edges) and a Font choice from LibSharedMedia, to match ElvUI or EllesmereUI.
+- Bar X / Y position and Center.
+- Profile export and import as a text string.
+- Priorities: set your blessing order for each role.
+- x2 on a bar row when another paladin gives that class the same blessing.
+- Specs are shared between PallyPulse paladins.
+- Less work in raids: auras on targets, nameplates and pets are ignored; frame icons update only for players whose auras changed.
+- /pulse debug cpu.
 
 ## 1.2.3
 - Light's Vigil icon no longer disappears in combat.

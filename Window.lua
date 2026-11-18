@@ -358,8 +358,10 @@ local function BuildBlessings(P)
             cell:SetScript("OnEnter", function(self)
                 local key = ns.assign[self.pal] and ns.assign[self.pal][self.class]
                 local r, g, b = W.ClassColor(self.class)
+                local same = ns.SameBlessing(self.pal, self.class)
                 Tip(self, W.Hex(r, g, b) .. (LOCALIZED_CLASS_NAMES_MALE[self.class] or self.class) .. "|r - " .. ns.FirstName(self.pal),
-                    key and ns.BY_KEY[key].single or "None",
+                    (key and ns.BY_KEY[key].single or "None")
+                        .. (same and ("\n" .. W.Hex(unpack(S.bad)) .. "Also from " .. table.concat(same, ", ") .. "|r") or ""),
                     ns.CanEditRow(self.pal) and "Click: choose   Wheel: cycle   Right-click: clear" or nil)
             end)
             row.cells[i] = cell

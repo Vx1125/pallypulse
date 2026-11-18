@@ -5,86 +5,199 @@ local S, W = ns.STYLE, ns.W
 
 local rows = {}
 
-function ns.BuildOptions(P, top)
-    local function Section(text)
-        local h = W.Heading(P, 12)
-        h:SetText(text)
-        rows[#rows + 1] = { widget = h, gap = 6, heading = true }
-    end
-    local function Add(widget) rows[#rows + 1] = { widget = widget } end
+-- ---------------------------------------------------------------------------
+-- Profiles: your options as one line of text, to copy to another character or share.
+-- Only settings go in (no assignments, specs or positions), and import only accepts known
+-- settings of the right type.
+-- ---------------------------------------------------------------------------
+local PROFILE_KEYS = {
+    "locked", "barLayout", "fadeIdle", "auraButton", "sealButton", "showMinimap", "scale", "winScale",
+    "rowWidth", "growUp", "rowTimers", "frameIcons", "frameIconSize", "frameIconClick", "refresh",
+    "greaterMin", "reagentWarn", "rfReminder", "autoOath", "chatRequests", "compat", "readyCheck",
+    "readyCheckRaid", "rcScale", "oathSound", "readyCheckSound", "alertSoundName", "flatStyle", "font",
+}
+local PREFIX = "PULSE1:"
 
+local function Esc(v) return (tostring(v):gsub("[%%;=,]", function(c) return ("%%%02X"):format(c:byte()) end)) end
+local function Unesc(v) return (v:gsub("%%(%x%x)", function(h) return string.char(tonumber(h, 16)) end)) end
+
+function ns.ExportProfile()
+    local parts = {}
+    for _, k in ipairs(PROFILE_KEYS) do
+        local v = ns.db[k]
+        local t = type(v)
+        if t == "boolean" then parts[#parts + 1] = k .. "=b" .. (v and 1 or 0)
+        elseif t == "number" then parts[#parts + 1] = k .. "=n" .. v
+        elseif t == "string" then parts[#parts + 1] = k .. "=s" .. Esc(v) end
+    end
+    for role, list in pairs(ns.db.rolePrefs) do
+        parts[#parts + 1] = "rp." .. role .. "=s" .. Esc(table.concat(list, ","))
+    end
+    return PREFIX .. table.concat(parts, ";")
+end
+
+function ns.ImportProfile(text)
+    text = (text or ""):gsub("%s", "")
+    if text:sub(1, #PREFIX) ~= PREFIX then return false end
+    local allowed = {}
+    for _, k in ipairs(PROFILE_KEYS) do allowed[k] = true end
+    local got, prefs = {}, {}
+    for pair in text:sub(#PREFIX + 1):gmatch("[^;]+") do
+        local k, kind, v = pair:match("^([%w%.]+)=(%a)(.*)$")
+        if k then
+            local role = k:match("^rp%.(%u+)$")
+            if role and kind == "s" and ns.ROLE_PREFS[role] then
+                local list = {}
+                for key in Unesc(v):gmatch("[^,]+") do list[#list + 1] = key end
+                prefs[role] = list
+            elseif allowed[k] then
+                if kind == "b" then got[k] = (v == "1")
+                elseif kind == "n" then got[k] = tonumber(v)
+                elseif kind == "s" then got[k] = Unesc(v) end
+            end
+        end
+    end
+    if not next(got) and not next(prefs) then return false end
+    for k, v in pairs(got) do
+        local cur = ns.db[k]
+        if v ~= nil and (cur == nil or type(cur) == type(v)) then ns.db[k] = v end
+    end
+    if ns.db.barLayout ~= "horizontal" then ns.db.barLayout = "compact" end
+    for role, list in pairs(prefs) do ns.db.rolePrefs[role] = list end
+    ns.ApplyRolePrefs()
+    ns.ApplyScale()
+    ns.W.ApplyStyle()
+    if ns.ApplyBarFade then ns.ApplyBarFade() end
+    if ns.UpdateMinimap then ns.UpdateMinimap() end
+    if ns.RefreshFrameIcons then ns.RefreshFrameIcons() end
+    ns.RefreshOptions()
+    ns.dirty = true
+    return true
+end
+
+-- Bar position as the offset of its middle from the middle of the screen.
+local function BarOffset()
+    local bar = ns.bar
+    if not bar or not bar:GetCenter() then return 0, 0 end
+    local bx, by = bar:GetCenter()
+    local k = bar:GetEffectiveScale() / UIParent:GetEffectiveScale()
+    local ux, uy = UIParent:GetCenter()
+    return math.floor(bx * k - ux + 0.5), math.floor(by * k - uy + 0.5)
+end
+
+local function SetBarOffset(x, y)
+    local bar = ns.bar
+    if not bar or InCombatLockdown() then return end
+    local k = bar:GetEffectiveScale() / UIParent:GetEffectiveScale()
+    bar:ClearAllPoints()
+    bar:SetPoint("CENTER", UIParent, "CENTER", x / k, y / k)
+    -- store it the way the bar normally does (top left), so Layout keeps it in place
+    local l, t = bar:GetLeft(), bar:GetTop()
+    bar:ClearAllPoints()
+    bar:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", l, t)
+    ns.W.SavePos(bar, "bar")
+    ns.dirty = true
+end
+
+local ROLE_ROWS = { "TANK", "MELEE", "RANGED", "CASTER", "HEALER" }
+
+function ns.BuildOptions(P, top)
+    top = top or 60
+    local pages, current = {}, nil
+    local function Page()
+        local pg = CreateFrame("Frame", nil, P)
+        pg:SetAllPoints(P)
+        pg.rows = {}
+        pages[#pages + 1] = pg
+        current = pg
+        return pg
+    end
+    local function Section(text)
+        local h = W.Heading(current, 12)
+        h:SetText(text)
+        current.rows[#current.rows + 1] = { widget = h, heading = true }
+        rows[#rows + 1] = { widget = h }
+    end
+    local function Add(widget)
+        widget:SetParent(current)
+        current.rows[#current.rows + 1] = { widget = widget }
+        rows[#rows + 1] = { widget = widget }
+    end
+
+    -- page 1: General
+    Page()
     local function Scale(v) return ("%.1f"):format(v) end
 
     Section("Bar")
-    Add(W.Check(P, "Lock bar", function() return ns.db.locked end, function(v) ns.db.locked = v end))
+    Add(W.Check(current, "Lock bar", function() return ns.db.locked end, function(v) ns.db.locked = v end))
     local LAYOUTS = { "compact", "horizontal" }
     local LAYOUT_NAMES = { "Vertical", "Horizontal" }
-    Add(W.Stepper(P, "Layout", function()
+    Add(W.Stepper(current, "Layout", function()
             for i, k in ipairs(LAYOUTS) do if k == ns.db.barLayout then return i end end
             return 1
         end,
         function(v) ns.db.barLayout = LAYOUTS[v] or "compact"; ns.dirty = true end,
         1, 1, 2, function(v) return LAYOUT_NAMES[v] or "Vertical" end))
-    Add(W.Check(P, "Fade when idle", function() return ns.db.fadeIdle end,
+    Add(W.Check(current, "Fade when idle", function() return ns.db.fadeIdle end,
         function(v) ns.db.fadeIdle = v; ns.ApplyBarFade() end))
-    Add(W.Check(P, "Aura button", function() return ns.db.auraButton ~= false end,
+    Add(W.Check(current, "Aura button", function() return ns.db.auraButton ~= false end,
         function(v) ns.db.auraButton = v; ns.dirty = true end))
-    Add(W.Check(P, "Seal button", function() return ns.db.sealButton end,
+    Add(W.Check(current, "Seal button", function() return ns.db.sealButton end,
         function(v) ns.db.sealButton = v; ns.dirty = true end, "Click: cast. Wheel: change seal."))
-    Add(W.Check(P, "Minimap button", function() return ns.db.showMinimap end,
+    Add(W.Check(current, "Minimap button", function() return ns.db.showMinimap end,
         function(v) ns.db.showMinimap = v; if ns.UpdateMinimap then ns.UpdateMinimap() end end))
-    Add(W.Stepper(P, "Bar scale", function() return ns.db.scale end, function(v) ns.db.scale = v; ns.ApplyScale() end,
+    Add(W.Stepper(current, "Bar scale", function() return ns.db.scale end, function(v) ns.db.scale = v; ns.ApplyScale() end,
         0.1, 0.5, 2.0, Scale))
-    Add(W.Stepper(P, "Window scale", function() return ns.WinScale() end, function(v) ns.db.winScale = v; ns.ApplyScale() end,
+    Add(W.Stepper(current, "Window scale", function() return ns.WinScale() end, function(v) ns.db.winScale = v; ns.ApplyScale() end,
         0.1, 0.6, 1.5, Scale))
-    Add(W.Stepper(P, "Row width", function() return ns.db.rowWidth or 76 end,
+    Add(W.Stepper(current, "Row width", function() return ns.db.rowWidth or 76 end,
         function(v) ns.db.rowWidth = v; ns.dirty = true end, 8, 60, 140, function(v) return ("%d"):format(v) end))
-    Add(W.Check(P, "Grow upward", function() return ns.db.growUp end,
+    Add(W.Check(current, "Grow upward", function() return ns.db.growUp end,
         function(v) ns.db.growUp = v; ns.dirty = true end, "Vertical layout."))
-    Add(W.Check(P, "Timers", function() return ns.db.rowTimers ~= false end,
+    Add(W.Check(current, "Timers", function() return ns.db.rowTimers ~= false end,
         function(v) ns.db.rowTimers = v; ns.dirty = true end))
 
     Section("Raid frames")
-    Add(W.Check(P, "Blessing icons", function() return ns.db.frameIcons end,
+    Add(W.Check(current, "Blessing icons", function() return ns.db.frameIcons end,
         function(v) ns.db.frameIcons = v; if ns.RefreshFrameIcons then ns.RefreshFrameIcons() end end))
-    Add(W.Check(P, "Click icon to bless", function() return ns.db.frameIconClick ~= false end,
+    Add(W.Check(current, "Click icon to bless", function() return ns.db.frameIconClick ~= false end,
         function(v) ns.db.frameIconClick = v; if ns.RefreshFrameIcons then ns.RefreshFrameIcons() end end,
         "Works in combat."))
-    Add(W.Stepper(P, "Icon size", function() return ns.db.frameIconSize or 22 end,
+    Add(W.Stepper(current, "Icon size", function() return ns.db.frameIconSize or 22 end,
         function(v) ns.db.frameIconSize = v; if ns.RefreshFrameIcons then ns.RefreshFrameIcons() end end,
         2, 14, 40, function(v) return ("%d"):format(v) end))
 
     Section("Key Bindings")
-    Add(W.KeyBind(P, "Smart Buff", "CLICK PallyPulseSmartButton:LeftButton", "Alt: bless yourself."))
-    Add(W.KeyBind(P, "Oath of Light", "CLICK PallyPulseOathTarget:LeftButton", "Mouseover, target, then self."))
-    Add(W.KeyBind(P, "Toggle window", "PALLYPULSE_TOGGLE"))
+    Add(W.KeyBind(current, "Smart Buff", "CLICK PallyPulseSmartButton:LeftButton", "Alt: bless yourself."))
+    Add(W.KeyBind(current, "Oath of Light", "CLICK PallyPulseOathTarget:LeftButton", "Mouseover, target, then self."))
+    Add(W.KeyBind(current, "Toggle window", "PALLYPULSE_TOGGLE"))
 
     Section("Smart Buff")
-    Add(W.Stepper(P, "Refresh below (min)", function() return ns.db.refresh / 60 end,
+    Add(W.Stepper(current, "Refresh below (min)", function() return ns.db.refresh / 60 end,
         function(v) ns.db.refresh = v * 60; ns.dirty = true end, 1, 0, 30, function(v) return ("%d"):format(v) end))
-    Add(W.Stepper(P, "Greater Blessing at", function() return ns.db.greaterMin or 2 end,
+    Add(W.Stepper(current, "Greater Blessing at", function() return ns.db.greaterMin or 2 end,
         function(v) ns.db.greaterMin = v; ns.dirty = true end, 1, 1, 10, function(v) return ("%d+"):format(v) end,
         "Players of one class."))
-    Add(W.Stepper(P, "Symbol warning", function() return ns.db.reagentWarn or 0 end,
+    Add(W.Stepper(current, "Symbol warning", function() return ns.db.reagentWarn or 0 end,
         function(v) ns.db.reagentWarn = v; ns.dirty = true end, 5, 0, 100, function(v) return v == 0 and "Off" or ("%d"):format(v) end,
         "Symbol of Kings."))
-    Add(W.Check(P, "Righteous Fury as tank", function() return ns.db.rfReminder end,
+    Add(W.Check(current, "Righteous Fury as tank", function() return ns.db.rfReminder end,
         function(v) ns.db.rfReminder = v; ns.dirty = true end))
-    Add(W.Check(P, "Auto Oath on tanks", function() return ns.db.autoOath end,
+    Add(W.Check(current, "Auto Oath on tanks", function() return ns.db.autoOath end,
         function(v) ns.db.autoOath = v; if v then ns.AutoOathSelf() end end))
 
     Section("Group")
-    Add(W.Check(P, "Accept !bless requests", function() return ns.db.chatRequests end,
+    Add(W.Check(current, "Accept !bless requests", function() return ns.db.chatRequests end,
         function(v) ns.db.chatRequests = v end, "!bless want might"))
-    Add(W.Check(P, "PallyPower sync", function() return ns.db.compat end, function(v) ns.db.compat = v end))
+    Add(W.Check(current, "PallyPower sync", function() return ns.db.compat end, function(v) ns.db.compat = v end))
 
     Section("Ready Check")
-    Add(W.Check(P, "Show on ready check", function() return ns.db.readyCheck ~= false end,
+    Add(W.Check(current, "Show on ready check", function() return ns.db.readyCheck ~= false end,
         function(v) ns.db.readyCheck = v end))
-    Add(W.Check(P, "Raid buffs", function() return ns.db.readyCheckRaid end,
+    Add(W.Check(current, "Raid buffs", function() return ns.db.readyCheckRaid end,
         function(v) ns.db.readyCheckRaid = v; if ns.RefreshReadyCheck then ns.RefreshReadyCheck() end end,
         "Fortitude, Mark, Intellect, Spirit, food, flask."))
-    Add(W.Stepper(P, "Scale", function() return ns.RCScale() end,
+    Add(W.Stepper(current, "Scale", function() return ns.RCScale() end,
         function(v)
             ns.db.rcScale = v; ns.ApplyScale()
             local rc = _G.PallyPulseReadyCheck     -- open it so the change is visible
@@ -92,32 +205,91 @@ function ns.BuildOptions(P, top)
         end, 0.1, 0.6, 1.5, Scale))
 
     Section("Sounds")
-    Add(W.Check(P, "Oath expiring", function() return ns.db.oathSound end,
+    Add(W.Check(current, "Oath expiring", function() return ns.db.oathSound end,
         function(v) ns.db.oathSound = v end, "30 seconds left."))
-    Add(W.Check(P, "Ready check: missing blessings", function() return ns.db.readyCheckSound end,
+    Add(W.Check(current, "Ready check: missing blessings", function() return ns.db.readyCheckSound end,
         function(v) ns.db.readyCheckSound = v end))
-    Add(W.Dropdown(P, "Sound", function() return ns.SoundList() end,
+    Add(W.Dropdown(current, "Sound", function() return ns.SoundList() end,
         function() return ns.CurrentSound().name end,
         function(item) ns.db.alertSoundName = item.name; ns.Alert() end))
-    Add(W.Button(P, "Test", 80, 22, function() ns.Alert() end))
+    Add(W.Button(current, "Test", 80, 22, function() ns.Alert() end))
 
-    -- two columns
-    local colX, y0 = { 16, 270 }, -(top or 60)
-    -- column 1: Bar, Raid frames, Key Bindings; column 2: Smart Buff and the rest
-    local headings = {}
-    for i, r in ipairs(rows) do if r.heading then headings[#headings + 1] = i end end
-    local split = headings[4] or math.ceil(#rows / 2)    -- column 2 starts at "Smart Buff"
-    local maxY = 0
-    local y, col = y0, 1
-    for i, r in ipairs(rows) do
-        if i == split then col, y = 2, y0 end
-        if r.heading and y ~= y0 then y = y - 6 end
-        r.widget:ClearAllPoints()
-        r.widget:SetPoint("TOPLEFT", P, "TOPLEFT", colX[col] + (r.heading and 0 or 2), y)
-        if r.widget.SetWidth and not r.heading and r.widget:GetObjectType() == "Frame" then r.widget:SetWidth(232) end
-        y = y - (r.heading and 20 or 27)
-        maxY = math.max(maxY, -y)
+
+    -- page 2: Advanced
+    Page()
+    Section("Look")
+    Add(W.Check(current, "Flat style", function() return ns.db.flatStyle end,
+        function(v) ns.db.flatStyle = v; W.ApplyStyle() end, "1px edges, to match ElvUI or EllesmereUI."))
+    Add(W.Dropdown(current, "Font", W.FontList, function() return ns.db.font or "Default" end,
+        function(item) ns.db.font = item.name; W.ApplyStyle() end, "Fonts from LibSharedMedia."))
+
+    Section("Position")
+    Add(W.NumberBox(current, "Bar X", function() return (BarOffset()) end,
+        function(v) local _, y = BarOffset(); SetBarOffset(v, y) end, "From the middle of the screen."))
+    Add(W.NumberBox(current, "Bar Y", function() return select(2, BarOffset()) end,
+        function(v) local x = BarOffset(); SetBarOffset(x, v) end, "From the middle of the screen."))
+    Add(W.Button(current, "Center", 80, 22, function() SetBarOffset(0, 0); ns.RefreshOptions() end))
+
+    Section("Profile")
+    Add(W.Button(current, "Export", 80, 22, function()
+        W.TextDialog("Export profile", ns.ExportProfile())
+    end))
+    Add(W.Button(current, "Import", 80, 22, function()
+        W.TextDialog("Import profile", "", "Import", function(text)
+            if ns.ImportProfile(text) then return true end
+            return false
+        end)
+    end))
+
+    Section("Priorities")
+    for _, role in ipairs(ROLE_ROWS) do
+        Add(W.Priority(current, ns.ROLE_LABEL[role],
+            function() return ns.ROLE_PREFS[role] end,
+            function(list)
+                ns.db.rolePrefs[role] = list
+                ns.ApplyRolePrefs()
+                ns.dirty = true
+            end,
+            function(k) return ns.BY_KEY[k].icon end))
     end
+    Add(W.Button(current, "Reset", 80, 22, function()
+        wipe(ns.db.rolePrefs); ns.ApplyRolePrefs(); ns.RefreshOptions(); ns.dirty = true
+    end))
+
+    -- page switch, under the window's tabs
+    local tabs = {}
+    local function Show(i)
+        for j, pg in ipairs(pages) do pg:SetShown(j == i) end
+        for j, t in ipairs(tabs) do t.text:SetTextColor(unpack(j == i and S.gold or S.dim)) end
+    end
+    for i, name in ipairs({ "General", "Advanced" }) do
+        local t = CreateFrame("Button", nil, P)
+        t:SetSize(80, 18)
+        t:SetPoint("TOPLEFT", P, "TOPLEFT", 16 + (i - 1) * 86, -top)
+        t.text = W.Text(t, 12, S.dim, "LEFT"); t.text:SetPoint("LEFT"); t.text:SetText(name)
+        t:SetScript("OnClick", function() Show(i) end)
+        tabs[i] = t
+    end
+
+    -- two columns on each page; column 2 starts at the page's split heading
+    local colX, y0 = { 16, 270 }, -(top + 26)
+    local maxY = 0
+    for pi, pg in ipairs(pages) do
+        local headings = {}
+        for i, r in ipairs(pg.rows) do if r.heading then headings[#headings + 1] = i end end
+        local split = (pi == 1 and headings[4]) or headings[4] or math.ceil(#pg.rows / 2)
+        local y, col = y0, 1
+        for i, r in ipairs(pg.rows) do
+            if i == split then col, y = 2, y0 end
+            if r.heading and y ~= y0 then y = y - 6 end
+            r.widget:ClearAllPoints()
+            r.widget:SetPoint("TOPLEFT", pg, "TOPLEFT", colX[col] + (r.heading and 0 or 2), y)
+            if r.widget.SetWidth and not r.heading and r.widget:GetObjectType() == "Frame" then r.widget:SetWidth(232) end
+            y = y - (r.heading and 20 or 27)
+            maxY = math.max(maxY, -y)
+        end
+    end
+    Show(1)
     return maxY + 14
 end
 

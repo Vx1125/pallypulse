@@ -256,29 +256,44 @@ local function UpdateFrame(f)
     Place(o, slots)
 end
 
-function ns.RefreshFrameIcons()
+-- units: optional set of unit tokens; only their frames are updated
+function ns.RefreshFrameIcons(units)
     if GetTime() - lastListBuild > 5 then BuildFrameList() end
     for _, f in ipairs(frameList) do
-        local ok = pcall(UpdateFrame, f)
-        if not ok and overlays[f] then overlays[f]:Hide() end
+        if not units or (f:IsVisible() and units[FrameUnit(f) or ""]) then
+            local ok = pcall(UpdateFrame, f)
+            if not ok and overlays[f] then overlays[f]:Hide() end
+        end
     end
 end
 
 local driver = CreateFrame("Frame")
-local elapsed, dirty = 0, true
+-- Every frame once a second (timers); between those, only the frames of players whose
+-- auras changed. Auras on targets, nameplates and pets are ignored.
+local elapsed, sinceFull, full = 0, 0, true
+local changed = {}
 driver:RegisterEvent("GROUP_ROSTER_UPDATE")
 driver:RegisterEvent("UNIT_AURA")
 driver:RegisterEvent("PLAYER_ENTERING_WORLD")
-driver:SetScript("OnEvent", function(_, event)
-    if event ~= "UNIT_AURA" then lastListBuild = 0 end   -- frames may have been created or reassigned
-    dirty = true
+driver:SetScript("OnEvent", function(_, event, unit)
+    if event == "UNIT_AURA" then
+        if ns.IsGroupUnit(unit) then changed[unit] = true end
+    else
+        lastListBuild = 0                -- frames may have been created or reassigned
+        full = true
+    end
 end)
 driver:SetScript("OnUpdate", function(_, dt)
-    elapsed = elapsed + dt
-    if elapsed < 0.25 then return end
-    if dirty or elapsed > 1 then        -- at least once a second, for the timers
-        elapsed, dirty = 0, false
-        if ns.db then ns.RefreshFrameIcons() end
+    elapsed, sinceFull = elapsed + dt, sinceFull + dt
+    if elapsed < 0.25 or not ns.db then return end
+    elapsed = 0
+    if full or sinceFull >= 1 then
+        full, sinceFull = false, 0
+        wipe(changed)
+        ns.RefreshFrameIcons()
+    elseif next(changed) then
+        ns.RefreshFrameIcons(changed)
+        wipe(changed)
     end
 end)
 

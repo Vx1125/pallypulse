@@ -274,6 +274,11 @@ local function BuildMinis()
             b.cicon:SetTexCoord(tc[1] + 0.02, tc[2] - 0.02, tc[3] + 0.02, tc[4] - 0.02)
             b.cicon:Hide()
         end
+        -- another paladin gives this class the same blessing
+        b.dupMark = W.Text(b, 9, S.bad, "CENTER", S.num, "OUTLINE")
+        b.dupMark:SetPoint("TOPRIGHT", b.icon, "TOPRIGHT", 3, 2)
+        b.dupMark:SetText("x2")
+        b.dupMark:Hide()
         b:SetScript("OnEnter", function(self)
             PlaceTip(self)
             if self.key then
@@ -289,6 +294,7 @@ local function BuildMinis()
                         GameTooltip:AddLine("  " .. name, unpack(S.text))
                     end
                 end
+                if self.dup then GameTooltip:AddLine("Also from " .. table.concat(self.dup, ", "), unpack(S.bad)) end
                 GameTooltip:AddLine(" ")
                 local left, right = ns.CastNames(self.key, self.class)
                 GameTooltip:AddLine("Click: " .. tostring(left), 0.6, 0.6, 0.6)
@@ -416,14 +422,7 @@ local function BuildFlyout()
     fly = CreateFrame("Frame", "PallyPulseFlyout", bar,
         "SecureHandlerBaseTemplate" .. (BackdropTemplateMixin and ",BackdropTemplate" or ""))
     fly:SetSize(FLY_W, 40)
-    fly:SetBackdrop({
-        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = true, tileSize = 16, edgeSize = 14,
-        insets = { left = 3, right = 3, top = 3, bottom = 3 },
-    })
-    fly:SetBackdropColor(unpack(S.bg))
-    fly:SetBackdropBorderColor(unpack(S.frame))
+    W.StylePanel(fly)
     fly:SetFrameStrata("DIALOG")
     fly:SetClampedToScreen(true)
     fly:Hide()
@@ -752,6 +751,13 @@ end
 -- Layout (out of combat only: moving or showing secure buttons is protected)
 -- ---------------------------------------------------------------------------
 -- Reshape a slot button for the Compact rows or back to a square icon.
+-- after a font or style change, let every slot lay itself out again
+function ns.OnStyleChanged()
+    if not bar then return end
+    for _, b in ipairs(bar.buttons or {}) do b.shaped = nil end
+    for _, b in ipairs({ bar.smart, bar.auraBtn, bar.sealBtn, bar.oathBtn }) do if b then b.shaped = nil end end
+end
+
 local function Shape(b, compact, size)
     local want = compact and ("compact" .. RowW()) or size
     if b.shaped == want then return end
@@ -905,6 +911,8 @@ function ns.RefreshBar()
         local list = ns.byClass[b.class]
         local active = key and ns.BY_KEY[key] and list and #list > 0
         b.key = active and key or nil
+        b.dup = active and ns.SameBlessing(me, b.class) or nil
+        b.dupMark:SetShown(b.dup ~= nil)
         if active then
             local need, total, target, lowest, missing = ns.ClassStatus(b.class, key)
             b.need, b.total, b.missing = need, total, missing

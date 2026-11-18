@@ -839,6 +839,47 @@ for _, ev in ipairs({ "PLAYER_ROLES_ASSIGNED", "ROLE_CHANGED_INFORM" }) do
     pcall(core.RegisterEvent, core, ev)
 end
 
+-- player, party1-4, raid1-40 (not pets, target, focus or nameplates)
+function ns.IsGroupUnit(unit)
+    if type(unit) ~= "string" then return false end
+    return unit == "player" or unit:find("^party%d") ~= nil or unit:find("^raid%d") ~= nil
+end
+
+-- Other paladins giving the same blessing to this class as pal (a wasted cast).
+function ns.SameBlessing(pal, class)
+    local key = ns.assign[pal] and ns.assign[pal][class]
+    if not key then return nil end
+    local out
+    for _, other in ipairs(ns.paladins) do
+        if other ~= pal and ns.assign[other] and ns.assign[other][class] == key then
+            out = out or {}
+            out[#out + 1] = ns.FirstName(other)
+        end
+    end
+    return out
+end
+
+-- Your blessing order per role (Options > Priorities); the defaults are in Data.lua.
+local ROLE_DEFAULT = {}
+for role, list in pairs(ns.ROLE_PREFS) do ROLE_DEFAULT[role] = { unpack(list) } end
+function ns.DefaultRolePrefs(role) return ROLE_DEFAULT[role] end
+function ns.ApplyRolePrefs()
+    for role, def in pairs(ROLE_DEFAULT) do
+        local mine, ok = ns.db.rolePrefs[role], false
+        if type(mine) == "table" and #mine == #def then
+            ok = true
+            local seen = {}
+            for _, k in ipairs(mine) do
+                if not ns.BY_KEY[k] or seen[k] then ok = false end
+                seen[k] = true
+            end
+        end
+        if not ok then ns.db.rolePrefs[role] = nil end
+        local src = ok and mine or def
+        for i = 1, #def do ns.ROLE_PREFS[role][i] = src[i] end
+    end
+end
+
 core:SetScript("OnEvent", function(_, event, ...)
     if event == "ADDON_LOADED" then
         if (...) ~= ADDON then return end
@@ -880,10 +921,13 @@ core:SetScript("OnEvent", function(_, event, ...)
             end
         end
         if ns.LocalizeSpells then ns.LocalizeSpells() end
+        ns.ApplyRolePrefs()
     elseif event == "PLAYER_LOGIN" then
         ns.ComputeOwnCaps()
         ns.ScanRoster()
         if ns.BuildUI then ns.BuildUI() end
+        -- fonts from LibSharedMedia are registered by the time everyone has loaded
+        if ns.db.flatStyle or (ns.db.font and ns.db.font ~= "Default") then ns.W.ApplyStyle() end
     elseif event == "PLAYER_ENTERING_WORLD" or event == "SPELLS_CHANGED" then
         ns.ComputeOwnCaps()
         if event == "PLAYER_ENTERING_WORLD" then
@@ -909,8 +953,12 @@ core:SetScript("OnEvent", function(_, event, ...)
             OnAddonMessage(...)
         end
     elseif event == "UNIT_AURA" then
-        ns.InvalidateScan((...))
-        ns.dirty = true
+        -- only you and your group matter; target, focus and nameplate auras fire constantly
+        local unit = ...
+        if ns.IsGroupUnit(unit) then
+            ns.InvalidateScan(unit)
+            ns.dirty = true
+        end
     elseif event == "PLAYER_REGEN_ENABLED" then
         ns.dirty = true
         ns.layoutDirty = true
@@ -965,6 +1013,8 @@ function ns.Debug(arg)
             local role, why = ns.GuessRole(e)
             ns.Print(("  %s: role=%s (%s), you give %s"):format(e.name, tostring(role), tostring(why), tostring(ns.KeyFor(me, e))))
         end
+    elseif arg == "cpu" then
+        if ns.ProfileReport then ns.ProfileReport() end
     elseif arg == "trace" then
         ns.trace = not ns.trace
         ns.Print("Trace " .. (ns.trace and "on" or "off"))

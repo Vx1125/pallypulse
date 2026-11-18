@@ -132,6 +132,9 @@ ns.DEFAULTS = {
     assign = {},     -- [paladin][CLASS] = KEY
     oath = {},       -- [paladin] = target name (Oath of Light)
     pos = {},
+    flatStyle = false,    -- Flat look (1px edges) instead of the game's tooltip borders
+    font = "Default",     -- LibSharedMedia font name, or the game's fonts
+    rolePrefs = {},       -- [ROLE] = { KEY, KEY, KEY }  your own blessing order per role
 }
 
 -- Look: native WoW feel. Dark tooltip-style panels, gold Friz Quadrata headings.
