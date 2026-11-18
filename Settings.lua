@@ -17,22 +17,20 @@ function ns.BuildOptions(P, top)
 
     Section("Bar")
     Add(W.Check(P, "Lock bar", function() return ns.db.locked end, function(v) ns.db.locked = v end))
-    local LAYOUTS = { "compact", "row", "wrap", "column" }
-    local LAYOUT_NAMES = { "Compact", "Row", "Wrap", "Column" }
+    local LAYOUTS = { "compact", "horizontal" }
+    local LAYOUT_NAMES = { "Vertical", "Horizontal" }
     Add(W.Stepper(P, "Layout", function()
             for i, k in ipairs(LAYOUTS) do if k == ns.db.barLayout then return i end end
             return 1
         end,
         function(v) ns.db.barLayout = LAYOUTS[v] or "compact"; ns.dirty = true end,
-        1, 1, 4, function(v) return LAYOUT_NAMES[v] or "Compact" end))
+        1, 1, 2, function(v) return LAYOUT_NAMES[v] or "Vertical" end))
     Add(W.Check(P, "Fade when idle", function() return ns.db.fadeIdle end,
         function(v) ns.db.fadeIdle = v; ns.ApplyBarFade() end))
     Add(W.Check(P, "Aura button", function() return ns.db.auraButton ~= false end,
         function(v) ns.db.auraButton = v; ns.dirty = true end))
     Add(W.Check(P, "Seal button", function() return ns.db.sealButton end,
         function(v) ns.db.sealButton = v; ns.dirty = true end, "Click: cast. Wheel: change seal."))
-    Add(W.Check(P, "Status text", function() return ns.db.barText end,
-        function(v) ns.db.barText = v; ns.dirty = true end, "Row, Wrap and Column layouts."))
     Add(W.Check(P, "Minimap button", function() return ns.db.showMinimap end,
         function(v) ns.db.showMinimap = v; if ns.UpdateMinimap then ns.UpdateMinimap() end end))
     Add(W.Stepper(P, "Bar scale", function() return ns.db.scale end, function(v) ns.db.scale = v; ns.ApplyScale() end,
@@ -40,12 +38,11 @@ function ns.BuildOptions(P, top)
     Add(W.Stepper(P, "Window scale", function() return ns.WinScale() end, function(v) ns.db.winScale = v; ns.ApplyScale() end,
         0.1, 0.6, 1.5, Scale))
     Add(W.Stepper(P, "Row width", function() return ns.db.rowWidth or 76 end,
-        function(v) ns.db.rowWidth = v; ns.dirty = true end, 8, 60, 140, function(v) return ("%d"):format(v) end,
-        "Compact layout."))
+        function(v) ns.db.rowWidth = v; ns.dirty = true end, 8, 60, 140, function(v) return ("%d"):format(v) end))
     Add(W.Check(P, "Grow upward", function() return ns.db.growUp end,
-        function(v) ns.db.growUp = v; ns.dirty = true end, "Compact layout."))
+        function(v) ns.db.growUp = v; ns.dirty = true end, "Vertical layout."))
     Add(W.Check(P, "Timers", function() return ns.db.rowTimers ~= false end,
-        function(v) ns.db.rowTimers = v; ns.dirty = true end, "Compact layout."))
+        function(v) ns.db.rowTimers = v; ns.dirty = true end))
 
     Section("Raid frames")
     Add(W.Check(P, "Blessing icons", function() return ns.db.frameIcons end,

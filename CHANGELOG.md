@@ -1,5 +1,9 @@
 # PallyPulse
 
+## 1.3.0
+- Bar layouts are now Vertical and Horizontal, both built from the class rows.
+- Removed the Row, Wrap and Column layouts and the Status text option.
+
 ## 1.2.3
 - Light's Vigil icon no longer disappears in combat.
 - Raid frames no longer show Forbearance.

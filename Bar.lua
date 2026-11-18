@@ -9,9 +9,8 @@ local S, W = ns.STYLE, ns.W
 
 local SMART, MINI, GAP, PAD = 44, 22, 2, 7
 local TEXT_W = 128
-local PER_ROW_WRAP = 8      -- slots per row in the Wrap layout
--- Compact layout (PallyPower style): a thin column of rows, each tinted by status, with a
--- small drag dot on the left and no panel behind it.
+-- Bar (PallyPower style): rows tinted by status, stacked (Vertical) or side by side
+-- (Horizontal), with a small drag dot on the left and no panel behind them.
 local ROW_H, ROW_GAP, HANDLE = 22, 1, 14
 local function RowW() return ns.db.rowWidth or 76 end
 
@@ -114,7 +113,16 @@ local ROW_COLORS = {
 }
 local bar
 
-local function Compact() return ns.db.barLayout == "compact" end
+-- Two layouts, both made of the same class rows: Vertical ("compact", rows stacked) and
+-- Horizontal (rows side by side).
+local function Horizontal() return ns.db.barLayout == "horizontal" end
+-- Horizontal: tooltips and the player list open below the bar in the top half of the
+-- screen, above it in the bottom half.
+local function SideDown()
+    local _, cy = bar:GetCenter()
+    if not cy then return true end
+    return cy * bar:GetEffectiveScale() > (UIParent:GetHeight() * UIParent:GetEffectiveScale()) / 2
+end
 -- width taken by the two text lines beside Smart Buff (off unless "Show text" is on)
 -- Tooltips and the player list open beside the bar, on the side facing the middle of the
 -- screen, so they never cover the bar's own buttons.
@@ -127,7 +135,10 @@ end
 local function PlaceTip(owner)
     GameTooltip:SetOwner(owner, "ANCHOR_NONE")
     GameTooltip:ClearAllPoints()
-    if SideRight() then
+    if Horizontal() then
+        if SideDown() then GameTooltip:SetPoint("TOPLEFT", owner, "BOTTOMLEFT", 0, -4)
+        else GameTooltip:SetPoint("BOTTOMLEFT", owner, "TOPLEFT", 0, 4) end
+    elseif SideRight() then
         GameTooltip:SetPoint("TOPLEFT", bar, "TOPRIGHT", 4, 0)
     else
         GameTooltip:SetPoint("TOPRIGHT", bar, "TOPLEFT", -4, 0)
@@ -533,12 +544,14 @@ end
 -- Where the flyout goes for a button: beside the bar, level with the button, on the side
 -- facing the middle of the screen. As an anchor on the button itself, for protected code.
 local function FlyAnchor(btn)
+    if Horizontal() then
+        if SideDown() then return "TOPLEFT", "BOTTOMLEFT", 0 end
+        return "BOTTOMLEFT", "TOPLEFT", 0
+    end
     if SideRight() then
         return "TOPLEFT", "TOPRIGHT", ((bar:GetRight() or 0) - (btn:GetRight() or 0)) + 2
-    elseif Compact() then
-        return "TOPRIGHT", "TOPLEFT", -2
     end
-    return "TOPRIGHT", "TOPLEFT", -((btn:GetLeft() or 0) - (bar:GetLeft() or 0)) - 2
+    return "TOPRIGHT", "TOPLEFT", -2
 end
 
 -- PLAYER_REGEN_DISABLED: give each class button its player list for the combat flyout.
@@ -632,19 +645,24 @@ function ShowFlyout(btn)
     -- beside the bar, level with the button; the button's tooltip moves under the list
     local yoff = (btn:GetTop() or 0) - (bar:GetTop() or 0)
     local right = SideRight()
-    if right then
+    local horiz, down = Horizontal(), SideDown()
+    if horiz then
+        if down then fly:SetPoint("TOPLEFT", btn, "BOTTOMLEFT", 0, -2)
+        else fly:SetPoint("BOTTOMLEFT", btn, "TOPLEFT", 0, 2) end
+    elseif right then
         fly:SetPoint("TOPLEFT", bar, "TOPRIGHT", 2, yoff)
-    elseif Compact() then
-        fly:SetPoint("TOPRIGHT", btn, "TOPLEFT", -2, 0)    -- right next to the row, not past the drag dot
     else
-        fly:SetPoint("TOPRIGHT", bar, "TOPLEFT", -2, yoff)
+        fly:SetPoint("TOPRIGHT", btn, "TOPLEFT", -2, 0)    -- right next to the row, not past the drag dot
     end
     fly:SetScale(1)
     fly.away = 0
     fly:Show()
     if GameTooltip:IsOwned(btn) then
         GameTooltip:ClearAllPoints()
-        if right then
+        if horiz then
+            if down then GameTooltip:SetPoint("TOPLEFT", fly, "BOTTOMLEFT", 0, -4)
+            else GameTooltip:SetPoint("BOTTOMLEFT", fly, "TOPLEFT", 0, 4) end
+        elseif right then
             GameTooltip:SetPoint("TOPLEFT", fly, "BOTTOMLEFT", 0, -4)
         else
             GameTooltip:SetPoint("TOPRIGHT", fly, "BOTTOMRIGHT", 0, -4)
@@ -807,70 +825,38 @@ local function Layout(minis)
     bar.sealBtn:Hide()
 
     local s = bar.smart
-    local mode = ns.db.barLayout or "row"
     local n = #minis
-    SetChrome(mode == "compact")
-
-    if mode == "compact" then
-        local up = ns.db.growUp
-        local rows = 1 + ((not ns.db.collapsed) and n or 0)
-        -- keep the Smart row where it is: anchor the bar at its top (or bottom when growing up)
-        local l, b0, t = bar:GetLeft(), bar:GetBottom(), bar:GetTop()
-        if l then
-            bar:ClearAllPoints()
-            if up then bar:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", l, b0)
-            else bar:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", l, t) end
-        end
-        local function Y(j)    -- j = 0 for the Smart row, 1.. for the others
-            return -(((up and (rows - 1 - j)) or j) * (ROW_H + ROW_GAP))
-        end
-        Shape(s, true)
-        s:ClearAllPoints(); s:SetPoint("TOPLEFT", bar, "TOPLEFT", HANDLE, Y(0))
-        bar.handle:ClearAllPoints(); bar.handle:SetPoint("RIGHT", s, "LEFT", -1, 0)
-        if not ns.db.collapsed then
-            for i, b in ipairs(minis) do
-                Shape(b, true)
-                b:ClearAllPoints()
-                b:SetPoint("TOPLEFT", bar, "TOPLEFT", HANDLE, Y(i))
-                b:Show()
-            end
-        end
-        bar:SetSize(HANDLE + RowW(), rows * (ROW_H + ROW_GAP) - ROW_GAP)
-        return
+    SetChrome(true)
+    local horiz = Horizontal()
+    local up = ns.db.growUp and not horiz
+    local cells = 1 + ((not ns.db.collapsed) and n or 0)
+    -- keep the Smart row where it is: anchor the bar at its top (or bottom when growing up)
+    local l, b0, t = bar:GetLeft(), bar:GetBottom(), bar:GetTop()
+    if l then
+        bar:ClearAllPoints()
+        if up then bar:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", l, b0)
+        else bar:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", l, t) end
     end
-
-    Shape(s, false, SMART)
-    s:ClearAllPoints(); s:SetPoint("TOPLEFT", PAD, -PAD)
-    local headW = PAD + SMART + 4 + TextW() + 20      -- 20 = room for the two small buttons
-    local w, h = headW, PAD * 2 + SMART
-    if not ns.db.collapsed and n > 0 then
-        for _, b in ipairs(minis) do Shape(b, false, MINI) end
-        if mode ~= "row" then
-            -- Wrap / Column: rows of slots under the smart button
-            local PER_ROW_STACKED = (mode == "column") and 1 or PER_ROW_WRAP
-            for i, b in ipairs(minis) do
-                local col = (i - 1) % PER_ROW_STACKED
-                local rowi = math.floor((i - 1) / PER_ROW_STACKED)
-                b:ClearAllPoints()
-                b:SetPoint("TOPLEFT", bar, "TOPLEFT", PAD + col * (MINI + GAP), -(PAD + SMART + 6 + rowi * (MINI + GAP)))
-                b:Show()
-            end
-            local rows = math.ceil(n / PER_ROW_STACKED)
-            h = PAD * 2 + SMART + 6 + rows * (MINI + GAP) - GAP
-            w = math.max(headW, PAD * 2 + math.min(n, PER_ROW_STACKED) * (MINI + GAP) - GAP)
-        else
-            local x = PAD + SMART + 4 + TextW()
-            local y = -(PAD + (SMART - MINI) / 2)
-            for i, b in ipairs(minis) do
-                b:ClearAllPoints()
-                b:SetPoint("TOPLEFT", bar, "TOPLEFT", x + (i - 1) * (MINI + GAP), y)
-                b:Show()
-            end
-            w = x + n * (MINI + GAP) - GAP + 22
+    local function Pos(j)    -- j = 0 for the Smart row, 1.. for the others
+        if horiz then return HANDLE + j * (RowW() + ROW_GAP), 0 end
+        return HANDLE, -(((up and (cells - 1 - j)) or j) * (ROW_H + ROW_GAP))
+    end
+    Shape(s, true)
+    s:ClearAllPoints(); s:SetPoint("TOPLEFT", bar, "TOPLEFT", Pos(0))
+    bar.handle:ClearAllPoints(); bar.handle:SetPoint("RIGHT", s, "LEFT", -1, 0)
+    if not ns.db.collapsed then
+        for i, b in ipairs(minis) do
+            Shape(b, true)
+            b:ClearAllPoints()
+            b:SetPoint("TOPLEFT", bar, "TOPLEFT", Pos(i))
+            b:Show()
         end
     end
-    bar:SetSize(w, h)
-    bar.foldBtn.tex:SetTexture(ns.db.collapsed and "Interface\\Buttons\\UI-PlusButton-Up" or "Interface\\Buttons\\UI-MinusButton-Up")
+    if horiz then
+        bar:SetSize(HANDLE + cells * (RowW() + ROW_GAP) - ROW_GAP, ROW_H)
+    else
+        bar:SetSize(HANDLE + RowW(), cells * (ROW_H + ROW_GAP) - ROW_GAP)
+    end
 end
 
 -- ---------------------------------------------------------------------------
@@ -991,7 +977,6 @@ function ns.RefreshBar()
         s.icon:SetDesaturated(false); s.icon:SetVertexColor(1, 1, 1)
         s.check:Hide()
         s.count:SetShown(cleft > 1); s.count:SetText(cleft); s.count:SetTextColor(unpack(S.gold))
-        if not Compact() then s.count:ClearAllPoints(); s.count:SetPoint("BOTTOMRIGHT", -2, 2) end
         s.timer:SetText("")
         s:SetBackdropBorderColor(unpack(S.gold))
         s.glow:Show(); if not s.pulse:IsPlaying() then s.pulse:Play() end
@@ -1050,7 +1035,6 @@ function ns.RefreshBar()
         s.icon:SetDesaturated(false); s.icon:SetVertexColor(1, 1, 1)
         s.check:Hide()
         s.count:SetShown(todo > 1); s.count:SetText(todo); s.count:SetTextColor(unpack(S.gold))
-        if not Compact() then s.count:ClearAllPoints(); s.count:SetPoint("BOTTOMRIGHT", -2, 2) end
         s:SetBackdropBorderColor(unpack(S.gold))
         s.glow:Show(); if not s.pulse:IsPlaying() then s.pulse:Play() end
         local r, g, b = 1, 1, 1
@@ -1092,7 +1076,7 @@ function ns.RefreshBar()
     -- idle = nothing to cast (in combat: the combat queue is empty and Oath isn't urgent)
     bar.idle = not s.glow:IsShown() and not (not combat and stats and stats.far > 0)
 
-    if Compact() then
+    do
         -- smart row: red when there's something to cast, tan when only refreshes are due
         local st = "ok"
         if s.glow:IsShown() then

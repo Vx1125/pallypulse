@@ -43,9 +43,9 @@
 
 ## Bar
 
-![Bar layouts](https://raw.githubusercontent.com/Vx1125/pallypulse/main/media/layouts.jpg)
+![Bar](https://raw.githubusercontent.com/Vx1125/pallypulse/main/media/compact-bar.jpg)
 
-- Compact, Row, Wrap or Column layout.
+- Vertical or horizontal.
 - Hover a class to list its players, with range bars; click one to bless just them, in or out of combat.
 - Timers on each class, plus aura and seal buttons.
 - Can fade when idle.
