@@ -257,10 +257,12 @@ function ns.BuildOptions(P, top)
     end))
 
     -- page switch, under the window's tabs
-    local tabs = {}
+    local tabs, heights = {}, {}
     local function Show(i)
         for j, pg in ipairs(pages) do pg:SetShown(j == i) end
         for j, t in ipairs(tabs) do t.text:SetTextColor(unpack(j == i and S.gold or S.dim)) end
+        if heights[i] then P.height = heights[i] end      -- the window fits the page shown
+        if ns.RefreshWindow then ns.RefreshWindow() end
     end
     for i, name in ipairs({ "General", "Advanced" }) do
         local t = CreateFrame("Button", nil, P)
@@ -273,8 +275,8 @@ function ns.BuildOptions(P, top)
 
     -- two columns on each page; column 2 starts at the page's split heading
     local colX, y0 = { 16, 270 }, -(top + 26)
-    local maxY = 0
     for pi, pg in ipairs(pages) do
+        local maxY = 0
         local headings = {}
         for i, r in ipairs(pg.rows) do if r.heading then headings[#headings + 1] = i end end
         local split = (pi == 1 and headings[4]) or headings[4] or math.ceil(#pg.rows / 2)
@@ -288,9 +290,10 @@ function ns.BuildOptions(P, top)
             y = y - (r.heading and 20 or 27)
             maxY = math.max(maxY, -y)
         end
+        heights[pi] = maxY + 14
     end
     Show(1)
-    return maxY + 14
+    return heights[1]
 end
 
 function ns.RefreshOptions()
