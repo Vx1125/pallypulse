@@ -1,6 +1,7 @@
 # PallyPulse
 
 ## 1.2.3
+- Light's Vigil icon no longer disappears in combat.
 - Raid frames no longer show Forbearance.
 - Hunters default to Kings, then Wisdom, then Might (new Ranged role).
 

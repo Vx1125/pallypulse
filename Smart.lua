@@ -538,6 +538,13 @@ watcher:SetScript("OnEvent", function(_, event, unit, a2, a3, a4)
         ns.dirty = true
     end
 
+    -- Light's Vigil: remember who has it, for the raid frame icon while auras are hidden
+    if name == ns.VIGIL.name then
+        local target = sentTarget[spellID]
+        sentTarget[spellID] = nil
+        if target and ns.NoteVigil then ns.NoteVigil(target) end
+    end
+
     -- A blessing you cast by any route (player list, class row, shift-click on target) counts
     -- as on them for an hour, so the bar doesn't say Missing in combat while their auras are
     -- hidden. A Greater Blessing covers their whole class.
