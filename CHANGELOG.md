@@ -1,5 +1,8 @@
 # PallyPulse
 
+## 1.2.3
+- Hunters default to Kings, then Wisdom, then Might (new Ranged role).
+
 ## 1.2.2
 - Fixed: a blessing you know could be missing from the pickers (e.g. Wisdom after entering a dungeon).
 

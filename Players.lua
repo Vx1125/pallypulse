@@ -54,8 +54,8 @@ local TREE_ROLES = {
     { "TANK",   { "protection" } },
     { "HEALER", { "holy", "restoration", "discipline" } },
     { "CASTER", { "balance", "elemental", "shadow", "arcane", "fire", "frost", "affliction", "demonology", "destruction" } },
-    { "MELEE",  { "retribution", "enhancement", "feral", "arms", "fury", "combat", "assassination", "subtlety",
-                  "beast", "marksman", "survival" } },
+    { "MELEE",  { "retribution", "enhancement", "feral", "arms", "fury", "combat", "assassination", "subtlety" } },
+    { "RANGED", { "beast", "marksman", "survival" } },
 }
 local function TreeRole(text)
     text = (text or ""):lower()
@@ -179,7 +179,7 @@ end)
 -- ---------------------------------------------------------------------------
 -- Roles
 -- ---------------------------------------------------------------------------
-local FIXED = { WARRIOR = "MELEE", ROGUE = "MELEE", HUNTER = "MELEE", MAGE = "CASTER", WARLOCK = "CASTER", PRIEST = "HEALER" }
+local FIXED = { WARRIOR = "MELEE", ROGUE = "MELEE", HUNTER = "RANGED", MAGE = "CASTER", WARLOCK = "CASTER", PRIEST = "HEALER" }
 
 -- Best guess at what kind of player this is: TANK / MELEE / CASTER / HEALER, or nil if unsure.
 -- Second value says where the guess came from.

@@ -42,7 +42,7 @@ end
 ns.PREFS = {
     WARRIOR = { "MIGHT", "KINGS", "WISDOM" },
     ROGUE   = { "MIGHT", "KINGS", "WISDOM" },
-    HUNTER  = { "MIGHT", "KINGS", "WISDOM" },
+    HUNTER  = { "KINGS", "WISDOM", "MIGHT" },
     MAGE    = { "WISDOM", "KINGS", "MIGHT" },
     WARLOCK = { "WISDOM", "KINGS", "MIGHT" },
     PRIEST  = { "WISDOM", "KINGS", "MIGHT" },
@@ -81,10 +81,11 @@ ns.VIGIL = { name = "Light's Vigil", icon = ICON .. "Spell_Holy_Restoration" }
 ns.ROLE_PREFS = {
     TANK   = { "KINGS", "MIGHT", "WISDOM" },
     MELEE  = { "MIGHT", "KINGS", "WISDOM" },
+    RANGED = { "KINGS", "WISDOM", "MIGHT" },
     CASTER = { "WISDOM", "KINGS", "MIGHT" },
     HEALER = { "WISDOM", "KINGS", "MIGHT" },
 }
-ns.ROLE_LABEL = { TANK = "Tank", MELEE = "Melee", CASTER = "Caster", HEALER = "Healer" }
+ns.ROLE_LABEL = { TANK = "Tank", MELEE = "Melee", RANGED = "Ranged", CASTER = "Caster", HEALER = "Healer" }
 
 -- Short "hand" blessings. A paladin can only have one blessing on a player, so casting one of
 -- these replaces your normal blessing on them. Smart Buff won't overwrite them while they run,

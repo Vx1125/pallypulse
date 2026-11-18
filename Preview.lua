@@ -12,7 +12,7 @@ local PREFIX = "pulsepreview"
 -- Fake paladins and what they start with
 local PALS = {
     { name = "Liadra", blessing = "KINGS", aura = "DEVOTION" },
-    { name = "Tomas",  blessing = { WARRIOR = "MIGHT", ROGUE = "MIGHT", HUNTER = "MIGHT" }, other = "WISDOM",
+    { name = "Tomas",  blessing = { WARRIOR = "MIGHT", ROGUE = "MIGHT" }, other = "WISDOM",
       aura = "CONCENTRATION", oath = "Brannock" },
 }
 
@@ -22,7 +22,7 @@ local FAKES = {
     { "Brannock",  "WARRIOR", "TANK",   "ok",      {},           { "FORT", "MOTW", "FOOD", "FLASK" }, "ready" },
     { "Hrodgar",   "WARRIOR", "MELEE",  "missing", { "Liadra" }, { "FORT", "MOTW", "FOOD" },          "ready" },
     { "Vexa",      "ROGUE",   "MELEE",  "low",     {},           { "FORT", "MOTW", "FOOD" },          "waiting" },
-    { "Talonis",   "HUNTER",  "MELEE",  "ok",      { "Tomas" },  { "FORT", "INT" },                   "ready" },
+    { "Talonis",   "HUNTER",  "RANGED", "ok",      { "Tomas" },  { "FORT", "INT" },                   "ready" },
     { "Ilyndra",   "MAGE",    "CASTER", "missing", {},           { "FORT", "MOTW", "INT", "FLASK" },  "ready" },
     { "Corvin",    "MAGE",    "CASTER", "ok",      { "Liadra" }, { "FORT", "INT", "FOOD" },           "notready" },
     { "Morwen",    "WARLOCK", "CASTER", "low",     {},           { "FORT", "MOTW", "INT" },           "waiting" },

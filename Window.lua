@@ -519,7 +519,7 @@ end
 -- ---------------------------------------------------------------------------
 -- Players tab
 -- ---------------------------------------------------------------------------
-local ROLE_CYCLE = { false, "TANK", "MELEE", "CASTER", "HEALER" }
+local ROLE_CYCLE = { false, "TANK", "MELEE", "RANGED", "CASTER", "HEALER" }
 
 local function BuildPlayers(P)
     local hdr = {
