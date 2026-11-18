@@ -7,7 +7,9 @@
 - Flat style (1px edges) and a Font choice from LibSharedMedia, to match ElvUI or EllesmereUI.
 - Bar X / Y position and Center.
 - Profile export and import as a text string.
-- Priorities: set your blessing order for each role.
+- Priorities: set your blessing order for each class and spec (e.g. Elemental vs Restoration Shaman).
+- Priests are inspected for spec too.
+- Warlocks default to Kings, then Wisdom, then Might.
 - x2 on a bar row when another paladin gives that class the same blessing.
 - Specs are shared between PallyPulse paladins.
 - Less work in raids: auras on targets, nameplates and pets are ignored; frame icons update only for players whose auras changed.

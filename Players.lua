@@ -46,7 +46,7 @@ end
 -- remember the main talent tree for 60 days. Works with talent trees (classic clients) or
 -- specializations (modern), whichever this client has.
 -- ---------------------------------------------------------------------------
-local SPEC_CLASSES = { WARRIOR = true, DRUID = true, SHAMAN = true, PALADIN = true }
+local SPEC_CLASSES = { WARRIOR = true, DRUID = true, SHAMAN = true, PALADIN = true, PRIEST = true }
 local SPEC_AGE = 60 * 86400
 
 -- tree / spec name (or its art file) -> role; casters before melee ("ShamanElementalCombat")
@@ -230,6 +230,34 @@ specTicker:SetScript("OnUpdate", function(_, dt)
     InspectNext()
 end)
 
+-- tree / spec name -> the spec keys in Data.lua's ns.SPECS
+local TREE_KEYS = {
+    { "PROTECTION", "protection" }, { "DISCIPLINE", "discipline" }, { "HOLY", "holy" },
+    { "RESTORATION", "restoration" }, { "BALANCE", "balance" }, { "ELEMENTAL", "elemental" },
+    { "ENHANCEMENT", "enhancement" }, { "FERAL", "feral" }, { "ARMS", "arms" }, { "FURY", "fury" },
+    { "RETRIBUTION", "retribution" }, { "SHADOW", "shadow" },
+}
+local function TreeKey(text)
+    text = (text or ""):lower()
+    for _, t in ipairs(TREE_KEYS) do if text:find(t[2], 1, true) then return t[1] end end
+end
+
+-- Which Priorities row a player uses: their inspected spec, or the first spec of their
+-- class that fits their role.
+function ns.SpecKey(e)
+    local specs = ns.SPECS[e.class]
+    if not specs or #specs == 1 then return specs and specs[1].key or "" end
+    local role = ns.GuessRole(e)
+    local s = ns.db.specs and ns.db.specs[e.name]
+    local key = s and TreeKey(s.name)
+    if key == "FERAL" then key = (role == "TANK") and "BEAR" or "CAT" end
+    if key then
+        for _, sp in ipairs(specs) do if sp.key == key then return key end end
+    end
+    for _, sp in ipairs(specs) do if sp.role == role then return sp.key end end
+    return specs[1].key
+end
+
 -- ---------------------------------------------------------------------------
 -- Roles
 -- ---------------------------------------------------------------------------
@@ -284,7 +312,7 @@ function ns.AutoOverrides()
     for _, e in ipairs(ns.roster) do
         local req = db.requests[e.name]
         local role = ns.GuessRole(e)
-        local prefs = (role and ns.ROLE_PREFS[role]) or ns.PREFS[e.class]
+        local prefs = ns.PrefsFor(e)
         local list, seen = {}, {}
         for _, k in ipairs(req or {}) do if not seen[k] then seen[k] = true; list[#list + 1] = k end end
         for _, k in ipairs(prefs or {}) do if not seen[k] then seen[k] = true; list[#list + 1] = k end end

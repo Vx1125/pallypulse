@@ -44,7 +44,7 @@ ns.PREFS = {
     ROGUE   = { "MIGHT", "KINGS", "WISDOM" },
     HUNTER  = { "KINGS", "WISDOM", "MIGHT" },
     MAGE    = { "WISDOM", "KINGS", "MIGHT" },
-    WARLOCK = { "WISDOM", "KINGS", "MIGHT" },
+    WARLOCK = { "KINGS", "WISDOM", "MIGHT" },
     PRIEST  = { "WISDOM", "KINGS", "MIGHT" },
     DRUID   = { "WISDOM", "KINGS", "MIGHT" },
     SHAMAN  = { "WISDOM", "KINGS", "MIGHT" },
@@ -77,6 +77,25 @@ ns.REAGENT = { id = 21177, name = "Symbol of Kings" }
 ns.VIGIL = { name = "Light's Vigil", icon = ICON .. "Spell_Holy_Restoration" }
 
 -- Role guessing (spec-aware assignments). What each kind of player wants, best first.
+-- Specs per class for Priorities, each with the role whose order it starts from (or its
+-- own prefs). Classes with one row ("") are treated as one spec.
+ns.SPECS = {
+    WARRIOR = { { key = "ARMS", label = "Arms", role = "MELEE" }, { key = "FURY", label = "Fury", role = "MELEE" },
+                { key = "PROTECTION", label = "Protection", role = "TANK" } },
+    ROGUE   = { { key = "", label = "Rogue", role = "MELEE" } },
+    HUNTER  = { { key = "", label = "Hunter", role = "RANGED" } },
+    MAGE    = { { key = "", label = "Mage", role = "CASTER" } },
+    WARLOCK = { { key = "", label = "Warlock", role = "CASTER", prefs = { "KINGS", "WISDOM", "MIGHT" } } },
+    PRIEST  = { { key = "DISCIPLINE", label = "Discipline", role = "HEALER" }, { key = "HOLY", label = "Holy", role = "HEALER" },
+                { key = "SHADOW", label = "Shadow", role = "CASTER" } },
+    DRUID   = { { key = "BALANCE", label = "Balance", role = "CASTER" }, { key = "CAT", label = "Feral (Cat)", role = "MELEE" },
+                { key = "BEAR", label = "Feral (Bear)", role = "TANK" }, { key = "RESTORATION", label = "Restoration", role = "HEALER" } },
+    SHAMAN  = { { key = "ELEMENTAL", label = "Elemental", role = "CASTER" }, { key = "ENHANCEMENT", label = "Enhancement", role = "MELEE" },
+                { key = "RESTORATION", label = "Restoration", role = "HEALER" } },
+    PALADIN = { { key = "HOLY", label = "Holy", role = "HEALER" }, { key = "PROTECTION", label = "Protection", role = "TANK" },
+                { key = "RETRIBUTION", label = "Retribution", role = "MELEE" } },
+}
+
 ns.ROLE_PREFS = {
     TANK   = { "KINGS", "MIGHT", "WISDOM" },
     MELEE  = { "MIGHT", "KINGS", "WISDOM" },
@@ -134,7 +153,7 @@ ns.DEFAULTS = {
     pos = {},
     flatStyle = false,    -- Flat look (1px edges) instead of the game's tooltip borders
     font = "Default",     -- LibSharedMedia font name, or the game's fonts
-    rolePrefs = {},       -- [ROLE] = { KEY, KEY, KEY }  your own blessing order per role
+    specPrefs = {},       -- ["CLASS:SPEC"] = { KEY, KEY, KEY }  your own blessing order per spec
 }
 
 -- Look: native WoW feel. Dark tooltip-style panels, gold Friz Quadrata headings.

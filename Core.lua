@@ -428,7 +428,7 @@ local function ClassOrder(class)
     local score = {}
     for _, e in ipairs(ns.byClass[class] or {}) do
         local role = ns.GuessRole(e)
-        local list = (ns.db.requests[e.name]) or (role and ns.ROLE_PREFS[role]) or ns.PREFS[class]
+        local list = (ns.db.requests[e.name]) or ns.PrefsFor(e)
         for i, k in ipairs(list) do score[k] = (score[k] or 0) + (4 - math.min(i, 3)) end
     end
     local order = {}
@@ -859,25 +859,38 @@ function ns.SameBlessing(pal, class)
     return out
 end
 
--- Your blessing order per role (Options > Priorities); the defaults are in Data.lua.
-local ROLE_DEFAULT = {}
-for role, list in pairs(ns.ROLE_PREFS) do ROLE_DEFAULT[role] = { unpack(list) } end
-function ns.DefaultRolePrefs(role) return ROLE_DEFAULT[role] end
-function ns.ApplyRolePrefs()
-    for role, def in pairs(ROLE_DEFAULT) do
-        local mine, ok = ns.db.rolePrefs[role], false
-        if type(mine) == "table" and #mine == #def then
-            ok = true
-            local seen = {}
-            for _, k in ipairs(mine) do
-                if not ns.BY_KEY[k] or seen[k] then ok = false end
-                seen[k] = true
-            end
-        end
-        if not ok then ns.db.rolePrefs[role] = nil end
-        local src = ok and mine or def
-        for i = 1, #def do ns.ROLE_PREFS[role][i] = src[i] end
+-- Your blessing order per spec (Options > Advanced > Priorities). Unset specs use their
+-- role's order from Data.lua.
+local function ValidList(list)
+    if type(list) ~= "table" or #list ~= #ns.BLESSINGS then return false end
+    local seen = {}
+    for _, k in ipairs(list) do
+        if not ns.BY_KEY[k] or seen[k] then return false end
+        seen[k] = true
     end
+    return true
+end
+
+function ns.SpecDefault(class, spec)
+    for _, s in ipairs(ns.SPECS[class] or {}) do
+        if s.key == spec then return s.prefs or ns.ROLE_PREFS[s.role] end
+    end
+    return ns.PREFS[class]
+end
+
+function ns.SpecPrefs(class, spec)
+    local mine = ns.db.specPrefs[class .. ":" .. (spec or "")]
+    if ValidList(mine) then return mine end
+    return ns.SpecDefault(class, spec)
+end
+
+function ns.SetSpecPrefs(class, spec, list)
+    ns.db.specPrefs[class .. ":" .. (spec or "")] = ValidList(list) and list or nil
+end
+
+-- A group member's blessing order, from their spec (or best guess at it).
+function ns.PrefsFor(e)
+    return ns.SpecPrefs(e.class, ns.SpecKey(e))
 end
 
 core:SetScript("OnEvent", function(_, event, ...)
@@ -921,7 +934,6 @@ core:SetScript("OnEvent", function(_, event, ...)
             end
         end
         if ns.LocalizeSpells then ns.LocalizeSpells() end
-        ns.ApplyRolePrefs()
     elseif event == "PLAYER_LOGIN" then
         ns.ComputeOwnCaps()
         ns.ScanRoster()

@@ -462,7 +462,8 @@ end
 
 -- Priority row: a label and three blessing icons in order. Click an icon to move it one
 -- place to the left. get() -> { KEY, KEY, KEY }, set(list)
-function W.Priority(parent, label, get, set, icons)
+-- labelFn (optional) gives the label each Refresh; a row with no label hides its icons.
+function W.Priority(parent, label, get, set, icons, labelFn)
     local f = CreateFrame("Frame", nil, parent)
     f:SetSize(236, 24)
     local txt = W.Text(f, 12, S.text)
@@ -497,10 +498,56 @@ function W.Priority(parent, label, get, set, icons)
     end
     function f:Refresh()
         local list = get()
+        local name = labelFn and labelFn() or label
+        txt:SetText(name or "")
+        local on = name ~= nil and name ~= ""
         for i, b in ipairs(self.slots) do
+            b:SetShown(on); b.num:SetShown(on)
             local k = list[i]
             b.icon:SetTexture(k and icons(k) or W.QUESTION)
             b.name = k and ns.BY_KEY[k] and ns.BY_KEY[k].single:gsub("^Blessing of ", "") or ""
+        end
+    end
+    f:Refresh()
+    return f
+end
+
+-- A row of class icons; click one to pick it. get() -> CLASS, set(CLASS)
+function W.ClassPicker(parent, classes, get, set)
+    local f = CreateFrame("Frame", nil, parent)
+    f:SetSize(236, 24)
+    f.btns = {}
+    for i, class in ipairs(classes) do
+        local b = CreateFrame("Button", nil, f, BACKDROP_TEMPLATE)
+        b:SetSize(22, 22)
+        b:SetPoint("LEFT", f, "LEFT", 4 + (i - 1) * 25, 0)
+        b:SetBackdrop({ bgFile = WHITE, edgeFile = WHITE, edgeSize = 1 })
+        b:SetBackdropColor(0, 0, 0, 0.8)
+        local t = b:CreateTexture(nil, "ARTWORK")
+        t:SetPoint("TOPLEFT", 1, -1); t:SetPoint("BOTTOMRIGHT", -1, 1)
+        local tc = CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[class]
+        if tc then
+            t:SetTexture("Interface\\Glues\\CharacterCreate\\UI-CharacterCreate-Classes")
+            t:SetTexCoord(tc[1] + 0.02, tc[2] - 0.02, tc[3] + 0.02, tc[4] - 0.02)
+        end
+        b.icon = t
+        b:SetScript("OnClick", function() set(class); f:Refresh() end)
+        b:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_TOP")
+            GameTooltip:AddLine(LOCALIZED_CLASS_NAMES_MALE and LOCALIZED_CLASS_NAMES_MALE[class] or class, W.ClassColor(class))
+            GameTooltip:Show()
+        end)
+        b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+        b.class = class
+        f.btns[i] = b
+    end
+    function f:Refresh()
+        local cur = get()
+        for _, b in ipairs(self.btns) do
+            local on = b.class == cur
+            b:SetBackdropBorderColor(unpack(on and S.gold or S.border))
+            b.icon:SetDesaturated(not on)
+            b.icon:SetAlpha(on and 1 or 0.6)
         end
     end
     f:Refresh()

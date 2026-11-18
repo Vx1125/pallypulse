@@ -30,8 +30,8 @@ function ns.ExportProfile()
         elseif t == "number" then parts[#parts + 1] = k .. "=n" .. v
         elseif t == "string" then parts[#parts + 1] = k .. "=s" .. Esc(v) end
     end
-    for role, list in pairs(ns.db.rolePrefs) do
-        parts[#parts + 1] = "rp." .. role .. "=s" .. Esc(table.concat(list, ","))
+    for key, list in pairs(ns.db.specPrefs) do
+        parts[#parts + 1] = "sp." .. key:gsub(":", ".") .. "=s" .. Esc(table.concat(list, ","))
     end
     return PREFIX .. table.concat(parts, ";")
 end
@@ -45,11 +45,11 @@ function ns.ImportProfile(text)
     for pair in text:sub(#PREFIX + 1):gmatch("[^;]+") do
         local k, kind, v = pair:match("^([%w%.]+)=(%a)(.*)$")
         if k then
-            local role = k:match("^rp%.(%u+)$")
-            if role and kind == "s" and ns.ROLE_PREFS[role] then
+            local class, spec = k:match("^sp%.(%u+)%.(%u*)$")
+            if class and kind == "s" and ns.SPECS[class] then
                 local list = {}
                 for key in Unesc(v):gmatch("[^,]+") do list[#list + 1] = key end
-                prefs[role] = list
+                prefs[class .. ":" .. spec] = list
             elseif allowed[k] then
                 if kind == "b" then got[k] = (v == "1")
                 elseif kind == "n" then got[k] = tonumber(v)
@@ -63,8 +63,10 @@ function ns.ImportProfile(text)
         if v ~= nil and (cur == nil or type(cur) == type(v)) then ns.db[k] = v end
     end
     if ns.db.barLayout ~= "horizontal" then ns.db.barLayout = "compact" end
-    for role, list in pairs(prefs) do ns.db.rolePrefs[role] = list end
-    ns.ApplyRolePrefs()
+    for key, list in pairs(prefs) do
+        local class, spec = key:match("^(%u+):(%u*)$")
+        ns.SetSpecPrefs(class, spec, list)
+    end
     ns.ApplyScale()
     ns.W.ApplyStyle()
     if ns.ApplyBarFade then ns.ApplyBarFade() end
@@ -99,7 +101,6 @@ local function SetBarOffset(x, y)
     ns.dirty = true
 end
 
-local ROLE_ROWS = { "TANK", "MELEE", "RANGED", "CASTER", "HEALER" }
 
 function ns.BuildOptions(P, top)
     top = top or 60
@@ -241,19 +242,36 @@ function ns.BuildOptions(P, top)
         end)
     end))
 
+    -- Priorities: pick a class, then set the blessing order for each of its specs
     Section("Priorities")
-    for _, role in ipairs(ROLE_ROWS) do
-        Add(W.Priority(current, ns.ROLE_LABEL[role],
-            function() return ns.ROLE_PREFS[role] end,
-            function(list)
-                ns.db.rolePrefs[role] = list
-                ns.ApplyRolePrefs()
-                ns.dirty = true
+    local prioClass = "SHAMAN"
+    local prioRows = {}
+    Add(W.ClassPicker(current, ns.CLASSES, function() return prioClass end, function(c)
+        prioClass = c
+        for i, row in ipairs(prioRows) do row:Refresh() end
+    end))
+    for i = 1, 4 do
+        local row = W.Priority(current, "",
+            function()
+                local sp = ns.SPECS[prioClass][i]
+                return sp and ns.SpecPrefs(prioClass, sp.key) or {}
             end,
-            function(k) return ns.BY_KEY[k].icon end))
+            function(list)
+                local sp = ns.SPECS[prioClass][i]
+                if sp then ns.SetSpecPrefs(prioClass, sp.key, list); ns.dirty = true end
+            end,
+            function(k) return ns.BY_KEY[k].icon end,
+            function()
+                local sp = ns.SPECS[prioClass][i]
+                return sp and sp.label
+            end)
+        prioRows[i] = row
+        Add(row)
     end
     Add(W.Button(current, "Reset", 80, 22, function()
-        wipe(ns.db.rolePrefs); ns.ApplyRolePrefs(); ns.RefreshOptions(); ns.dirty = true
+        for _, sp in ipairs(ns.SPECS[prioClass]) do ns.SetSpecPrefs(prioClass, sp.key, nil) end
+        for _, row in ipairs(prioRows) do row:Refresh() end
+        ns.dirty = true
     end))
 
     -- page switch, under the window's tabs
