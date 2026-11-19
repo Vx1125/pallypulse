@@ -1,5 +1,8 @@
 # PallyPulse
 
+## 1.3.1
+- Fixed: a Holy paladin could be treated as Retribution (and get Might). Having Oath of Light now counts as Holy.
+
 ## 1.3.0
 - Bar layouts are now Vertical and Horizontal, both built from the class rows.
 - Removed the Row, Wrap and Column layouts and the Status text option.

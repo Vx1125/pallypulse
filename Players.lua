@@ -247,6 +247,7 @@ end
 function ns.SpecKey(e)
     local specs = ns.SPECS[e.class]
     if not specs or #specs == 1 then return specs and specs[1].key or "" end
+    if e.class == "PALADIN" and ns.oathCap and ns.oathCap[e.name] then return "HOLY" end
     local role = ns.GuessRole(e)
     local s = ns.db.specs and ns.db.specs[e.name]
     local key = s and TreeKey(s.name)
@@ -277,6 +278,8 @@ function ns.GuessRole(e)
     local ptype
     pcall(function() ptype = UnitPowerType(u) end)
     if not ns.Readable(ptype) then ptype = nil end
+    -- Oath of Light is a Holy talent: a paladin who has it is Holy
+    if e.class == "PALADIN" and ns.oathCap and ns.oathCap[e.name] then return "HEALER", "spec", "Holy" end
     local spec = ns.db.specs and ns.db.specs[e.name]
     if spec and spec.role then
         if spec.role == "MELEE" and e.class == "DRUID" and ptype == 1 then return "TANK", "spec", spec.name end
