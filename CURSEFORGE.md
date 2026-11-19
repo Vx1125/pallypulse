@@ -20,9 +20,10 @@
 ![Blessings tab](https://raw.githubusercontent.com/Vx1125/pallypulse/main/media/blessings.jpg)
 
 - Blessings by class, plus aura and Oath of Light for every paladin.
-- Auto-assign by spec: hybrids and warriors are inspected out of combat, and each class gets the blessing most of its players want.
+- Auto-assign by spec: each class gets the blessing most of its players want.
 - Presets, Announce, and Sync with paladins running PallyPower.
 - Each holy paladin's Oath goes on a different tank.
+- x2 on the bar when another paladin gives a class the same blessing.
 
 ## Per-player blessings
 
@@ -33,9 +34,16 @@
 - From the bar, hover a class and use the mouse wheel on a player.
 - Players without the addon can use chat commands (below).
 
+## Priorities by spec
+
+![Priorities by spec](https://raw.githubusercontent.com/Vx1125/pallypulse/main/media/priorities.jpg)
+
+- Specs are detected by inspect, so an Elemental and a Restoration Shaman each get what they want.
+- Set your own blessing order for every class and spec.
+
 ## Ready check
 
-![Ready check](https://raw.githubusercontent.com/Vx1125/pallypulse/main/media/ready-check.jpg)
+![Ready check](https://raw.githubusercontent.com/Vx1125/pallypulse/main/media/ready-check-v2.jpg)
 
 - Opens with every ready check and shows each player's blessing count, like 2/3.
 - Shows which paladin owes which buff, and who it goes to. Click a name to whisper.
@@ -43,7 +51,7 @@
 
 ## Bar
 
-![Bar](https://raw.githubusercontent.com/Vx1125/pallypulse/main/media/compact-bar.jpg)
+![Vertical or horizontal](https://raw.githubusercontent.com/Vx1125/pallypulse/main/media/layouts-v2.jpg)
 
 - Vertical or horizontal.
 - Hover a class to list its players, with range bars; click one to bless just them, in or out of combat.
@@ -58,9 +66,17 @@
 - Click the icon to cast it, in combat too.
 - Also shows your hand blessings, Oath of Light and Light's Vigil.
 
+## Classic or Flat
+
+![Classic or Flat](https://raw.githubusercontent.com/Vx1125/pallypulse/main/media/flat-style.jpg)
+
+- Flat style: 1px edges and flat panels, to sit next to ElvUI or EllesmereUI.
+- Fonts from LibSharedMedia.
+
 ## Also
 
 - Key bindings set right in Options.
+- Exact bar position, and profiles you can export and import as text.
 - Alert sounds, plus any LibSharedMedia sounds from your other addons.
 - Test mode: a fake raid to try everything solo.
 
