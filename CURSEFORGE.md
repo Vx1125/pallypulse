@@ -1,10 +1,10 @@
-![PallyPulse](https://raw.githubusercontent.com/Vx1125/pallypulse/main/media/banner.jpg)
+![PallyPulse](https://raw.githubusercontent.com/Vx1125/pallypulse/main/media/banner-v2.jpg)
 
 **Paladin blessings for WoW Forever.** Assign once, then press one key to keep the whole raid buffed.
 
 ## Smart Buff
 
-![Smart Buff](https://raw.githubusercontent.com/Vx1125/pallypulse/main/media/smart-buff.jpg)
+![Smart Buff](https://raw.githubusercontent.com/Vx1125/pallypulse/main/media/smart-buff-v2.jpg)
 
 - One key casts the next thing you owe: aura, Righteous Fury, Oath of Light, missing or expiring blessings.
 - Works in combat, from a list made at the pull: players missing a blessing, then Oath of Light.
@@ -17,7 +17,7 @@
 
 ## Assignments
 
-![Blessings tab](https://raw.githubusercontent.com/Vx1125/pallypulse/main/media/blessings.jpg)
+![Blessings tab](https://raw.githubusercontent.com/Vx1125/pallypulse/main/media/blessings-v2.jpg)
 
 - Blessings by class, plus aura and Oath of Light for every paladin.
 - Auto-assign by spec: each class gets the blessing most of its players want.
@@ -27,7 +27,7 @@
 
 ## Per-player blessings
 
-![Players tab](https://raw.githubusercontent.com/Vx1125/pallypulse/main/media/players.jpg)
+![Players tab](https://raw.githubusercontent.com/Vx1125/pallypulse/main/media/players-v2.jpg)
 
 - Give one player a different blessing from the rest of their class, such as Might on an Enhancement Shaman.
 - Exceptions are set automatically from spec, or by hand.
