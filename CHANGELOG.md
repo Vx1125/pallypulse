@@ -12,7 +12,7 @@
 - Warlocks default to Kings, then Wisdom, then Might.
 - x2 on a bar row when another paladin gives that class the same blessing.
 - Specs are shared between PallyPulse paladins.
-- Less work in raids: auras on targets, nameplates and pets are ignored; frame icons update only for players whose auras changed.
+- Lighter in raids: auras on mobs, nameplates and pets are ignored.
 - /pulse debug cpu.
 - Fixed: the bar jumping when you start dragging it or change its scale.
 
