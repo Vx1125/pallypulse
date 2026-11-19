@@ -651,8 +651,29 @@ function W.MakeDraggable(frame, handle, key, respectLock, noCombatMove)
     frame:SetClampedToScreen(true)
     handle:EnableMouse(true)
     handle:RegisterForDrag("LeftButton")
+    -- Moved by hand rather than StartMoving: the frame follows the cursor exactly from where
+    -- it was grabbed, whatever its scale or anchor, and is kept on screen.
     local moving = false
     local lastMsg = 0
+    local grabX, grabY, startL, startT
+    local function Cursor()
+        local x, y = GetCursorPosition()
+        local s = frame:GetEffectiveScale()
+        return x / s, y / s
+    end
+    local mover = CreateFrame("Frame", nil, frame)
+    mover:Hide()
+    mover:SetScript("OnUpdate", function()
+        local x, y = Cursor()
+        local l, t = startL + (x - grabX), startT + (y - grabY)
+        local s = frame:GetEffectiveScale()
+        local sw, sh = UIParent:GetWidth() * UIParent:GetEffectiveScale() / s, UIParent:GetHeight() * UIParent:GetEffectiveScale() / s
+        local w, h = frame:GetWidth(), frame:GetHeight()
+        l = math.max(0, math.min(l, sw - w))
+        t = math.max(h, math.min(t, sh))
+        frame:ClearAllPoints()
+        frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", l, t)
+    end)
     handle:SetScript("OnDragStart", function()
         if respectLock and ns.db.locked then return end
         if noCombatMove and InCombatLockdown() then
@@ -662,14 +683,17 @@ function W.MakeDraggable(frame, handle, key, respectLock, noCombatMove)
             end
             return
         end
+        if not frame:GetLeft() then return end
         moving = true
         frame.pulseMoving = true      -- the bar holds off re-laying itself out while dragged
-        frame:StartMoving()
+        grabX, grabY = Cursor()
+        startL, startT = frame:GetLeft(), frame:GetTop()
+        mover:Show()
     end)
     handle:SetScript("OnDragStop", function()
         if not moving then return end
         moving = false
-        frame:StopMovingOrSizing()
+        mover:Hide()
         frame.pulseMoving = false
         W.SavePos(frame, key)
         ns.dirty = true

@@ -4,11 +4,23 @@ local ADDON, ns = ...
 function ns.WinScale() return ns.db.winScale or ns.db.scale or 1 end
 function ns.RCScale() return ns.db.rcScale or ns.WinScale() end
 
+-- Change a frame's scale without moving it: its top left corner stays where it is on screen.
+local function Rescale(f, scale, key)
+    if not f or math.abs((f:GetScale() or 1) - scale) < 0.001 then return end
+    local l, t = f:GetLeft(), f:GetTop()
+    if not l or (InCombatLockdown() and f:IsProtected()) then f:SetScale(scale) return end
+    local k = f:GetScale() / scale
+    f:SetScale(scale)
+    f:ClearAllPoints()
+    f:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", l * k, t * k)
+    if key then ns.W.SavePos(f, key) end
+end
+
 function ns.ApplyScale()
-    if ns.bar then ns.bar:SetScale(ns.db.scale) end
-    if ns.win then ns.win:SetScale(ns.WinScale()) end
-    local rc = _G.PallyPulseReadyCheck
-    if rc then rc:SetScale(ns.RCScale()) end
+    Rescale(ns.bar, ns.db.scale, "bar")
+    Rescale(ns.win, ns.WinScale(), "win")
+    Rescale(_G.PallyPulseReadyCheck, ns.RCScale(), "ready")
+    if ns.bar then ns.dirty = true end
 end
 
 -- Called once from Core on PLAYER_LOGIN, after saved variables are ready.

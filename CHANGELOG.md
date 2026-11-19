@@ -14,6 +14,7 @@
 - Specs are shared between PallyPulse paladins.
 - Less work in raids: auras on targets, nameplates and pets are ignored; frame icons update only for players whose auras changed.
 - /pulse debug cpu.
+- Fixed: the bar jumping when you start dragging it or change its scale.
 
 ## 1.2.3
 - Light's Vigil icon no longer disappears in combat.
