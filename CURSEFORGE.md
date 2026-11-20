@@ -64,7 +64,7 @@
 
 - Your blessing on every party and raid frame, with time left. Missing: red, pulsing.
 - Click the icon to cast it, in combat too.
-- Also shows your hand blessings, Oath of Light and Light's Vigil.
+- Also shows your hand blessings and Oath of Light.
 
 ## Classic or Flat
 

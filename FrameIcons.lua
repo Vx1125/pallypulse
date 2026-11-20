@@ -16,12 +16,6 @@ local S, W = ns.STYLE, ns.W
 
 local overlays = {}      -- blizzard frame -> overlay
 
--- your current Light's Vigil target: { name, exp (0 = unknown), dur (longest seen) }
-local vigil = { exp = 0 }
-function ns.NoteVigil(target)
-    vigil.name = target
-    vigil.exp = (vigil.dur and vigil.dur > 0) and (GetTime() + vigil.dur) or 0
-    if ns.RefreshFrameIcons then ns.RefreshFrameIcons() end
 end
 local frameList = {}
 local lastListBuild = 0
@@ -83,7 +77,6 @@ local function GetOverlay(f)
     o.bless = MakeSlot(o, S.border)
     o.hand = MakeSlot(o, { 0.30, 0.60, 1.00, 1 })
     o.oath = MakeSlot(o, S.paladin)
-    o.vigil = MakeSlot(o, { 1.00, 0.85, 0.40, 1 })
     overlays[f] = o
     return o
 end
@@ -124,7 +117,7 @@ end
 
 local function Resize(o)
     local sz = Size()
-    for _, s in ipairs({ o.bless, o.hand, o.oath, o.vigil }) do
+    for _, s in ipairs({ o.bless, o.hand, o.oath }) do
         s:SetSize(sz, sz)
         s.timer:SetFont(S.num, math.max(9, math.floor(sz * 0.42)), "OUTLINE")
         s.bang:SetFont(S.num, math.floor(sz * 0.7), "OUTLINE")
@@ -228,29 +221,6 @@ local function UpdateFrame(f)
         slots[#slots + 1] = o.oath
     else
         o.oath:Hide()
-    end
-
-    -- your Light's Vigil (Holy: only one friendly player per party can have it). In combat
-    -- the aura can be hidden, so the last one seen or cast stays shown until it runs out.
-    local vexp = alive and ns.FindAura(e.unit, ns.VIGIL.name, "HELPFUL|PLAYER")
-    local now = GetTime()
-    if vexp then
-        if vigil.name ~= e.name or vexp > 0 then
-            vigil.name, vigil.exp = e.name, vexp
-            if vexp > 0 then vigil.dur = math.max(vigil.dur or 0, vexp - now) end
-        end
-    elseif vigil.name == e.name then
-        if not InCombatLockdown() or (vigil.exp > 0 and vigil.exp <= now) then
-            vigil.name, vigil.exp = nil, 0
-        elseif alive then
-            vexp = vigil.exp
-        end
-    end
-    if vexp then
-        SetSlot(o.vigil, SpellIcon(ns.VIGIL.name) or ns.VIGIL.icon, vexp > 0 and (vexp - GetTime()) or nil, false)
-        slots[#slots + 1] = o.vigil
-    else
-        o.vigil:Hide()
     end
 
     Place(o, slots)
