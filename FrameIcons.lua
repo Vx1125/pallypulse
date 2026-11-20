@@ -16,7 +16,6 @@ local S, W = ns.STYLE, ns.W
 
 local overlays = {}      -- blizzard frame -> overlay
 
-end
 local frameList = {}
 local lastListBuild = 0
 
