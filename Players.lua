@@ -94,6 +94,36 @@ local function ReadSpec(isInspect, unit)
     return name, role
 end
 
+-- /pulse debug specs: what the game returns for your own talents, and each player's spec
+function ns.DebugSpecs()
+    local P = ns.Print
+    P(("API: GetSpecialization=%s GetInspectSpecialization=%s GetNumTalentTabs=%s GetTalentTabInfo=%s"):format(
+        tostring(GetSpecialization ~= nil), tostring(GetInspectSpecialization ~= nil),
+        tostring(GetNumTalentTabs ~= nil), tostring(GetTalentTabInfo ~= nil)))
+    if GetSpecialization then
+        local ok, i = pcall(GetSpecialization)
+        P("GetSpecialization() = " .. tostring(ok and i))
+    end
+    if GetNumTalentTabs and GetTalentTabInfo then
+        local ok, n = pcall(GetNumTalentTabs, false)
+        P("GetNumTalentTabs() = " .. tostring(ok and n))
+        for t = 1, (ok and n or 0) do
+            local r = { pcall(GetTalentTabInfo, t, false) }
+            local parts = {}
+            for i = 2, math.min(#r, 9) do parts[#parts + 1] = tostring(r[i]) end
+            P(("  tab %d: %s"):format(t, table.concat(parts, ", ")))
+        end
+    end
+    local name, role = ReadSpec(false)
+    P(("You read as: %s (%s)"):format(tostring(name), tostring(role)))
+    for _, e in ipairs(ns.roster) do
+        local s = ns.db.specs[e.name]
+        local r, why = ns.GuessRole(e)
+        P(("  %s %s: spec=%s role=%s (%s)"):format(ns.FirstName(e.name), e.class, s and tostring(s.name) or "-",
+            tostring(r), tostring(why)))
+    end
+end
+
 local specTried = {}      -- [name] = GetTime() of the last inspect this session
 local inspecting          -- { name, unit, guid, t }
 local replan = false
@@ -257,6 +287,21 @@ function ns.SpecKey(e)
     end
     for _, sp in ipairs(specs) do if sp.role == role then return sp.key end end
     return specs[1].key
+end
+
+-- Short spec name for the Players tab, only when the spec is known (inspected, shared by
+-- another PallyPulse, or a paladin with Oath of Light). nil otherwise.
+local SHORT = {
+    ARMS = "Arms", FURY = "Fury", PROTECTION = "Prot", DISCIPLINE = "Disc", HOLY = "Holy", SHADOW = "Shadow",
+    BALANCE = "Balance", CAT = "Feral", BEAR = "Bear", RESTORATION = "Resto", ELEMENTAL = "Elemental",
+    ENHANCEMENT = "Enhance", RETRIBUTION = "Ret",
+}
+function ns.SpecLabel(e)
+    local specs = ns.SPECS[e.class]
+    if not specs or #specs == 1 then return nil end
+    local known = (ns.db.specs and ns.db.specs[e.name]) or (e.class == "PALADIN" and ns.oathCap and ns.oathCap[e.name])
+    if not known then return nil end
+    return SHORT[ns.SpecKey(e)]
 end
 
 -- ---------------------------------------------------------------------------

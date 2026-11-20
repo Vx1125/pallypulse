@@ -1025,6 +1025,8 @@ function ns.Debug(arg)
             local role, why = ns.GuessRole(e)
             ns.Print(("  %s: role=%s (%s), you give %s"):format(e.name, tostring(role), tostring(why), tostring(ns.KeyFor(me, e))))
         end
+    elseif arg == "specs" then
+        if ns.DebugSpecs then ns.DebugSpecs() end
     elseif arg == "cpu" then
         if ns.ProfileReport then ns.ProfileReport() end
     elseif arg == "trace" then
@@ -1063,6 +1065,6 @@ function ns.Debug(arg)
                 end
             end
         end
-        ns.Print("/pulse debug test | trace | frames | auras")
+        ns.Print("/pulse debug test | trace | frames | auras | specs | cpu")
     end
 end

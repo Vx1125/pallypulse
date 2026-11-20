@@ -1,6 +1,7 @@
 # PallyPulse
 
 ## 1.3.1
+- Players tab shows detected specs (Resto, Enhance, Prot...) in the Role column.
 - Raid frames no longer show Light's Vigil.
 - Fixed: a Holy paladin could be treated as Retribution (and get Might). Having Oath of Light now counts as Holy.
 
