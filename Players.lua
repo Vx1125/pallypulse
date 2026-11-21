@@ -102,9 +102,56 @@ local function SpecID(isInspect, unit)
 end
 ns.SpecID = SpecID
 
+-- WoW Forever: the "spec" is the whole class (Paladin = 1486), and talents live in the trait
+-- system: one tree per class, split into three tabs (Holy, Protection, Retribution) that
+-- each report points spent. The tab with the most points is the spec. Your own config is
+-- C_ClassTalents.GetActiveConfigID(); an inspected player's is the inspect config (-1).
+local lastTrait = {}     -- for /pulse debug specs
+local function TraitSpec(configID)
+    wipe(lastTrait)
+    lastTrait.config = configID
+    if not (configID and C_Traits and C_Traits.GetConfigInfo and C_Traits.GetGroupDisplayInfoByTreeID
+            and C_Traits.GetGroupCurrencyInfo) then return nil end
+    local best, bestPts
+    pcall(function()
+        local info = C_Traits.GetConfigInfo(configID)
+        local treeID = info and info.treeIDs and info.treeIDs[1]
+        lastTrait.tree = treeID
+        if not treeID then return end
+        local groups = C_Traits.GetGroupDisplayInfoByTreeID(treeID) or {}
+        local ids, names = {}, {}
+        for _, g in ipairs(groups) do
+            if g.groupID then ids[#ids + 1] = g.groupID; names[g.groupID] = g.displayName end
+        end
+        lastTrait.tabs = #ids
+        if #ids == 0 then return end
+        local spent = {}
+        for _, c in ipairs(C_Traits.GetGroupCurrencyInfo(configID, ids) or {}) do
+            local n = 0
+            for _, ci in ipairs(c.currencyInfos or {}) do n = n + (ci.spent or 0) end
+            spent[c.traitNodeGroupID] = n
+        end
+        local parts = {}
+        for _, id in ipairs(ids) do
+            local n = spent[id] or 0
+            parts[#parts + 1] = ("%s %d"):format(tostring(names[id]), n)
+            if n > 0 and (not bestPts or n > bestPts) then best, bestPts = names[id], n end
+        end
+        lastTrait.points = table.concat(parts, ", ")
+    end)
+    return best
+end
+
+local INSPECT_CONFIG = (Constants and Constants.TraitConsts and Constants.TraitConsts.INSPECT_TRAIT_CONFIG_ID) or -1
+
 -- Main spec of the inspected unit (isInspect) or yourself: name, role.
 local function ReadSpec(isInspect, unit)
     local name, role
+    local cfg
+    if isInspect then cfg = INSPECT_CONFIG
+    else pcall(function() cfg = C_ClassTalents and C_ClassTalents.GetActiveConfigID and C_ClassTalents.GetActiveConfigID() end) end
+    local tab = TraitSpec(cfg)
+    if tab and ns.Readable(tab) then return tab, TreeRole(tab) end
     local id = SpecID(isInspect, unit)
     if id then
         local known = SPEC_IDS[id]
@@ -112,7 +159,9 @@ local function ReadSpec(isInspect, unit)
         pcall(function()
             if GetSpecializationInfoByID then
                 local _, n, _, _, r = GetSpecializationInfoByID(id)
-                if n then name, role = n, (r == "TANK" or r == "HEALER") and r or TreeRole(n) end
+                -- a class-wide "spec" (Forever: "Paladin") says nothing; only take real tree names
+                local tr = n and TreeRole(n)
+                if tr then name, role = n, (r == "TANK" or r == "HEALER") and r or tr end
             end
         end)
         if name then return name, role end
@@ -157,7 +206,10 @@ function ns.DebugSpecs()
     local okp, pid = pcall(function() return GetInspectSpecialization and GetInspectSpecialization("player") end)
     P("GetInspectSpecialization(player) = " .. tostring(okp and pid))
     local name, role = ReadSpec(false)
+    P(("Talents: config %s, tree %s, tabs %s: %s"):format(tostring(lastTrait.config), tostring(lastTrait.tree),
+        tostring(lastTrait.tabs), tostring(lastTrait.points)))
     P(("You read as: %s (%s), spec ID %s"):format(tostring(name), tostring(role), tostring(SpecID(false))))
+    P("Last inspect: " .. tostring(ns.lastInspect or "none yet"))
     for _, e in ipairs(ns.roster) do
         local s = ns.db.specs[e.name]
         local r, why = ns.GuessRole(e)
@@ -280,7 +332,10 @@ specEv:SetScript("OnEvent", function(_, event, guid)
     end
     if not inspecting then return end
     if guid and inspecting.guid and guid ~= inspecting.guid then return end
-    StoreSpec(inspecting.name, ReadSpec(true, inspecting.unit))
+    local sn, sr = ReadSpec(true, inspecting.unit)
+    ns.lastInspect = ("%s: tree %s, %s -> %s"):format(inspecting.name, tostring(lastTrait.tree),
+        tostring(lastTrait.points), tostring(sn))
+    StoreSpec(inspecting.name, sn, sr)
     pcall(ClearInspectPlayer)
     inspecting = nil
 end)
