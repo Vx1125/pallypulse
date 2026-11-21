@@ -65,21 +65,59 @@ local function TreeRole(text)
 end
 
 -- Main spec of the inspected unit (isInspect) or yourself: name, role.
-local function ReadSpec(isInspect, unit)
-    local name, role
+-- Spec IDs (the modern game's numbering, which Forever reports through
+-- GetInspectSpecialization): name and role, so detection works even without
+-- GetSpecializationInfoByID and in any language.
+local SPEC_IDS = {
+    [71] = { "Arms", "MELEE" }, [72] = { "Fury", "MELEE" }, [73] = { "Protection", "TANK" },
+    [65] = { "Holy", "HEALER" }, [66] = { "Protection", "TANK" }, [70] = { "Retribution", "MELEE" },
+    [256] = { "Discipline", "HEALER" }, [257] = { "Holy", "HEALER" }, [258] = { "Shadow", "CASTER" },
+    [262] = { "Elemental", "CASTER" }, [263] = { "Enhancement", "MELEE" }, [264] = { "Restoration", "HEALER" },
+    [102] = { "Balance", "CASTER" }, [103] = { "Feral", "MELEE" }, [104] = { "Guardian", "TANK" },
+    [105] = { "Restoration", "HEALER" },
+    [253] = { "Beast Mastery", "RANGED" }, [254] = { "Marksmanship", "RANGED" }, [255] = { "Survival", "RANGED" },
+    [259] = { "Assassination", "MELEE" }, [260] = { "Combat", "MELEE" }, [261] = { "Subtlety", "MELEE" },
+    [62] = { "Arcane", "CASTER" }, [63] = { "Fire", "CASTER" }, [64] = { "Frost", "CASTER" },
+    [265] = { "Affliction", "CASTER" }, [266] = { "Demonology", "CASTER" }, [267] = { "Destruction", "CASTER" },
+}
+ns.SPEC_IDS = SPEC_IDS
+
+-- Spec ID of the unit (or yourself), by whatever this client offers.
+local function SpecID(isInspect, unit)
+    local id
     pcall(function()
-        local id
-        if isInspect and GetInspectSpecialization then id = GetInspectSpecialization(unit)
-        elseif not isInspect and GetSpecialization and GetSpecializationInfo then
-            local i = GetSpecialization()
-            if i then id = (GetSpecializationInfo(i)) end
-        end
-        if id and id > 0 and GetSpecializationInfoByID then
-            local _, n, _, _, r = GetSpecializationInfoByID(id)
-            if n then name, role = n, (r == "TANK" or r == "HEALER") and r or TreeRole(n) end
+        if isInspect then
+            id = GetInspectSpecialization and GetInspectSpecialization(unit)
+        else
+            local C = C_SpecializationInfo
+            local i = (C and C.GetSpecialization and C.GetSpecialization()) or (GetSpecialization and GetSpecialization())
+            if i and i > 0 then
+                id = (C and C.GetSpecializationInfo and (C.GetSpecializationInfo(i)))
+                    or (GetSpecializationInfo and (GetSpecializationInfo(i)))
+            end
+            if not (id and id > 0) and GetInspectSpecialization then id = GetInspectSpecialization("player") end
         end
     end)
-    if name then return name, role end
+    if ns.Readable(id) and type(id) == "number" and id > 0 then return id end
+end
+ns.SpecID = SpecID
+
+-- Main spec of the inspected unit (isInspect) or yourself: name, role.
+local function ReadSpec(isInspect, unit)
+    local name, role
+    local id = SpecID(isInspect, unit)
+    if id then
+        local known = SPEC_IDS[id]
+        if known then return known[1], known[2] end
+        pcall(function()
+            if GetSpecializationInfoByID then
+                local _, n, _, _, r = GetSpecializationInfoByID(id)
+                if n then name, role = n, (r == "TANK" or r == "HEALER") and r or TreeRole(n) end
+            end
+        end)
+        if name then return name, role end
+    end
+    -- classic talent trees, on clients that have them
     pcall(function()
         if not (GetNumTalentTabs and GetTalentTabInfo) then return end
         local bestPts, best, bestFile = 0, nil, nil
@@ -114,8 +152,12 @@ function ns.DebugSpecs()
             P(("  tab %d: %s"):format(t, table.concat(parts, ", ")))
         end
     end
+    P(("C_SpecializationInfo=%s GetSpecializationInfoByID=%s"):format(
+        tostring(C_SpecializationInfo ~= nil), tostring(GetSpecializationInfoByID ~= nil)))
+    local okp, pid = pcall(function() return GetInspectSpecialization and GetInspectSpecialization("player") end)
+    P("GetInspectSpecialization(player) = " .. tostring(okp and pid))
     local name, role = ReadSpec(false)
-    P(("You read as: %s (%s)"):format(tostring(name), tostring(role)))
+    P(("You read as: %s (%s), spec ID %s"):format(tostring(name), tostring(role), tostring(SpecID(false))))
     for _, e in ipairs(ns.roster) do
         local s = ns.db.specs[e.name]
         local r, why = ns.GuessRole(e)
@@ -265,7 +307,7 @@ local TREE_KEYS = {
     { "PROTECTION", "protection" }, { "DISCIPLINE", "discipline" }, { "HOLY", "holy" },
     { "RESTORATION", "restoration" }, { "BALANCE", "balance" }, { "ELEMENTAL", "elemental" },
     { "ENHANCEMENT", "enhancement" }, { "FERAL", "feral" }, { "ARMS", "arms" }, { "FURY", "fury" },
-    { "RETRIBUTION", "retribution" }, { "SHADOW", "shadow" },
+    { "RETRIBUTION", "retribution" }, { "SHADOW", "shadow" }, { "BEAR", "guardian" },
 }
 local function TreeKey(text)
     text = (text or ""):lower()

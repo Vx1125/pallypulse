@@ -1,5 +1,8 @@
 # PallyPulse
 
+## 1.3.2
+- Fixed: spec detection did not work on Forever. Specs are now read by spec ID.
+
 ## 1.3.1
 - Players tab shows detected specs (Resto, Enhance, Prot...) in the Role column.
 - Raid frames no longer show Light's Vigil.
