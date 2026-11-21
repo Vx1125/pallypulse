@@ -1,6 +1,7 @@
 # PallyPulse
 
 ## 1.3.2
+- Fixed: after a /reload in combat the bar showed an old panel layout until combat ended.
 - Fixed: spec detection did not work on Forever. Specs are now read from the talent tabs.
 
 ## 1.3.1

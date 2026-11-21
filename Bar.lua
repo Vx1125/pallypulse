@@ -729,8 +729,14 @@ function ns.BuildBar()
         t:AddLine(ns.db.collapsed and "Click: expand" or "Click: collapse", 0.8, 0.8, 0.8)
         t:AddLine("Right-click: assignments", 0.8, 0.8, 0.8)
     end)
-    hd:Hide()
     bar.handle = hd
+    -- start in the row look straight away: after a /reload in combat the rows can't be laid
+    -- out until combat ends, but the panel, text and old buttons needn't show meanwhile
+    bar:SetBackdropColor(0, 0, 0, 0); bar:SetBackdropBorderColor(0, 0, 0, 0)
+    bar.line1:Hide(); bar.line2:Hide()
+    bar.menuBtn:Hide(); bar.foldBtn:Hide()
+    hd:ClearAllPoints(); hd:SetPoint("RIGHT", bar.smart, "LEFT", -1, 0)
+    hd:Show()
 
     local elapsed = 0
     bar:SetScript("OnUpdate", function(_, dt)
