@@ -1,5 +1,9 @@
 # PallyPulse
 
+## 1.3.3
+- A class that joins the group after Auto-assign gets your blessing automatically, so it shows on the bar and frames.
+- Players tab shows specs for every class (BM, MM, Fire, Destro...).
+
 ## 1.3.2
 - Fixed: after a /reload in combat the bar showed an old panel layout until combat ended.
 - Fixed: spec detection did not work on Forever. Specs are now read from the talent tabs.

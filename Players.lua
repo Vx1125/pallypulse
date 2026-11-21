@@ -46,7 +46,10 @@ end
 -- remember the main talent tree for 60 days. Works with talent trees (classic clients) or
 -- specializations (modern), whichever this client has.
 -- ---------------------------------------------------------------------------
-local SPEC_CLASSES = { WARRIOR = true, DRUID = true, SHAMAN = true, PALADIN = true, PRIEST = true }
+-- every class is inspected: hybrids for their blessing order, the rest so the Players tab
+-- can show their spec
+local SPEC_CLASSES = { WARRIOR = true, DRUID = true, SHAMAN = true, PALADIN = true, PRIEST = true,
+                       HUNTER = true, ROGUE = true, MAGE = true, WARLOCK = true }
 local SPEC_AGE = 60 * 86400
 
 -- tree / spec name (or its art file) -> role; casters before melee ("ShamanElementalCombat")
@@ -393,9 +396,23 @@ local SHORT = {
     BALANCE = "Balance", CAT = "Feral", BEAR = "Bear", RESTORATION = "Resto", ELEMENTAL = "Elemental",
     ENHANCEMENT = "Enhance", RETRIBUTION = "Ret",
 }
+-- one-row classes: their tree, for display only (it doesn't change their blessings)
+local DISPLAY = {
+    { "beast", "BM" }, { "marksman", "MM" }, { "survival", "Surv" },
+    { "assassination", "Assa" }, { "combat", "Combat" }, { "subtlety", "Sub" },
+    { "arcane", "Arcane" }, { "fire", "Fire" }, { "frost", "Frost" },
+    { "affliction", "Affli" }, { "demonology", "Demo" }, { "destruction", "Destro" },
+}
 function ns.SpecLabel(e)
     local specs = ns.SPECS[e.class]
-    if not specs or #specs == 1 then return nil end
+    if not specs then return nil end
+    if #specs == 1 then
+        local s = ns.db.specs and ns.db.specs[e.name]
+        local text = s and tostring(s.name):lower()
+        if not text then return nil end
+        for _, d in ipairs(DISPLAY) do if text:find(d[1], 1, true) then return d[2] end end
+        return nil
+    end
     local known = (ns.db.specs and ns.db.specs[e.name]) or (e.class == "PALADIN" and ns.oathCap and ns.oathCap[e.name])
     if not known then return nil end
     return SHORT[ns.SpecKey(e)]

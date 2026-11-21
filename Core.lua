@@ -167,6 +167,7 @@ function ns.ScanRoster()
         if b == me then return false end
         return a < b
     end)
+    if ns.FillNewClasses then ns.FillNewClasses() end
     ns.dirty = true
 end
 
@@ -441,6 +442,47 @@ local function ClassOrder(class)
         return rank[a] < rank[b]
     end)
     return order
+end
+
+-- A class that joins the group after Auto-assign has no blessing from you, so it has no row
+-- on the bar and no icon on its frames. Give it one: the first blessing in its order that
+-- no other paladin gives it. Only your own empty cells, only for classes that just joined
+-- (so Clear stays clear), and not on the first scan after login.
+local seenClasses, pendingClasses, firstScan = {}, {}, true
+function ns.FillNewClasses()
+    if not ns.db then return end
+    local present = {}
+    for class in pairs(ns.byClass) do present[class] = true end
+    if firstScan then
+        firstScan = false
+        seenClasses = present
+        return
+    end
+    for class in pairs(present) do
+        if not seenClasses[class] then pendingClasses[class] = true end
+    end
+    seenClasses = present
+    if InCombatLockdown() or not IsInGroup() then return end
+    local me = Me()
+    local row = ns.assign[me]
+    for class in pairs(pendingClasses) do
+        pendingClasses[class] = nil
+        if present[class] and not (row and row[class]) then
+            local used = {}
+            for _, pal in ipairs(ns.paladins) do
+                local k = pal ~= me and ns.assign[pal] and ns.assign[pal][class]
+                if k then used[k] = true end
+            end
+            local caps = ns.caps[me]
+            for _, key in ipairs(ClassOrder(class)) do
+                if not used[key] and (not caps or caps[key]) then
+                    ns.SetAssignment(me, class, key, true)
+                    break
+                end
+            end
+            row = ns.assign[me]
+        end
+    end
 end
 
 function ns.AutoAssign()
