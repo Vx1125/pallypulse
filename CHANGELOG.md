@@ -1,7 +1,7 @@
 # PallyPulse
 
 ## 1.3.2
-- Fixed: spec detection did not work on Forever. Specs are now read by spec ID.
+- Fixed: spec detection did not work on Forever. Specs are now read from the talent tabs.
 
 ## 1.3.1
 - Players tab shows detected specs (Resto, Enhance, Prot...) in the Role column.
