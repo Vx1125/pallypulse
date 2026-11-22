@@ -50,6 +50,12 @@ function ns.AutoAuras()
     local pals = {}
     for i, p in ipairs(ns.paladins) do pals[i] = p end
     table.sort(pals)
+    -- your own preferred aura goes first, so the alphabet doesn't hand it to someone else
+    local me, prefer = ns.Me(), ns.db.auraPrefer
+    if prefer and not ns.AURA_BY_KEY[prefer] then prefer = nil end
+    if prefer then
+        for i, p in ipairs(pals) do if p == me then table.remove(pals, i); table.insert(pals, 1, me) break end end
+    end
     local used = {}
     for _, pal in ipairs(pals) do
         if not ns.CanEditRow(pal) then
@@ -61,8 +67,10 @@ function ns.AutoAuras()
         if ns.CanEditRow(pal) then
             local caps = ns.auraCaps[pal]
             local pick
-            for _, k in ipairs(ns.AURA_PREFS) do
-                if not used[k] and (not caps or next(caps) == nil or caps[k]) then pick = k break end
+            local function ok(k) return not used[k] and (not caps or next(caps) == nil or caps[k]) end
+            if pal == me and prefer and ok(prefer) then pick = prefer end
+            if not pick then
+                for _, k in ipairs(ns.AURA_PREFS) do if ok(k) then pick = k break end end
             end
             if pick then used[pick] = true end
             ns.db.auraAssign[pal] = pick

@@ -14,7 +14,7 @@ local PROFILE_KEYS = {
     "locked", "barLayout", "fadeIdle", "auraButton", "sealButton", "showMinimap", "scale", "winScale",
     "rowWidth", "growUp", "rowTimers", "frameIcons", "frameIconSize", "frameIconClick", "refresh",
     "greaterMin", "reagentWarn", "rfReminder", "autoOath", "chatRequests", "compat", "readyCheck",
-    "readyCheckRaid", "rcScale", "oathSound", "readyCheckSound", "alertSoundName", "flatStyle", "font",
+    "readyCheckRaid", "rcScale", "oathSound", "readyCheckSound", "alertSoundName", "flatStyle", "font", "auraPrefer",
 }
 local PREFIX = "PULSE1:"
 
@@ -188,6 +188,20 @@ function ns.BuildOptions(P, top)
         function(v) ns.db.autoOath = v; if v then ns.AutoOathSelf() end end))
 
     Section("Group")
+    local function AuraLabel(a) return (a.name:gsub(" Aura$", "")) end
+    Add(W.Dropdown(current, "Your aura", function()
+            local items = { { name = "Default" } }
+            local caps = ns.auraCaps and ns.auraCaps[ns.Me()]
+            for _, a in ipairs(ns.AURAS) do
+                if not caps or next(caps) == nil or caps[a.key] then items[#items + 1] = { name = AuraLabel(a), key = a.key } end
+            end
+            return items
+        end,
+        function()
+            local a = ns.db.auraPrefer and ns.AURA_BY_KEY[ns.db.auraPrefer]
+            return a and AuraLabel(a) or "Default"
+        end,
+        function(item) ns.db.auraPrefer = item.key end, "Auto-assign gives you this aura first."))
     Add(W.Check(current, "Accept !bless requests", function() return ns.db.chatRequests end,
         function(v) ns.db.chatRequests = v end, "!bless want might"))
     Add(W.Check(current, "PallyPower sync", function() return ns.db.compat end, function(v) ns.db.compat = v end))

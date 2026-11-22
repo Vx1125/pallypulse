@@ -1,6 +1,7 @@
 # PallyPulse
 
 ## 1.3.3
+- Options > Group > Your aura: the aura Auto-assign gives you first.
 - A class that joins the group after Auto-assign gets your blessing automatically, so it shows on the bar and frames.
 - Players tab shows specs for every class (BM, MM, Fire, Destro...).
 
