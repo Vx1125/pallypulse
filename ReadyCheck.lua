@@ -37,6 +37,7 @@ local win
 local shownCols = {}
 local closeAt
 local lastStatus = {}     -- [name] = ready status, kept after the check ends
+local checking = false    -- a ready check is running; after it ends the statuses are frozen
 
 -- every buff name on a unit (with its icon)
 local function BuffsOn(unit)
@@ -186,6 +187,10 @@ local function Build()
         if closeAt and GetTime() >= closeAt and not self:IsMouseOver() then
             closeAt = nil; self:Hide(); return
         end
+        -- the check is over and the pull started (maybe without you): done with it
+        if closeAt and ns.GroupInCombat and ns.GroupInCombat() then
+            closeAt = nil; self:Hide(); return
+        end
         if not InCombatLockdown() then ns.RefreshReadyCheck() end
     end)
 end
@@ -287,9 +292,11 @@ function ns.RefreshReadyCheck()
 
             local st
             if e.fake then st = e.ready
-            else pcall(function() st = GetReadyCheckStatus and GetReadyCheckStatus(e.unit) end) end
+            elseif checking then pcall(function() st = GetReadyCheckStatus and GetReadyCheckStatus(e.unit) end) end
             if not ns.Readable(st) then st = nil end
-            if st then lastStatus[e.name] = st else st = lastStatus[e.name] end
+            -- a "ready" answer can't be taken back, so a later read never downgrades it
+            if st and lastStatus[e.name] ~= "ready" then lastStatus[e.name] = st end
+            st = lastStatus[e.name]
             if st == "ready" then ready = ready + 1 end
             local rt = ReadyTexture(st)
             row.ready:SetTexture(rt); row.ready:SetShown(rt ~= nil)
@@ -412,6 +419,17 @@ function ns.ToggleReadyCheck()
     if win and win:IsShown() then win:Hide() else ns.ShowReadyCheck() end
 end
 
+function ns.GroupInCombat()
+    local n = GetNumGroupMembers and GetNumGroupMembers() or 0
+    local raid = IsInRaid and IsInRaid()
+    for i = 1, n do
+        local u = raid and ("raid" .. i) or (i == n and "player" or ("party" .. i))
+        local ok, c = pcall(UnitAffectingCombat, u)
+        if ok and c == true then return true end
+    end
+    return false
+end
+
 local ev = CreateFrame("Frame")
 ev:RegisterEvent("READY_CHECK")
 ev:RegisterEvent("READY_CHECK_CONFIRM")
@@ -423,6 +441,7 @@ ev:SetScript("OnEvent", function(_, event)
     if not ns.db then return end
     if event == "READY_CHECK" then
         wipe(lastStatus)
+        checking = true
         if ns.db.readyCheck ~= false then
             ns.ShowReadyCheck(true)
             if ns.db.readyCheckSound and win and (win.mineMissing or 0) > 0 and ns.Alert then ns.Alert() end
@@ -430,10 +449,12 @@ ev:SetScript("OnEvent", function(_, event)
     elseif event == "READY_CHECK_CONFIRM" then
         ns.RefreshReadyCheck()
     elseif event == "READY_CHECK_FINISHED" then
-        ns.RefreshReadyCheck()
+        ns.RefreshReadyCheck()     -- last live read, then frozen
+        checking = false
         if win and win:IsShown() then closeAt = GetTime() + 15 end   -- stays open while you hover it
     elseif event == "PLAYER_REGEN_DISABLED" then
-        reopen = win and win:IsShown() or false
+        -- only a check still running comes back after combat; a finished one was the pull
+        reopen = win and win:IsShown() and checking or false
         if win then win:Hide() end
     elseif event == "PLAYER_REGEN_ENABLED" then
         if reopen then
