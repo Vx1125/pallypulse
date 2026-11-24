@@ -1,6 +1,7 @@
 # PallyPulse
 
 ## 1.3.3
+- Bar: the mouse wheel can switch a player back to the class blessing after Auto-assign gave them another.
 - Ready check: players who said ready stay ready, and the window closes when the pull starts.
 - Options > Group > Your aura: the aura Auto-assign gives you first.
 - A class that joins the group after Auto-assign gets your blessing automatically, so it shows on the bar and frames.

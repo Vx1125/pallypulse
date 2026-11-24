@@ -465,7 +465,11 @@ local function BuildFlyout()
             for i2, k in ipairs(keys) do if k == cur then idx = i2 end end
             local new = keys[((idx - 1 - delta) % #keys) + 1]
             local classKey = ns.assign[me] and ns.assign[me][e.class]
-            ns.SetOverride(me, e.name, (new ~= classKey) and new or nil, not e.fake)
+            -- back to the class blessing: clear the exception, unless Auto-assign set one
+            -- (then a hand-set class blessing is what overrides it)
+            local auto = ns.db.autoOverride[me] and ns.db.autoOverride[me][e.name]
+            local keep = new ~= classKey or (auto and auto ~= new)
+            ns.SetOverride(me, e.name, keep and new or nil, not e.fake)
             ns.dirty = true
             ShowFlyout(fly.anchor)
             if self:IsMouseOver() then self:GetScript("OnEnter")(self) end
