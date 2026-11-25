@@ -888,17 +888,66 @@ function ns.IsGroupUnit(unit)
 end
 
 -- Other paladins giving the same blessing to this class as pal (a wasted cast).
-function ns.SameBlessing(pal, class)
-    local key = ns.assign[pal] and ns.assign[pal][class]
-    if not key then return nil end
-    local out
-    for _, other in ipairs(ns.paladins) do
-        if other ~= pal and ns.assign[other] and ns.assign[other][class] == key then
-            out = out or {}
-            out[#out + 1] = ns.FirstName(other)
+-- Assignment conflicts: two paladins giving a class the same blessing. It only counts when at
+-- least one player of that class would really get it from both; personal blessings (requests,
+-- spec exceptions, hand-set) can make the same class blessing fine. Nothing is changed here.
+-- Returns { { class, key, pals = { names }, players = { names } }, ... }
+local function ClassConflicts(class)
+    local out = {}
+    local members = ns.byClass[class]
+    if not members or #members == 0 then return out end
+    local byKey, order = {}, {}
+    for _, pal in ipairs(ns.paladins) do
+        local key = ns.assign[pal] and ns.assign[pal][class]
+        if key and ns.BY_KEY[key] then
+            if not byKey[key] then byKey[key] = {}; order[#order + 1] = key end
+            table.insert(byKey[key], pal)
+        end
+    end
+    for _, key in ipairs(order) do
+        local pals = byKey[key]
+        if #pals > 1 then
+            local hit, involved = {}, {}
+            for _, e in ipairs(members) do
+                local from = {}
+                for _, pal in ipairs(pals) do if ns.KeyFor(pal, e) == key then from[#from + 1] = pal end end
+                if #from > 1 then
+                    hit[#hit + 1] = e.name
+                    for _, pal in ipairs(from) do involved[pal] = true end
+                end
+            end
+            if #hit > 0 then
+                local who = {}
+                for _, pal in ipairs(pals) do if involved[pal] then who[#who + 1] = pal end end
+                out[#out + 1] = { class = class, key = key, pals = who, players = hit }
+            end
         end
     end
     return out
+end
+
+-- Every conflict, plus a lookup by "paladin|CLASS" for highlighting cells.
+function ns.AssignmentConflicts()
+    local list, cells = {}, {}
+    for _, class in ipairs(ns.CLASSES) do
+        for _, c in ipairs(ClassConflicts(class)) do
+            list[#list + 1] = c
+            for _, pal in ipairs(c.pals) do cells[pal .. "|" .. class] = c end
+        end
+    end
+    return list, cells
+end
+
+-- Other paladins in a conflict with pal over this class (first names), or nil.
+function ns.SameBlessing(pal, class)
+    for _, c in ipairs(ClassConflicts(class)) do
+        local mine, out = false, {}
+        for _, p in ipairs(c.pals) do
+            if p == pal then mine = true else out[#out + 1] = ns.FirstName(p) end
+        end
+        if mine and #out > 0 then return out end
+    end
+    return nil
 end
 
 -- Your blessing order per spec (Options > Advanced > Priorities). Unset specs use their

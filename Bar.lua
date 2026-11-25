@@ -259,6 +259,10 @@ local function BuildSmart()
             GameTooltip:AddDoubleLine("Missing", st.missing, 0.8, 0.8, 0.8, 1, 1, 1)
             GameTooltip:AddDoubleLine("Expiring", st.expiring, 0.8, 0.8, 0.8, 1, 1, 1)
             if st.far > 0 then GameTooltip:AddDoubleLine("Out of range", st.far, 0.8, 0.8, 0.8, 1, 1, 1) end
+            if #ns.paladins > 0 and ns.ReadinessSummary then
+                local sum = ns.ReadinessSummary()     -- same counts as the Ready Check
+                GameTooltip:AddDoubleLine("Raid buffed", ("%d/%d"):format(sum.buffed, sum.eligible), 0.8, 0.8, 0.8, 1, 1, 1)
+            end
             if (st.held or 0) > 0 then GameTooltip:AddDoubleLine("Hand active", st.held, 0.8, 0.8, 0.8, 1, 1, 1) end
             local warn = ns.db.reagentWarn or 0
             if warn > 0 and ns.KnowsAnyGreater() then

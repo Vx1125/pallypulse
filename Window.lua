@@ -65,29 +65,34 @@ local function Cycle(pal, class, dir)
     ns.SetAssignment(pal, class, list[idx].key, true)
 end
 
+-- Conflicts (ns.AssignmentConflicts: the same blessing reaching a player twice) and classes in
+-- the group that no paladin blesses.
 local function Analyze()
-    local dup, uncovered, ncon = {}, {}, 0
-    for _, class in ipairs(ns.CLASSES) do
-        local members = ns.byClass[class]
-        if members and #members > 0 and #ns.paladins > 0 then
-            local seen, any = {}, false
-            for _, pal in ipairs(ns.paladins) do
-                local key = ns.assign[pal] and ns.assign[pal][class]
-                if key then
-                    any = true
-                    if seen[key] then
-                        dup[pal .. "|" .. class] = true
-                        dup[seen[key] .. "|" .. class] = true
-                        ncon = ncon + 1
-                    else
-                        seen[key] = pal
-                    end
+    local list, cells = ns.AssignmentConflicts()
+    local uncovered = {}
+    if #ns.paladins > 0 then
+        for _, class in ipairs(ns.CLASSES) do
+            local members = ns.byClass[class]
+            if members and #members > 0 then
+                local any = false
+                for _, pal in ipairs(ns.paladins) do
+                    if ns.assign[pal] and ns.assign[pal][class] then any = true break end
                 end
+                if not any then uncovered[#uncovered + 1] = class end
             end
-            if not any then uncovered[#uncovered + 1] = class end
         end
     end
-    return dup, uncovered, ncon
+    return list, cells, uncovered
+end
+
+-- Class columns shown on the Blessings tab: all, or only classes in the group (option).
+local function ShownClasses()
+    local out = {}
+    for _, class in ipairs(ns.CLASSES) do
+        if not ns.db.hideEmptyClasses or (ns.byClass[class] and #ns.byClass[class] > 0) then out[#out + 1] = class end
+    end
+    if #out == 0 then for _, class in ipairs(ns.CLASSES) do out[#out + 1] = class end end
+    return out
 end
 
 -- "Bob (Kings, Might)" for each player of a class with a request
@@ -412,8 +417,18 @@ local function BuildBlessings(P)
                 else
                     lines[#lines + 1] = W.Hex(unpack(S.dim)) .. "None|r"
                 end
-                local same = ns.SameBlessing(self.pal, self.class)
-                if same then lines[#lines + 1] = W.Hex(unpack(S.bad)) .. "Also from " .. table.concat(same, ", ") .. "|r" end
+                if key and ns.caps[self.pal] and not ns.caps[self.pal][key] then
+                    lines[#lines + 1] = W.Hex(unpack(S.bad)) .. "Not known by " .. ns.FirstName(self.pal) .. "|r"
+                end
+                local c = self.conflict
+                if c then
+                    local others = {}
+                    for _, p in ipairs(c.pals) do if p ~= self.pal then others[#others + 1] = ns.FirstName(p) end end
+                    lines[#lines + 1] = W.Hex(unpack(S.bad)) .. "Conflict: also from " .. table.concat(others, ", ") .. "|r"
+                    lines[#lines + 1] = W.Hex(unpack(S.dim)) .. ("%d %s would get it twice"):format(#c.players, #c.players == 1 and "player" or "players") .. "|r"
+                elseif not key and self.uncovered then
+                    lines[#lines + 1] = W.Hex(unpack(S.other)) .. "No paladin blesses this class|r"
+                end
                 local req = ClassRequests(self.class)
                 if #req > 0 then lines[#lines + 1] = W.Hex(unpack(S.gold)) .. "Requests:|r " .. table.concat(req, ", ") end
                 Tip(self, W.Hex(r, g, b) .. (LOCALIZED_CLASS_NAMES_MALE[self.class] or self.class) .. "|r - " .. ns.FirstName(self.pal),
@@ -470,8 +485,36 @@ local function BuildBlessings(P)
     P.empty:SetPoint("TOP", 0, -(ROWS_Y + 8)); P.empty:SetWidth(WIDTH - 40)
     P.empty:SetText("No paladins in group")
 
-    P.status = W.Text(P, 11, S.dim)
-    P.status:SetPoint("BOTTOMLEFT", PAD, 40); P.status:SetWidth(WIDTH - PAD * 2)
+    -- status line: conflicts (hover for details, click to flash the cells), unassigned classes, or OK
+    local sb = CreateFrame("Button", nil, P)
+    sb:SetHeight(16); sb:SetPoint("BOTTOMLEFT", PAD, 38)
+    P.status = W.Text(sb, 11, S.dim)
+    P.status:SetPoint("LEFT")
+    sb:SetScript("OnClick", function()
+        if P.conflicts and #P.conflicts > 0 then P.flashUntil = GetTime() + 2; ns.RefreshWindow() end
+    end)
+    sb:SetScript("OnEnter", function(self)
+        local list = P.conflicts
+        if not list or #list == 0 then return end
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:AddLine(#list == 1 and "Duplicate Blessing Assignment" or "Duplicate Blessing Assignments", unpack(S.bad))
+        for i, c in ipairs(list) do
+            if i > 6 then GameTooltip:AddLine(("+%d more"):format(#list - 6), unpack(S.dim)) break end
+            local names = {}
+            for _, p in ipairs(c.pals) do names[#names + 1] = ns.FirstName(p) end
+            local r, g, b = W.ClassColor(c.class)
+            GameTooltip:AddLine(" ")
+            GameTooltip:AddDoubleLine("Class", LOCALIZED_CLASS_NAMES_MALE[c.class] or c.class, 0.8, 0.8, 0.8, r, g, b)
+            GameTooltip:AddDoubleLine("Blessing", ns.BY_KEY[c.key].single, 0.8, 0.8, 0.8, 1, 1, 1)
+            GameTooltip:AddDoubleLine("Assigned by", table.concat(names, ", "), 0.8, 0.8, 0.8, 1, 1, 1)
+        end
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine("Several paladins give the same blessing, so the class is missing another.", 0.8, 0.8, 0.8, true)
+        GameTooltip:AddLine("Click: show the cells", 0.6, 0.6, 0.6)
+        GameTooltip:Show()
+    end)
+    sb:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    P.statusBtn = sb
 
     local auto = W.Button(P, "Auto-assign", 96, 22, function() ns.AutoAssign() end)
     auto:SetPoint("BOTTOMLEFT", PAD - 2, 10)
@@ -497,10 +540,21 @@ local function BuildBlessings(P)
 end
 
 local function RefreshBlessings(P)
-    local dup, uncovered, ncon = Analyze()
+    local conflicts, conflictCells, uncovered = Analyze()
+    P.conflicts = conflicts
+    local unc = {}
+    for _, c in ipairs(uncovered) do unc[c] = true end
+    local flash = P.flashUntil and GetTime() < P.flashUntil and (math.floor(GetTime() * 4) % 2 == 0)
+    if P.flashUntil and GetTime() >= P.flashUntil then P.flashUntil = nil end
     local npal = math.min(#ns.paladins, MAX_ROWS)
     P.oathHead.icon:SetTexture(ns.OathIcon())
+    -- class columns: packed left; empty classes can be hidden (assignments are kept)
+    local col = {}
+    for i, class in ipairs(ShownClasses()) do col[class] = i end
     for _, h in ipairs(P.heads) do
+        local ci = col[h.class]
+        h:SetShown(ci ~= nil)
+        if ci then h:ClearAllPoints(); h:SetPoint("TOPLEFT", P, "TOPLEFT", GRID_X + (ci - 1) * COL_W, -HEADS_Y) end
         local n = ns.byClass[h.class] and #ns.byClass[h.class] or 0
         h.count:SetText(n)
         h.count:SetTextColor(unpack(n > 0 and S.text or S.dim))
@@ -529,14 +583,24 @@ local function RefreshBlessings(P)
             local editable = ns.CanEditRow(pal)
             for _, cell in ipairs(row.cells) do
                 cell.pal = pal
+                local ci = col[cell.class]
+                cell:SetShown(ci ~= nil)
+                if ci then cell:ClearAllPoints(); cell:SetPoint("LEFT", row, "LEFT", GRID_X - 6 + (ci - 1) * COL_W, 0) end
                 local key = ns.assign[pal] and ns.assign[pal][cell.class]
                 local has = ns.byClass[cell.class] and #ns.byClass[cell.class] > 0
+                cell.conflict = conflictCells[pal .. "|" .. cell.class]
+                cell.uncovered = has and unc[cell.class] or nil
+                local unknown = key and ns.caps[pal] and not ns.caps[pal][key]
                 if key and ns.BY_KEY[key] then
                     cell.icon:SetTexture(ns.BY_KEY[key].icon); cell.icon:SetAlpha(has and 1 or 0.35); cell.plus:Hide()
+                    cell.icon:SetDesaturated(unknown and true or false)
                 else
-                    cell.icon:SetTexture(nil); cell.plus:Show(); cell.plus:SetAlpha(has and 0.6 or 0.2)
+                    -- empty: tan "+" when the class is here and nobody blesses it, dim otherwise
+                    cell.icon:SetTexture(nil); cell.plus:Show()
+                    cell.plus:SetTextColor(unpack(cell.uncovered and S.other or S.dim))
+                    cell.plus:SetAlpha(cell.uncovered and 1 or (has and 0.6 or 0.2))
                 end
-                cell.baseBorder = dup[pal .. "|" .. cell.class] and S.bad or S.border
+                cell.baseBorder = (cell.conflict and (flash and S.gold or S.bad)) or (unknown and S.dim) or S.border
                 cell:SetBackdropBorderColor(unpack(cell.baseBorder))
                 cell:SetAlpha(editable and 1 or 0.6)
             end
@@ -572,16 +636,18 @@ local function RefreshBlessings(P)
     end
     P.empty:SetShown(npal == 0)
     local text, color
+    local ncon = #conflicts
     if #ns.paladins == 0 then
         text, color = "", S.dim
     elseif ncon > 0 then
-        text = ("|T%s:12|t  %d duplicate%s"):format(W.NOTREADY, ncon, ncon == 1 and "" or "s"); color = S.bad
+        text = ("|T%s:12|t  %d assignment conflict%s"):format(W.NOTREADY, ncon, ncon == 1 and "" or "s"); color = S.bad
     elseif #uncovered > 0 then
-        text = ("|T%s:12|t  Unassigned: %s"):format(W.WAITING, ClassNames(uncovered, 3)); color = S.warn
+        text = ("|T%s:12|t  Unassigned: %s"):format(W.WAITING, ClassNames(uncovered, 3)); color = S.other
     else
-        text = ("|T%s:12|t  All classes covered"):format(W.READY); color = S.good
+        text = ("|T%s:12|t  No assignment conflicts"):format(W.READY); color = S.good
     end
     P.status:SetText(text); P.status:SetTextColor(unpack(color))
+    P.statusBtn:SetWidth(math.max(20, P.status:GetStringWidth() + 4))
     return ROWS_Y + math.max(npal, 1) * ROW_H + BOTTOM + 4
 end
 
@@ -931,6 +997,10 @@ local function Build()
     local tick = 0
     win:SetScript("OnUpdate", function(_, dt)
         tick = tick + dt
+        -- conflict cells flashing after a click on the warning
+        if current == "blessings" and panels.blessings.flashUntil and tick >= 0.25 then
+            tick = 0; ns.RefreshWindow(); return
+        end
         if tick < 2 then return end
         tick = 0
         if current == "players" or current == "group" then ns.RefreshWindow() end

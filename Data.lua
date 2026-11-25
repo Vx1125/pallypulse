@@ -158,6 +158,7 @@ ns.DEFAULTS = {
     iconSize = 18,
     barAlpha = 0.85,      -- tracker row background opacity
     barClassNames = false, -- class names beside the class icons on the tracker
+    hideEmptyClasses = false, -- Blessings tab: hide class columns with nobody in the group
     rcOpen = {},          -- ready check sections opened or closed by hand
 }
 

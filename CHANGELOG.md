@@ -19,6 +19,14 @@
 - Bar: class names beside the icons (option), wider status strips, and "x2" and the shortest time explained in tooltips.
 - Bar: the Smart row names the next blessing when the row is wide enough, and shows a tick when all is done.
 - Windows are nearly opaque.
+- Ready check: the header shows buffed / eligible; dead and offline players are left out of it.
+- Ready check: about 30% narrower, with one column header and the list scrolling when it doesn't fit the screen.
+- Ready check: Other Paladins lists each paladin with a line per blessing.
+- Ready check, Players tab and the Smart Buff tooltip use one set of counts.
+- Windows move back on screen after a resolution or UI scale change.
+- Blessings tab: "assignment conflict" names the class, blessing and paladins; click it to flash the cells.
+- A conflict only counts when a player would really get the same blessing twice, so personal blessings no longer trigger it.
+- Blessings tab: option to hide classes with nobody in the group. A tan "+" marks a class no paladin blesses.
 
 ## 1.3.3
 - Bar: the mouse wheel can switch a player back to the class blessing after Auto-assign gave them another.

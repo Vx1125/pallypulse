@@ -23,6 +23,22 @@ function ns.ApplyScale()
     if ns.bar then ns.dirty = true end
 end
 
+-- After a resolution or UI scale change, bring windows back on screen (the bar only out of
+-- combat: it holds secure buttons).
+local fit = CreateFrame("Frame")
+fit:RegisterEvent("DISPLAY_SIZE_CHANGED")
+fit:RegisterEvent("UI_SCALE_CHANGED")
+fit:RegisterEvent("PLAYER_REGEN_ENABLED")
+local fitPending = false
+fit:SetScript("OnEvent", function(_, event)
+    if event == "PLAYER_REGEN_ENABLED" and not fitPending then return end
+    if not ns.KeepOnScreen then return end
+    fitPending = InCombatLockdown()
+    ns.KeepOnScreen(ns.win, "win")
+    ns.KeepOnScreen(_G.PallyPulseReadyCheck, "ready")
+    if not InCombatLockdown() then ns.KeepOnScreen(ns.bar, "bar") end
+end)
+
 -- Called once from Core on PLAYER_LOGIN, after saved variables are ready.
 function ns.BuildUI()
     ns.BuildBar()

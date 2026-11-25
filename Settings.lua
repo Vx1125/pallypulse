@@ -15,7 +15,7 @@ local PROFILE_KEYS = {
     "rowWidth", "growUp", "rowTimers", "frameIcons", "frameIconSize", "frameIconClick", "refresh",
     "greaterMin", "reagentWarn", "rfReminder", "autoOath", "chatRequests", "compat", "readyCheck",
     "readyCheckRaid", "rcScale", "oathSound", "readyCheckSound", "alertSoundName", "font", "auraPrefer",
-    "barMode", "rowHeight", "iconSize", "barAlpha", "barClassNames",
+    "barMode", "rowHeight", "iconSize", "barAlpha", "barClassNames", "hideEmptyClasses",
 }
 local PREFIX = "PULSE1:"
 
@@ -159,6 +159,9 @@ function ns.BuildOptions(P, top)
         0.1, 0.6, 1.5, Scale))
     Add(W.Check(current, "Minimap button", function() return ns.db.showMinimap end,
         function(v) ns.db.showMinimap = v; if ns.UpdateMinimap then ns.UpdateMinimap() end end))
+    Add(W.Check(current, "Hide empty classes", function() return ns.db.hideEmptyClasses end,
+        function(v) ns.db.hideEmptyClasses = v; if ns.RefreshWindow then ns.RefreshWindow() end end,
+        "Blessings tab. Assignments are kept."))
 
     Section("Sounds")
     Add(W.Check(current, "Oath expiring", function() return ns.db.oathSound end,

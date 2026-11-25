@@ -61,6 +61,29 @@ function ns.Readiness(e)
     return r
 end
 
+-- Whole-group totals from ns.Readiness, used by every window that shows them:
+--   total, eligible (alive and online), buffed, missing, unavailable (dead or offline),
+--   mineMissing (missing your blessing), othersMissing (missing another paladin's)
+-- buffed + missing = eligible; eligible + unavailable = total. players[e] = that player's readiness.
+function ns.ReadinessSummary()
+    local t = { total = 0, eligible = 0, buffed = 0, missing = 0, unavailable = 0,
+                mineMissing = 0, othersMissing = 0, players = {} }
+    for _, e in ipairs(ns.roster or {}) do
+        local rd = ns.Readiness(e)
+        t.players[e] = rd
+        t.total = t.total + 1
+        if rd.state == "off" then
+            t.unavailable = t.unavailable + 1
+        else
+            t.eligible = t.eligible + 1
+            if rd.state == "need" then t.missing = t.missing + 1 else t.buffed = t.buffed + 1 end
+            if rd.mine == "missing" then t.mineMissing = t.mineMissing + 1 end
+            if rd.others then t.othersMissing = t.othersMissing + 1 end
+        end
+    end
+    return t
+end
+
 -- Is the player's blessing from pal an exception (not the class one)?
 function ns.IsException(pal, e)
     local db = ns.db
