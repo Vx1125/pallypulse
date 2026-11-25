@@ -6,24 +6,24 @@ current when behaviour changes.
 ## Files (load order from PallyPulse.toc)
 | File | What it does |
 |---|---|
-| Data.lua | Blessings (Might, Wisdom, Kings, Light), spell ids, class and role preferences, auras, Righteous Fury, Oath of Light, hand blessings, defaults, style colours |
+| Data.lua | Blessings (Might, Wisdom, Kings), spell ids, class and role preferences, auras, Righteous Fury, Oath of Light, hand blessings, defaults, style colours |
 | Core.lua | Roster, saved variables, capabilities, own addon comm ("PPULSE" prefix), class assignments, aura scanning and memory, ClassStatus, CastNames, Auto-assign, auto Oath, slash commands |
 | Compat.lua | PallyPower "PLPWR" protocol: SELF, ASSIGN, PASSIGN, MASSIGN, NASSIGN, ASELF, AASSIGN, REQ, CLEAR |
-| Widgets.lua | Shared UI kit: tooltip-style panels, Blizzard buttons and check boxes, icon slots |
+| Widgets.lua | Shared UI kit (see UI_DESIGN_STANDARD.md): flat panels, buttons, check boxes, steppers, dropdowns, icon slots |
 | Players.lua | Per-player exceptions (hand / auto), role guessing, spec-aware AutoOverrides, "!bless" chat commands |
 | Auras.lua | Aura assignment and sync, Righteous Fury status, FindAura, spell-name localization |
 | Versions.lua | Version list (PallyPulse / PallyPower / none), reagent count, Auto Self Cast warning |
 | Smart.lua | Smart Buff queue (Candidates), secure button wiring, in-combat snippet, cast confirmation, keybinding labels |
 | Presets.lua | Save and load layouts by paladin slot |
-| Bar.lua | Compact bar: Smart Buff button, aura, class and Oath slots, player flyout |
-| FrameIcons.lua | Icons on Blizzard party and raid frames: blessing, hand, Oath, Light's Vigil, Forbearance |
-| Settings.lua | Options tab |
-| Window.lua | Tabbed window: Blessings, Players, Group, Options |
+| Bar.lua | Floating bar (Standard, Compact, Action only): Smart Buff button, aura, class and Oath slots, player flyout |
+| FrameIcons.lua | Icons on Blizzard party and raid frames: blessing (click to cast), hand, Oath |
+| Settings.lua | Options tab: General, Appearance, Advanced; profile export/import, restore defaults |
+| Window.lua | Tabbed window: Blessings, Players, Versions, Options |
 | Minimap.lua, UI.lua | Minimap button; builds the UI at login |
 
 ## WoW Forever facts that shape the code
 - Blessings last 1 hour. Salvation and Sanctuary are gone; Kings is baseline.
-- Greater Blessings cost a Symbol of Kings (item 21177); it's unclear whether they're live yet.
+- Greater Blessings are live and cost a Symbol of Kings (item 21177).
 - Oath of Light: Holy talent, 5 minutes, one target per paladin, boosts only that paladin's heals.
 - A paladin can only have one blessing on a player: Freedom, Protection and Sacrifice replace it.
 - Group members' auras can be hidden ("secret") from addons around and during combat.

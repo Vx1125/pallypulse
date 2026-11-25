@@ -1,81 +1,103 @@
-![PallyPulse](https://raw.githubusercontent.com/Vx1125/pallypulse/main/media/banner-v3.jpg)
+![PallyPulse](https://raw.githubusercontent.com/Vx1125/pallypulse/main/media/banner-v4.jpg)
 
-**Paladin blessings for WoW Forever.** Assign once, then press one key to keep the whole raid buffed.
+## One key. Less buff management.
+
+PallyPulse handles paladin blessings in WoW Forever. Set your assignments once, bind Smart Buff, and each press casts the next blessing you owe: missing or expiring, Greater or single, on the right player.
+
+Assignments follow each player's spec, Oath of Light goes on your tanks, and the ready check shows exactly what you still owe. It also speaks PallyPower's sync protocol, so the other paladins in your raid don't have to switch addons.
+
+## Quick start
+
+1. Type `/pulse` to open PallyPulse.
+2. Go to **Options > General** and bind **Smart Buff**.
+3. On the **Blessings** tab, press **Auto-assign** (or load a preset).
+4. Press your Smart Buff key again and again until everything is up.
+
+Each press casts one spell. Nothing is cast without you pressing the key or clicking.
 
 ## Smart Buff
 
 ![Smart Buff](https://raw.githubusercontent.com/Vx1125/pallypulse/main/media/smart-buff-v3.jpg)
 
-- One key casts the next thing you owe: aura, Righteous Fury, Oath of Light, missing or expiring blessings.
-- The bar's top row and its tooltip show what the next press will cast, and on whom.
-- Works in combat, from a list made at the pull: players missing a blessing, then Oath of Light.
-- Uses Greater Blessings when enough of a class is in the group.
-- Skips players who are out of range or dead. Alt + key blesses yourself.
-- Warns when Symbols of Kings run low.
+- One key for your aura, Righteous Fury when you tank, Oath of Light, and every blessing you owe.
+- Missing blessings first, then ones about to expire (you choose how early).
+- Greater Blessing when enough of a class is in the group, single blessings otherwise.
+- Skips players who are dead or out of range. Alt + key blesses yourself.
+- The bar's top row and tooltip show what the next press casts, and on whom.
 
-**In combat:** the game hides buffs and won't let addons tell which player you're targeting. Smart Buff can't re-bless someone who loses a blessing mid-fight (after your Blessing of Protection, say). Hover their class on the bar and click their name, or click their raid frame icon.
-
-## Your bar, your way
-
-![Standard, Compact or Action only](https://raw.githubusercontent.com/Vx1125/pallypulse/main/media/layouts-v3.jpg)
-
-- Standard rows, Compact icons, or Action only: just the classes you still owe.
-- Vertical or horizontal, with row height, icon size, opacity and optional class names.
-- A thin status strip on each row: green active, gold expiring, red missing.
-- Hover a class to list its players, with range bars; click one to bless just them, in or out of combat.
-
-## Assignments
+## Assignments that fit the raid
 
 ![Blessings tab](https://raw.githubusercontent.com/Vx1125/pallypulse/main/media/blessings-v3.jpg)
 
-- Blessings by class, plus aura and Oath of Light for every paladin.
-- Auto-assign by spec: each class gets the blessing most of its players want.
-- Conflicts (a player getting the same blessing twice) and unassigned blessings are flagged; hover for the details.
-- Presets, Announce, and Sync with paladins running PallyPower.
-- Each holy paladin's Oath goes on a different tank.
+- Auto-assign reads each player's spec, so an Elemental and an Enhancement Shaman each get what they need.
+- Give one player a different blessing from their class, by hand or from a `!bless` request in chat.
+- Flags assignment conflicts (a player getting the same blessing twice) and blessings nobody covers.
+- Save assignments as presets and load them per raid.
+- Announce assignments to the group in one click.
 
-## Every player at a glance
+## Oath of Light on your tanks
 
-![Players tab](https://raw.githubusercontent.com/Vx1125/pallypulse/main/media/players-v3.jpg)
+- Holy paladins' Oaths are spread across your tanks, picked from Main Tank markers and the Tank role.
+- Its own key binding: mouseover, then target, then yourself.
+- Smart Buff recasts it when it drops; an optional sound plays 30 seconds before it runs out.
 
-- Your blessing and the raid's in separate columns, so you can tell what's yours to fix.
-- Players missing your blessing come first, then yours expiring.
-- Give one player a different blessing from the rest of their class, such as Might on an Enhancement Shaman. Set automatically from spec, or by hand.
-
-## Ready check
+## Raid readiness
 
 ![Ready check](https://raw.githubusercontent.com/Vx1125/pallypulse/main/media/ready-check-v3.jpg)
 
 - Opens with every ready check: buffed, missing and unavailable at a glance.
-- Your Responsibilities on top: who still needs a blessing from you, with your Smart Buff key.
-- Needs Attention, Fully Buffed, Unavailable and Other Paladins, each folding open or shut.
-- Click another paladin's name to whisper them what they owe.
-- Optional raid buff columns: Fortitude, Mark, Intellect, Spirit, food and flask.
+- **Your Responsibilities** on top: who still needs a blessing from you.
+- Other paladins' gaps grouped by paladin; click a name to whisper them.
+- Dead and offline players are listed apart and never counted as missing.
 
-## Raid frames
+![Players tab](https://raw.githubusercontent.com/Vx1125/pallypulse/main/media/players-v3.jpg)
 
-![Click the icon to re-bless](https://raw.githubusercontent.com/Vx1125/pallypulse/main/media/frame-click-v2.jpg)
+- The Players tab shows your blessing and the raid's side by side, with what you need to fix first.
 
-- Your blessing on every party and raid frame, with time left. Missing: red, pulsing.
-- Click the icon to cast it, in combat too.
-- Also shows your hand blessings and Oath of Light.
+## Works with PallyPower
 
-## Priorities by spec
+- Sends and reads PallyPower's assignment messages (built against PallyPower Forever 10.10.26).
+- Class, per-player and aura assignments stay in sync in a mixed raid.
+- Oath of Light assignments only sync between PallyPulse users.
 
-![Priorities by spec](https://raw.githubusercontent.com/Vx1125/pallypulse/main/media/priorities-v3.jpg)
+## Light on screen
 
-- Specs are detected by inspect, so an Elemental and a Restoration Shaman each get what they want.
-- Set your own blessing order for every class and spec.
+![Standard, Compact or Action only](https://raw.githubusercontent.com/Vx1125/pallypulse/main/media/layouts-v3.jpg)
 
-## Options
-
-![Options](https://raw.githubusercontent.com/Vx1125/pallypulse/main/media/options-v3.jpg)
-
-- Bind Smart Buff right in Options and go; every setting explains itself on hover.
-- General, Appearance and Advanced pages, with separate scales for the bar, window and ready check.
-- Profiles you can export and import as text, and Restore defaults.
-- Alert sounds, plus any LibSharedMedia sounds and fonts from your other addons.
+- A compact bar: Standard rows, icon-only Compact, or Action only (just what you still owe).
+- Your blessing and time left on Blizzard's party and raid frames. Click the icon to cast it, in combat too.
+- Separate scale for the bar, the window and the ready check; row size, opacity and class names.
+- Sound alerts, plus LibSharedMedia sounds and fonts from your other addons.
 - Test mode: a fake raid to try everything solo.
+
+## FAQ
+
+**Do I need PallyPower?**
+No. PallyPulse works on its own.
+
+**Can I raid with paladins who use PallyPower?**
+Yes. With PallyPower sync on (the default), you see their assignments and they see yours.
+
+**Does Smart Buff cast spells by itself?**
+No. Each key press casts one spell. PallyPulse only decides which one.
+
+**Does it work in combat?**
+Smart Buff works through a list made at the pull. The game hides buffs from addons in combat, so a player who loses a blessing mid-fight (after your Blessing of Protection, say) has to be re-blessed by clicking their name on the bar or their raid frame icon.
+
+**How do I set up Smart Buff?**
+Options > General > Key Bindings. Click the Smart Buff button and press a key.
+
+**How is the Oath of Light target chosen?**
+From Main Tank markers, then players with the Tank role. With "Auto-assign Oath to tanks" off, set it yourself on the Blessings tab.
+
+**Can I save different assignments?**
+Yes. Presets on the Blessings tab.
+
+**Which game versions?**
+WoW Forever only.
+
+**Where do I report a bug?**
+On GitHub: https://github.com/Vx1125/pallypulse/issues, or in the comments here. `/pulse debug` output helps.
 
 ## Chat commands
 
