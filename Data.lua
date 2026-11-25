@@ -157,6 +157,7 @@ ns.DEFAULTS = {
     rowHeight = 22,
     iconSize = 18,
     barAlpha = 0.85,      -- tracker row background opacity
+    barClassNames = false, -- class names beside the class icons on the tracker
     rcOpen = {},          -- ready check sections opened or closed by hand
 }
 
@@ -169,7 +170,7 @@ ns.STYLE = {
     font     = (STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"),   -- body text, client default
     head     = "Fonts\\FRIZQT__.TTF",                            -- headings
     num      = "Fonts\\ARIALN.TTF",                              -- counts and timers on icons
-    bg       = C("141311", 0.96),   -- window background
+    bg       = C("141311", 0.98),   -- window background (nearly opaque, so the world doesn't show through)
     panel    = C("201E1A"),         -- content panels, buttons
     header   = C("242019"),         -- title bars, section headers
     cell     = C("171613", 0.9),     -- icon wells
@@ -180,11 +181,14 @@ ns.STYLE = {
     paladin  = { 0.96, 0.55, 0.73 },
     text     = C("E0DBD0"),
     dim      = C("938C80"),
-    good     = C("94BA78"),
-    warn     = C("D6A55A"),
-    bad      = C("D17665"),
+    -- status colours: one meaning each, in every window
+    good     = C("94BA78"),         -- active blessing, ready
+    warn     = C("D6B266"),         -- expiring
+    bad      = C("D17665"),         -- your blessing missing
+    other    = C("B89D67"),         -- another paladin's blessing missing
+    off      = C("938C80"),         -- dead or offline
     rowSel   = C("38301E"),         -- your row, selected
-    rowMiss  = C("35231E"),         -- someone missing a blessing
+    rowMiss  = C("35231E"),         -- your blessing missing
     rowHover = C("2C2820"),
     rowAlt   = { 1, 1, 1, 0.025 },  -- alternate rows
 }

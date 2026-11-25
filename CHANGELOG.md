@@ -11,6 +11,14 @@
 - Blessings tab: your row highlighted, requests marked on the class icons, more detail in cell tooltips.
 - Presets: the loaded preset shows next to the buttons, marked when assignments change.
 - Versions tab: totals, a status dot and "Out of date" for old copies.
+- Ready check: "Your Responsibilities" with a count and your Smart Buff key; one green line once they're all up.
+- Ready check: the bar is split green / red / gray, and column icons sit inside each open section.
+- Ready check: grows with its content and stops at the screen edge ("+N more").
+- Players tab: Your Status and Raid Status columns. A red row means your blessing is missing; another paladin's shows tan.
+- Players tab and Ready Check use the same counts.
+- Bar: class names beside the icons (option), wider status strips, and "x2" and the shortest time explained in tooltips.
+- Bar: the Smart row names the next blessing when the row is wide enough, and shows a tick when all is done.
+- Windows are nearly opaque.
 
 ## 1.3.3
 - Bar: the mouse wheel can switch a player back to the class blessing after Auto-assign gave them another.

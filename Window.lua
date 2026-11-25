@@ -602,7 +602,8 @@ local function BuildPlayers(P)
     -- column headers; Player, Role and Status sort (Player again: by class)
     P.heads = {}
     local hdr = {
-        { 28, "Player", "name" }, { 136, "Role", "role" }, { 214, "Yours" }, { 256, "Wants" }, { 386, "Status", "status" },
+        { 28, "Player", "name" }, { 126, "Role", "role" }, { 186, "Yours" }, { 218, "Wants" },
+        { 284, "Your Status", "status" }, { 366, "Raid Status", "raid" },
     }
     for _, h in ipairs(hdr) do
         local b = CreateFrame("Button", nil, P)
@@ -617,7 +618,12 @@ local function BuildPlayers(P)
                 else sortBy = self.sort end
                 ns.RefreshWindow()
             end)
-            W.Tip(b, function(t) t:AddLine("Click: sort", 1, 1, 1) end)
+            W.Tip(b, function(t)
+                t:AddLine(h[2], 1, 1, 1)
+                if h[3] == "status" then t:AddLine("Your blessing on them.", unpack(S.dim))
+                elseif h[3] == "raid" then t:AddLine("Every paladin's blessings.", unpack(S.dim)) end
+                t:AddLine("Click: sort", 0.6, 0.6, 0.6)
+            end)
         else
             b:EnableMouse(false)
         end
@@ -628,13 +634,16 @@ local function BuildPlayers(P)
     P.rule:SetColorTexture(S.border[1], S.border[2], S.border[3], 0.5)
 
     P.list = MakeList("PallyPulsePlayerList", P, LIST_TOP, LIST_ROW * LIST_MAX_VISIBLE, function(r)
+        -- status strip: red = your blessing missing, gold = yours expiring, tan = another paladin's missing
+        r.strip = r:CreateTexture(nil, "BORDER")
+        r.strip:SetPoint("TOPLEFT"); r.strip:SetPoint("BOTTOMLEFT"); r.strip:SetWidth(2)
         r.cicon = r:CreateTexture(nil, "ARTWORK")
         r.cicon:SetSize(14, 14); r.cicon:SetPoint("LEFT", 4, 0)
         r.cicon:SetTexture(CLASS_ICONS)
-        r.name = W.Text(r, 12, S.text); r.name:SetPoint("LEFT", 22, 0); r.name:SetWidth(106); r.name:SetWordWrap(false)
+        r.name = W.Text(r, 12, S.text); r.name:SetPoint("LEFT", 22, 0); r.name:SetWidth(96); r.name:SetWordWrap(false)
 
         r.role = CreateFrame("Button", nil, r)
-        r.role:SetSize(66, LIST_ROW); r.role:SetPoint("LEFT", 130, 0)
+        r.role:SetSize(58, LIST_ROW); r.role:SetPoint("LEFT", 120, 0)
         r.role:RegisterForClicks("LeftButtonUp", "RightButtonUp")
         r.role.text = W.Text(r.role, 11, S.dim); r.role.text:SetPoint("LEFT")
         r.role:SetScript("OnClick", function(self, btn)
@@ -664,7 +673,7 @@ local function BuildPlayers(P)
         r.role:SetScript("OnLeave", function(self) self:GetParent().hl:Hide(); GameTooltip:Hide() end)
 
         r.cell = Cell(r, 20, 20)
-        r.cell:SetPoint("LEFT", 208, 0)
+        r.cell:SetPoint("LEFT", 180, 0)
         r.cell.plus:SetFont(S.num, 12, "")
         r.cell.badge = W.Text(r.cell, 9, S.gold, "RIGHT", S.num, "OUTLINE")
         r.cell.badge:SetPoint("BOTTOMRIGHT", 2, -2)
@@ -691,53 +700,45 @@ local function BuildPlayers(P)
         end)
         r.cell.row = r
 
-        r.wants = W.Text(r, 11, S.dim); r.wants:SetPoint("LEFT", 250, 0); r.wants:SetWidth(126); r.wants:SetWordWrap(false)
-        r.stat = W.Text(r, 11, S.text); r.stat:SetPoint("LEFT", 380, 0); r.stat:SetWidth(100); r.stat:SetWordWrap(false)
+        r.wants = W.Text(r, 11, S.dim); r.wants:SetPoint("LEFT", 212, 0); r.wants:SetWidth(62); r.wants:SetWordWrap(false)
+        r.stat = W.Text(r, 11, S.text); r.stat:SetPoint("LEFT", 278, 0); r.stat:SetWidth(78); r.stat:SetWordWrap(false)
+        r.raid = W.Text(r, 11, S.text); r.raid:SetPoint("LEFT", 360, 0); r.raid:SetWidth(100); r.raid:SetWordWrap(false)
     end)
     P.note = W.Text(P, 11, S.dim)
     P.note:SetWidth(WIDTH - PAD * 2)
     P.note:SetText("")
 end
 
--- Is every blessing owed to this player up? Returns "off" (dead / offline), "need" or "ok".
-local function GroupState(e)
-    if not ns.Eligible(e) then return "off" end
-    for _, pal in ipairs(ns.paladins) do
-        local k = ns.KeyFor(pal, e)
-        if k and ns.BY_KEY[k] and not ns.MemberRemaining(e, k) then return "need" end
-    end
-    return "ok"
+-- Sort rank: what you need to do first.
+--   1 your blessing missing, 2 yours expiring, 3 another paladin's missing, 4 buffed, 5 dead / offline
+local function Rank(rd)
+    if rd.state == "off" then return 5 end
+    if rd.mine == "missing" then return 1 end
+    if rd.mine == "expiring" then return 2 end
+    if rd.state == "need" then return 3 end
+    return 4
 end
 
 local function RefreshPlayers(P)
     local me = ns.Me()
-    -- one pass: what each player needs, then sort
     local items = {}
     local nOk, nNeed, nOff = 0, 0, 0
     for i, e in ipairs(ns.roster) do
         if i > 40 then break end
-        local it = { e = e, key = ns.KeyFor(me, e), here = ns.Eligible(e) }
-        local gs = GroupState(e)
-        if gs == "ok" then nOk = nOk + 1 elseif gs == "need" then nNeed = nNeed + 1 else nOff = nOff + 1 end
-        if not it.here then it.rank = 5
-        elseif it.key then
-            it.left = ns.MemberRemaining(e, it.key)
-            if not it.left then it.rank = 1
-            elseif it.left < (ns.db.refresh or 0) then it.rank = 2
-            else it.rank = 3 end
-        else
-            it.rank = 4
-        end
-        it.missing = gs == "need"
-        items[#items + 1] = it
+        local rd = ns.Readiness(e)
+        if rd.state == "ok" then nOk = nOk + 1 elseif rd.state == "need" then nNeed = nNeed + 1 else nOff = nOff + 1 end
+        items[#items + 1] = { e = e, rd = rd, rank = Rank(rd) }
     end
     local classOrder = {}
     for i, c in ipairs(ns.CLASSES) do classOrder[c] = i end
+    -- ties go by name, never by time left, so rows don't shuffle as timers tick
     table.sort(items, function(a, b)
         local ea, eb = a.e, b.e
         if sortBy == "status" then
             if a.rank ~= b.rank then return a.rank < b.rank end
-            if a.rank == 2 and a.left ~= b.left then return (a.left or 0) < (b.left or 0) end
+        elseif sortBy == "raid" then
+            local ra, rb = (a.rd.state == "need" and 1) or (a.rd.state == "ok" and 2) or 3, (b.rd.state == "need" and 1) or (b.rd.state == "ok" and 2) or 3
+            if ra ~= rb then return ra < rb end
         elseif sortBy == "class" then
             local ca, cb = classOrder[ea.class] or 99, classOrder[eb.class] or 99
             if ca ~= cb then return ca < cb end
@@ -748,12 +749,13 @@ local function RefreshPlayers(P)
         return (ea.name or "") < (eb.name or "")
     end)
 
-    P.summary:SetText(("%d players   %s%d|r buffed   %s%d|r missing   %s%d|r unavailable"):format(
-        #items, W.Hex(unpack(S.good)), nOk, W.Hex(unpack(nNeed > 0 and S.bad or S.dim)), nNeed, W.Hex(unpack(S.dim)), nOff))
+    -- same counts as the Ready Check
+    P.summary:SetText(("%d players  ·  %s%d|r Buffed  ·  %s%d|r Missing  ·  %s%d|r Unavailable"):format(
+        #items, W.Hex(unpack(S.good)), nOk, W.Hex(unpack(nNeed > 0 and S.bad or S.dim)), nNeed, W.Hex(unpack(S.off)), nOff))
     for _, h in ipairs(P.heads) do
         if h.sort then
             local on = (h.sort == sortBy) or (h.sort == "name" and sortBy == "class")
-            h.text:SetText(h.sort == "name" and (sortBy == "class" and "Class" or "Player") or h.text:GetText())
+            if h.sort == "name" then h.text:SetText(sortBy == "class" and "Class" or "Player") end
             h.text:SetTextColor(unpack(on and S.gold or S.dim))
         end
     end
@@ -761,12 +763,16 @@ local function RefreshPlayers(P)
     local n = 0
     for i, it in ipairs(items) do
         n = i
-        local e, key = it.e, it.key
+        local e, rd = it.e, it.rd
+        local key = rd.myKey
         local r = P.list.rows[i]
         r.e = e
         r:Show()
-        r:SetAlpha(it.here and 1 or 0.5)
-        r.bg:SetColorTexture(unpack(it.missing and S.rowMiss or (r.alt and S.rowAlt or { 0, 0, 0, 0 })))
+        r:SetAlpha(rd.here and 1 or 0.5)
+        r.bg:SetColorTexture(unpack(rd.mine == "missing" and S.rowMiss or (r.alt and S.rowAlt or { 0, 0, 0, 0 })))
+        local sc = (rd.mine == "missing" and S.bad) or (rd.mine == "expiring" and S.warn) or (rd.state == "need" and S.other) or nil
+        r.strip:SetShown(sc ~= nil)
+        if sc then r.strip:SetColorTexture(sc[1], sc[2], sc[3], 1) end
         local tc = CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[e.class]
         if tc then r.cicon:SetTexCoord(tc[1] + 0.02, tc[2] - 0.02, tc[3] + 0.02, tc[4] - 0.02); r.cicon:Show() else r.cicon:Hide() end
         r.name:SetText(ns.FirstName(e.name)); r.name:SetTextColor(W.ClassColor(e.class))
@@ -775,10 +781,10 @@ local function RefreshPlayers(P)
         r.role.text:SetText(spec or ((role and ns.ROLE_LABEL[role] or "?") .. (why == "set by hand" and "*" or "")))
         r.role.text:SetTextColor(unpack(role and S.text or S.dim))
         local isEx = ns.IsException(me, e)
-        if key and ns.BY_KEY[key] then r.cell.icon:SetTexture(ns.BY_KEY[key].icon); r.cell.plus:Hide()
+        if key then r.cell.icon:SetTexture(ns.BY_KEY[key].icon); r.cell.plus:Hide()
         else r.cell.icon:SetTexture(nil); r.cell.plus:Show() end
         r.cell.badge:SetText(isEx and "*" or "")
-        r.cell.baseBorder = (it.here and key and not it.left) and S.bad or (isEx and S.gold or S.border)
+        r.cell.baseBorder = (rd.mine == "missing" and S.bad) or (isEx and S.gold) or S.border
         r.cell:SetBackdropBorderColor(unpack(r.cell.baseBorder))
         local req = ns.db.requests[e.name]
         if req then
@@ -788,18 +794,26 @@ local function RefreshPlayers(P)
         else
             r.wants:SetText("-"); r.wants:SetTextColor(unpack(S.dim))
         end
-        if not it.here then
-            r.stat:SetText((e.dead or ns.SafeUnit(UnitIsDeadOrGhost, e.unit, false)) and "Dead" or "Offline"); r.stat:SetTextColor(unpack(S.dim))
+        -- Your Status: your blessing on them
+        if not rd.here then
+            r.stat:SetText((e.dead or ns.SafeUnit(UnitIsDeadOrGhost, e.unit, false)) and "Dead" or "Offline"); r.stat:SetTextColor(unpack(S.off))
         elseif key then
-            local left = it.left
+            local left = rd.left[key]
             local far = e.name ~= me and ns.InRange(ns.BY_KEY[key].single, e.unit) == false
             if not left then r.stat:SetText(far and "Out of range" or "Missing"); r.stat:SetTextColor(unpack(S.bad))
             else
-                r.stat:SetText(W.FormatTime(left) ~= "" and W.FormatTime(left) or "Up")
-                r.stat:SetTextColor(unpack(far and S.dim or (it.rank == 2 and S.warn or S.good)))
+                r.stat:SetText(W.FormatTime(left) ~= "" and W.FormatTime(left) or "Active")
+                r.stat:SetTextColor(unpack(rd.mine == "expiring" and S.warn or S.good))
             end
         else
-            r.stat:SetText("")
+            r.stat:SetText("-"); r.stat:SetTextColor(unpack(S.dim))
+        end
+        -- Raid Status: every paladin's blessings
+        if not rd.here then r.raid:SetText("-"); r.raid:SetTextColor(unpack(S.off))
+        elseif rd.state == "need" then
+            r.raid:SetText("Incomplete"); r.raid:SetTextColor(unpack(rd.others and S.other or S.bad))
+        else
+            r.raid:SetText("Ready"); r.raid:SetTextColor(unpack(S.good))
         end
     end
     for i = n + 1, 40 do P.list.rows[i]:Hide() end

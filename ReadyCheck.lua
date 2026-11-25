@@ -2,8 +2,8 @@ local ADDON, ns = ...
 local S, W = ns.STYLE, ns.W
 
 -- Ready check window: opens on a ready check (or /pulse check). A blessing report:
---   header       buffed / need blessings / unavailable, and a readiness bar
---   Your Blessings   who still needs a blessing from you, by blessing
+--   header       buffed / missing / unavailable, and a bar split the same way
+--   Your Responsibilities   who still needs a blessing from you, by blessing
 --   Needs Attention  players short a blessing (open by default)
 --   Fully Buffed, Unavailable (dead or offline), Other Paladins (closed by default)
 -- Each player row keeps the blessing matrix; with "Raid buffs" on it also shows the main raid
@@ -96,17 +96,23 @@ local function IsOpen(sec)
     return v
 end
 
+local function BindingText()
+    local key = GetBindingKey and GetBindingKey("CLICK PallyPulseSmartButton:LeftButton")
+    return key and (GetBindingText and GetBindingText(key, "KEY_") or key) or nil
+end
+
 local function Build()
     win = W.Panel(UIParent, 400, 200, "PallyPulseReadyCheck")
     win:SetFrameStrata("HIGH")
     win:SetToplevel(true)
+    win:SetClampedToScreen(true)
     win:Hide()
     tinsert(UISpecialFrames, "PallyPulseReadyCheck")
     W.MakeDraggable(win, win, "ready")
     W.RestorePos(win, "ready", { "TOP", "TOP", 0, -140 })
     win:SetScale(ns.RCScale())
 
-    -- title bar
+    -- title bar: "Ready Check" left, ready answers right
     win.bar = win:CreateTexture(nil, "BACKGROUND", nil, 1)
     win.bar:SetPoint("TOPLEFT", 1, -1); win.bar:SetPoint("TOPRIGHT", -1, -1); win.bar:SetHeight(24)
     win.bar:SetColorTexture(unpack(S.header))
@@ -116,49 +122,45 @@ local function Build()
     win.title = W.Text(win, 13, S.gold, "LEFT", S.head)
     win.title:SetPoint("TOPLEFT", PAD, -6)
     win.title:SetText("Ready Check")
-    win.count = W.Text(win, 11, S.dim, "LEFT")
-    win.count:SetPoint("LEFT", win.title, "RIGHT", 10, 0)
     local close = W.CloseButton(win, function()
         -- closing the preview window ends the preview
         if ns.preview and ns.SetPreview then ns.SetPreview(false) else win:Hide() end
     end)
     close:SetPoint("TOPRIGHT", -4, -3)
+    win.count = W.Text(win, 11, S.text, "RIGHT")
+    win.count:SetPoint("RIGHT", close, "LEFT", -6, 0)
 
-    -- totals and readiness bar
+    -- totals, and a bar split into buffed / missing / unavailable
     win.summary = W.Text(win, 11, S.text, "LEFT")
     win.summary:SetPoint("TOPLEFT", PAD, -32)
-    win.prog = win:CreateTexture(nil, "ARTWORK")
-    win.prog:SetHeight(3); win.prog:SetColorTexture(0, 0, 0, 0.5)
-    win.progFill = win:CreateTexture(nil, "ARTWORK", nil, 1)
-    win.progFill:SetHeight(3); win.progFill:SetColorTexture(unpack(S.good))
-
-    -- Your Blessings
-    win.mineHead = W.Text(win, 11, S.gold, "LEFT", S.head)
-    win.mineHead:SetText("Your Blessings")
-    win.mine = {}
-    for i = 1, #ns.BLESSINGS + 1 do
-        local l = W.Text(win, 11, S.text, "LEFT"); l:SetWordWrap(false)
-        win.mine[i] = l
+    win.seg = {}
+    for i, c in ipairs({ S.good, S.bad, S.off }) do
+        local t = win:CreateTexture(nil, "ARTWORK")
+        t:SetHeight(4); t:SetColorTexture(c[1], c[2], c[3], 1)
+        win.seg[i] = t
     end
+    win.segBg = win:CreateTexture(nil, "BACKGROUND", nil, 2)
+    win.segBg:SetHeight(4); win.segBg:SetColorTexture(0, 0, 0, 0.5)
 
-    -- column icons over the matrix
-    win.heads = {}
-    for i, col in ipairs(COLS) do
-        local h = CreateFrame("Frame", nil, win)
-        h:SetSize(CELL, CELL)
-        h.tex = h:CreateTexture(nil, "ARTWORK")
-        h.tex:SetAllPoints(); h.tex:SetTexture(col.icon); h.tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-        h:EnableMouse(true)
-        W.Tip(h, function(t)
-            t:AddLine(col.label, 1, 1, 1)
-            if col.blessing then t:AddLine("Red: yours. Amber: another paladin's.", unpack(S.dim)) end
-        end)
-        win.heads[i] = h
+    -- Your Responsibilities
+    win.mineHead = W.Text(win, 11, S.gold, "LEFT", S.head)
+    win.mineHead:SetText("Your Responsibilities")
+    win.mineKey = W.Text(win, 10, S.dim, "LEFT", S.num)
+    win.mineCount = W.Text(win, 11, S.bad, "RIGHT")
+    win.mineDone = W.Text(win, 11, S.good, "LEFT")
+    win.mine = {}
+    for i = 1, #ns.BLESSINGS do
+        local l = {}
+        l.icon = win:CreateTexture(nil, "ARTWORK")
+        l.icon:SetSize(14, 14); l.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        l.name = W.Text(win, 11, S.text, "LEFT"); l.name:SetWidth(54); l.name:SetWordWrap(false)
+        l.who = W.Text(win, 11, S.text, "LEFT"); l.who:SetWordWrap(false)
+        win.mine[i] = l
     end
 
     -- section headers: click to open or close
     win.secs = {}
-    for i, sec in ipairs(SECTIONS) do
+    for _, sec in ipairs(SECTIONS) do
         local h = CreateFrame("Button", nil, win)
         h:SetHeight(SEC_H)
         h.bg = h:CreateTexture(nil, "BACKGROUND")
@@ -167,8 +169,28 @@ local function Build()
         h.mark:SetSize(12, 12); h.mark:SetPoint("LEFT", 4, 0)
         h.text = W.Text(h, 11, S.text, "LEFT", S.head)
         h.text:SetPoint("LEFT", h.mark, "RIGHT", 5, 0)
+        h.num = W.Text(h, 11, S.text, "RIGHT", S.num)
+        h.num:SetPoint("RIGHT", -6, 0)
         h.hl = h:CreateTexture(nil, "HIGHLIGHT"); h.hl:SetAllPoints(); h.hl:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 0.06)
         h.sec = sec
+        -- column icons for the blessing matrix, shown only while the section is open
+        h.heads = {}
+        if sec.key ~= "others" then
+            for i, col in ipairs(COLS) do
+                local c = CreateFrame("Frame", nil, win)
+                c:SetSize(CELL, CELL)
+                c.tex = c:CreateTexture(nil, "ARTWORK")
+                c.tex:SetAllPoints(); c.tex:SetTexture(col.icon); c.tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+                c:EnableMouse(true)
+                W.Tip(c, function(t)
+                    t:AddLine(col.label, 1, 1, 1)
+                    if col.blessing then t:AddLine("Red: yours. Tan: another paladin's.", unpack(S.dim)) end
+                end)
+                c:Hide()
+                h.heads[i] = c
+            end
+        end
+        h.more = W.Text(win, 10, S.dim, "LEFT")
         h:SetScript("OnClick", function(self)
             ns.db.rcOpen = ns.db.rcOpen or {}
             ns.db.rcOpen[self.sec.key] = not IsOpen(self.sec)
@@ -177,7 +199,6 @@ local function Build()
         h:Hide()
         win.secs[sec.key] = h
     end
-    win.allGood = W.Text(win, 11, S.good, "LEFT")
 
     win.rows = {}
     for r = 1, MAXROWS do
@@ -258,33 +279,19 @@ local function Build()
     end)
 end
 
--- Who should give each blessing to this player: { KEY = paladin name }
-local function Owed(e)
-    local owe = {}
-    for _, pal in ipairs(ns.paladins or {}) do
-        local k = ns.KeyFor(pal, e)
-        if k and not owe[k] then owe[k] = pal end
+-- What a player has and should have: the shared readiness (ns.Readiness), plus every buff on
+-- them for the matrix.
+local function Evaluate(e)
+    local rd = ns.Readiness(e)
+    if e.fake then
+        rd.alive, rd.online, rd.have = not e.dead, true, ns.PreviewBuffs(e)
+    else
+        rd.alive = not ns.SafeUnit(UnitIsDeadOrGhost, e.unit, false)
+        rd.online = ns.SafeUnit(UnitIsConnected, e.unit, true) and true or false
+        rd.have = BuffsOn(e.unit)
     end
-    return owe
-end
-
--- What a player has and should have. short = alive and missing a blessing.
-local function Evaluate(e, npal)
-    local alive = not ns.SafeUnit(UnitIsDeadOrGhost, e.unit, false)
-    local online = ns.SafeUnit(UnitIsConnected, e.unit, true) and true or false
-    local have
-    if e.fake then alive, online, have = not e.dead, true, ns.PreviewBuffs(e) else have = BuffsOn(e.unit) end
-    local owe = Owed(e)
-    local expect = 0
-    for _ in pairs(owe) do expect = expect + 1 end
-    if expect == 0 then expect = math.min(npal, #ns.BLESSINGS) end
-    local got = 0
-    for _, col in ipairs(COLS) do
-        if col.blessing and HasCol(have, col) then got = got + 1 end
-    end
-    local here = alive and online
-    return { alive = alive, online = online, here = here, have = have, owe = owe, expect = expect, got = got,
-             short = here and expect > 0 and got < expect }
+    rd.short = rd.state == "need"
+    return rd
 end
 
 local function SortedRoster()
@@ -321,21 +328,27 @@ local function FillPlayer(row, e, inf, me, x0, todo, todoOrder)
     local have, owe, expect, got = inf.have, inf.owe, inf.expect, inf.got
     row:SetAlpha(inf.here and 1 or 0.55)
     if not inf.online then
-        row.bcount:SetText("Offline"); row.bcount:SetTextColor(unpack(S.dim))
+        row.bcount:SetText("Offline"); row.bcount:SetTextColor(unpack(S.off))
     elseif not inf.alive then
-        row.bcount:SetText("Dead"); row.bcount:SetTextColor(unpack(S.dim))
+        row.bcount:SetText("Dead"); row.bcount:SetTextColor(unpack(S.off))
     elseif expect > 0 then
         row.bcount:SetText(("%d/%d"):format(math.min(got, expect), expect))
-        row.bcount:SetTextColor(unpack(got >= expect and S.good or S.bad))
+        row.bcount:SetTextColor(unpack(got >= expect and S.good or (inf.mine == "missing" and S.bad or S.other)))
     else
         row.bcount:SetText("")
     end
-    row.bg:SetColorTexture(unpack(inf.short and S.rowMiss or S.rowAlt))
+    -- red row only when it's your blessing that's missing
+    row.bg:SetColorTexture(unpack(inf.mine == "missing" and S.rowMiss or { 0, 0, 0, 0 }))
     for _, c in ipairs(row.cells) do c:Hide() end
     for k, ci in ipairs(shownCols) do
         local col, c = COLS[ci], row.cells[ci]
         c:ClearAllPoints(); c:SetPoint("LEFT", row, "LEFT", x0 + (k - 1) * (CELL + GAP), 0)
-        local ic = HasCol(have, col)
+        local ic
+        if col.blessing then
+            ic = inf.left[col.key] and (HasCol(have, col) or true)
+        else
+            ic = HasCol(have, col)
+        end
         local owner = col.blessing and owe[col.key]
         c.tip = nil
         if ic then
@@ -346,7 +359,7 @@ local function FillPlayer(row, e, inf, me, x0, todo, todoOrder)
             if c.SetBackdrop then
                 c:SetBackdropColor(0, 0, 0, 0.3)
                 if owner and inf.here then
-                    local col2 = (owner == me) and S.bad or S.warn
+                    local col2 = (owner == me) and S.bad or S.other
                     c:SetBackdropBorderColor(col2[1], col2[2], col2[3], 1)
                     c.tip = (owner == me) and "Yours" or ns.FirstName(owner)
                     if not todo[owner] then todo[owner] = {}; todoOrder[#todoOrder + 1] = owner end
@@ -374,9 +387,8 @@ function ns.RefreshReadyCheck()
     if not win or not win:IsShown() then return end
     local list = SortedRoster()
     local me = ns.Me()
-    local npal = #(ns.paladins or {})
     local info = {}
-    for _, e in ipairs(list) do info[e] = Evaluate(e, npal) end
+    for _, e in ipairs(list) do info[e] = Evaluate(e) end
 
     -- which columns: the blessings (if any paladin), raid buffs whose class is present, food
     -- and flask
@@ -393,20 +405,19 @@ function ns.RefreshReadyCheck()
     end
     local x0 = NAME_W + COUNT_W
     local width = math.max(MINW, PAD + x0 + #shownCols * (CELL + GAP) - GAP + PAD)
+    -- tallest the window may get (it never runs off screen; long sections end in "+N more")
+    local maxH = math.max(260, (UIParent:GetHeight() * 0.85) / math.max(0.5, win:GetScale()))
 
-    -- categories; totals always add up to the players listed
+    -- categories from the shared readiness; the counts always add up to the players listed
     local groups = { need = {}, ok = {}, off = {} }
     for _, e in ipairs(list) do
-        local inf = info[e]
-        local g = (not inf.here) and "off" or (inf.short and "need" or "ok")
-        table.insert(groups[g], e)
+        table.insert(groups[info[e].state] or groups.ok, e)
     end
     local nNeed, nOk, nOff = #groups.need, #groups.ok, #groups.off
 
-    -- every player is evaluated (so Your Blessings is complete), even in closed sections
-    -- fill every row first (placed later), so todo is known before drawing Your Blessings
+    -- fill every row first (placed later), so todo is known before drawing responsibilities
     local todo, todoOrder = {}, {}
-    local r, y = 0, 0
+    local r = 0
     for _, g in ipairs({ "need", "ok", "off" }) do
         for _, e in ipairs(groups[g]) do
             r = r + 1
@@ -422,100 +433,125 @@ function ns.RefreshReadyCheck()
         local st = e.fake and e.ready or lastStatus[e.name]
         if st == "ready" then readyN = readyN + 1 end
     end
-    win.count:SetText(("%d/%d ready"):format(readyN, #list))
-    win.summary:SetText(("%s%d|r buffed   %s%d|r need blessings   %s%d|r unavailable"):format(
-        W.Hex(unpack(S.good)), nOk, W.Hex(unpack(nNeed > 0 and S.bad or S.dim)), nNeed, W.Hex(unpack(S.dim)), nOff))
-    y = 48
+    win.count:SetText(("%d/%d Ready"):format(readyN, #list))
+    win.summary:SetText(("%s%d|r Buffed  ·  %s%d|r Missing  ·  %s%d|r Unavailable"):format(
+        W.Hex(unpack(S.good)), nOk, W.Hex(unpack(nNeed > 0 and S.bad or S.dim)), nNeed, W.Hex(unpack(S.off)), nOff))
+    local y = 48
     local barW = width - PAD * 2
-    win.prog:ClearAllPoints(); win.prog:SetPoint("TOPLEFT", PAD, -y); win.prog:SetWidth(barW)
-    local frac = (nOk + nNeed) > 0 and nOk / (nOk + nNeed) or 0
-    win.progFill:ClearAllPoints(); win.progFill:SetPoint("TOPLEFT", win.prog, "TOPLEFT")
-    win.progFill:SetWidth(math.max(1, barW * frac)); win.progFill:SetShown(frac > 0)
-    win.progFill:SetColorTexture(unpack(frac >= 1 and S.good or S.gold))
-    y = y + 10
+    win.segBg:ClearAllPoints(); win.segBg:SetPoint("TOPLEFT", PAD, -y); win.segBg:SetWidth(barW)
+    local x, total = PAD, math.max(1, #list)
+    for i, n in ipairs({ nOk, nNeed, nOff }) do
+        local seg = win.seg[i]
+        local w = barW * n / total
+        if n > 0 and #list > 0 then
+            seg:ClearAllPoints(); seg:SetPoint("TOPLEFT", win, "TOPLEFT", x, -y); seg:SetWidth(math.max(1, w)); seg:Show()
+        else
+            seg:Hide()
+        end
+        x = x + w
+    end
+    y = y + 12
 
-    -- Your Blessings, by blessing
+    -- Your Responsibilities: by blessing; a single green line once they're all up
     win.mineMissing = 0
     local mine = todo[me]
     local isPal = false
     for _, p in ipairs(ns.paladins or {}) do if p == me then isPal = true break end end
-    for _, l in ipairs(win.mine) do l:Hide() end
+    for _, l in ipairs(win.mine) do l.icon:Hide(); l.name:Hide(); l.who:Hide() end
+    win.mineHead:Hide(); win.mineKey:Hide(); win.mineCount:Hide(); win.mineDone:Hide()
     if isPal then
-        win.mineHead:ClearAllPoints(); win.mineHead:SetPoint("TOPLEFT", PAD, -y); win.mineHead:Show()
-        y = y + 16
         local n = 0
         for _, b in ipairs(ns.BLESSINGS) do
-            local names = mine and mine[b.key]
-            if names then
-                n = n + 1
-                win.mineMissing = win.mineMissing + #names
-                local l = win.mine[n]
-                l:SetText(("|T%s:14|t %s%s|r  %s"):format(b.icon, W.Hex(unpack(S.bad)),
-                    b.single:gsub("^Blessing of ", ""), Names(names, 6)))
-                l:ClearAllPoints(); l:SetPoint("TOPLEFT", PAD + 4, -y); l:SetWidth(width - PAD * 2 - 4)
-                l:Show()
-                y = y + LINE_H
-            end
+            if mine and mine[b.key] then n = n + 1; win.mineMissing = win.mineMissing + #mine[b.key] end
         end
         if n == 0 then
-            local l = win.mine[1]
-            l:SetText(W.Hex(unpack(S.good)) .. "All buffed|r")
-            l:ClearAllPoints(); l:SetPoint("TOPLEFT", PAD + 4, -y); l:SetWidth(width - PAD * 2 - 4)
-            l:Show()
-            y = y + LINE_H
+            win.mineDone:SetText("|TInterface\\RaidFrame\\ReadyCheck-Ready:14|t All your blessings active")
+            win.mineDone:ClearAllPoints(); win.mineDone:SetPoint("TOPLEFT", PAD, -y); win.mineDone:Show()
+            y = y + LINE_H + 4
+        else
+            win.mineHead:ClearAllPoints(); win.mineHead:SetPoint("TOPLEFT", PAD, -y); win.mineHead:Show()
+            local key = BindingText()
+            if key then
+                win.mineKey:SetText("[" .. key .. "]")
+                win.mineKey:ClearAllPoints(); win.mineKey:SetPoint("LEFT", win.mineHead, "RIGHT", 6, 0); win.mineKey:Show()
+            end
+            win.mineCount:SetText(win.mineMissing .. " Missing")
+            win.mineCount:ClearAllPoints(); win.mineCount:SetPoint("TOPRIGHT", win, "TOPRIGHT", -PAD, -y); win.mineCount:Show()
+            y = y + 16
+            local i = 0
+            for _, b in ipairs(ns.BLESSINGS) do
+                local names = mine[b.key]
+                if names then
+                    i = i + 1
+                    local l = win.mine[i]
+                    l.icon:SetTexture(b.icon)
+                    l.icon:ClearAllPoints(); l.icon:SetPoint("TOPLEFT", PAD + 2, -y - 1); l.icon:Show()
+                    l.name:SetText((b.single:gsub("^Blessing of ", "")))
+                    l.name:ClearAllPoints(); l.name:SetPoint("LEFT", l.icon, "RIGHT", 5, 0); l.name:Show()
+                    l.who:SetText(Names(names, 6))
+                    l.who:ClearAllPoints(); l.who:SetPoint("LEFT", l.name, "RIGHT", 4, 0)
+                    l.who:SetWidth(width - PAD * 2 - 80); l.who:Show()
+                    y = y + LINE_H
+                end
+            end
+            y = y + 6
         end
-        y = y + 6
-    else
-        win.mineHead:Hide()
     end
 
-    -- column icons
-    for _, h in ipairs(win.heads) do h:Hide() end
-    for n, ci in ipairs(shownCols) do
-        local h = win.heads[ci]
-        h:ClearAllPoints(); h:SetPoint("TOPLEFT", win, "TOPLEFT", 1 + x0 + (n - 1) * (CELL + GAP), -y)
-        h:Show()
+    -- sections; each open one gets its own column icons
+    for _, h in pairs(win.secs) do
+        h:Hide(); h.more:Hide()
+        for _, c in pairs(h.heads) do c:Hide() end
     end
-    y = y + CELL + 4
-
-    -- sections
-    for _, h in pairs(win.secs) do h:Hide() end
-    win.allGood:Hide()
     local function Header(key, n)
         local h = win.secs[key]
         local open = IsOpen(h.sec)
         h.mark:SetTexture(open and "Interface\\Buttons\\UI-MinusButton-Up" or "Interface\\Buttons\\UI-PlusButton-Up")
-        local cc = (key == "need") and S.bad or (key == "ok" and S.good or S.dim)
-        h.text:SetText(("%s  %s%d|r"):format(h.sec.label, W.Hex(unpack(cc)), n))
+        h.text:SetText(h.sec.label)
+        local cc = (key == "need") and S.bad or (key == "ok" and S.good or (key == "others" and S.other or S.off))
+        h.num:SetText(n); h.num:SetTextColor(unpack(cc))
         h:ClearAllPoints(); h:SetPoint("TOPLEFT", win, "TOPLEFT", 1, -y); h:SetWidth(width - 2)
         h:Show()
         y = y + SEC_H + 1
-        return open
+        if open and next(h.heads) then
+            for k, ci in ipairs(shownCols) do
+                local c = h.heads[ci]
+                c:ClearAllPoints(); c:SetPoint("TOPLEFT", win, "TOPLEFT", 1 + x0 + (k - 1) * (CELL + GAP), -y - 1)
+                c:Show()
+            end
+            y = y + CELL + 3
+        end
+        return open, h
     end
     r = 0
+    local othersCount = 0
+    for _, pal in ipairs(todoOrder) do if pal ~= me then othersCount = othersCount + 1 end end
     for _, key in ipairs({ "need", "ok", "off" }) do
         local g = groups[key]
-        if key == "need" and #g == 0 and #list > 0 then
-            win.allGood:SetText("|TInterface\\RaidFrame\\ReadyCheck-Ready:14|t All blessed")
-            win.allGood:ClearAllPoints(); win.allGood:SetPoint("TOPLEFT", PAD, -y - 2); win.allGood:Show()
-            y = y + LINE_H + 2
-        elseif #g > 0 then
-            local open = Header(key, #g)
+        if #g > 0 then
+            local open, h = Header(key, #g)
+            local shown = 0
             for idx, e in ipairs(g) do
                 r = r + 1
                 local row = win.rows[r]
-                if row then
-                    if open then
-                        if not info[e].short then
-                            row.bg:SetColorTexture(unpack(idx % 2 == 0 and S.rowAlt or { 0, 0, 0, 0 }))
-                        end
-                        row:ClearAllPoints(); row:SetPoint("TOPLEFT", win, "TOPLEFT", 1, -y)
-                        row:SetWidth(width - 2); row:Show()
-                        y = y + ROW_H
-                    else
-                        row:Hide()
+                -- keep room for the remaining headers and a "+N more" line
+                local room = y + ROW_H + (SEC_H + 1) * 3 + LINE_H <= maxH
+                if row and open and room then
+                    if info[e].mine ~= "missing" then
+                        row.bg:SetColorTexture(unpack(idx % 2 == 0 and S.rowAlt or { 0, 0, 0, 0 }))
                     end
+                    row:ClearAllPoints(); row:SetPoint("TOPLEFT", win, "TOPLEFT", 1, -y)
+                    row:SetWidth(width - 2); row:Show()
+                    y = y + ROW_H
+                    shown = shown + 1
+                elseif row then
+                    row:Hide()
                 end
+            end
+            if open and shown < #g then
+                h.more:SetText(("+%d more"):format(#g - shown))
+                h.more:ClearAllPoints(); h.more:SetPoint("TOPLEFT", win, "TOPLEFT", PAD + 12, -y - 1); h.more:Show()
+                y = y + LINE_H
             end
             if open then y = y + 2 end
         end
@@ -523,38 +559,39 @@ function ns.RefreshReadyCheck()
 
     -- Other Paladins: one line each, click to whisper
     table.sort(todoOrder)
-    local others = {}
-    for _, pal in ipairs(todoOrder) do if pal ~= me then others[#others + 1] = pal end end
     for _, l in ipairs(win.lines) do l:Hide() end
-    if #others > 0 then
-        local open = Header("others", #others)
+    if othersCount > 0 then
+        local open = Header("others", othersCount)
         if open then
-            for i, pal in ipairs(others) do
-                if i > #win.lines then break end
-                local parts, wparts = {}, {}
-                for _, b in ipairs(ns.BLESSINGS) do
-                    local names = todo[pal][b.key]
-                    if names then
-                        parts[#parts + 1] = ("|T%s:14|t %s"):format(b.icon, Names(names, 4))
-                        wparts[#wparts + 1] = b.single:gsub("^Blessing of ", "") .. ": " .. table.concat(names, ", ")
+            local i = 0
+            for _, pal in ipairs(todoOrder) do
+                if pal ~= me and i < #win.lines and y + LINE_H <= maxH then
+                    i = i + 1
+                    local parts, wparts = {}, {}
+                    for _, b in ipairs(ns.BLESSINGS) do
+                        local names = todo[pal][b.key]
+                        if names then
+                            parts[#parts + 1] = ("|T%s:14|t %s"):format(b.icon, Names(names, 4))
+                            wparts[#wparts + 1] = b.single:gsub("^Blessing of ", "") .. ": " .. table.concat(names, ", ")
+                        end
                     end
+                    local l = win.lines[i]
+                    l.text:SetText(W.Hex(unpack(S.other)) .. ns.FirstName(pal) .. "|r  " .. table.concat(parts, "   "))
+                    l.pal, l.whisper, l.tip = nil, nil, nil
+                    local real = ns.UnitForName and ns.UnitForName(pal) and not (ns.IsFakeName and ns.IsFakeName(pal))
+                    if real then
+                        l.pal = pal
+                        l.whisper = "[PallyPulse] Missing your " .. table.concat(wparts, "; ")
+                        l.tip = "Click: whisper " .. ns.FirstName(pal)
+                    end
+                    l:ClearAllPoints(); l:SetPoint("TOPLEFT", win, "TOPLEFT", PAD, -y); l:SetWidth(width - PAD * 2)
+                    l:Show()
+                    y = y + LINE_H
                 end
-                local l = win.lines[i]
-                l.text:SetText(W.Hex(unpack(S.warn)) .. ns.FirstName(pal) .. "|r  " .. table.concat(parts, "   "))
-                l.pal, l.whisper, l.tip = nil, nil, nil
-                local real = ns.UnitForName and ns.UnitForName(pal) and not (ns.IsFakeName and ns.IsFakeName(pal))
-                if real then
-                    l.pal = pal
-                    l.whisper = "[PallyPulse] Missing your " .. table.concat(wparts, "; ")
-                    l.tip = "Click: whisper " .. ns.FirstName(pal)
-                end
-                l:ClearAllPoints(); l:SetPoint("TOPLEFT", win, "TOPLEFT", PAD, -y); l:SetWidth(width - PAD * 2)
-                l:Show()
-                y = y + LINE_H
             end
         end
     end
-    win:SetSize(width, y + 8)
+    win:SetSize(width, y + 6)
 end
 
 function ns.ShowReadyCheck(auto)

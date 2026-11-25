@@ -21,6 +21,46 @@ function ns.KeyFor(pal, e)
     return ns.assign[pal] and ns.assign[pal][e.class]
 end
 
+-- Readiness of one player. Shared by the Ready Check and the Players tab, so their counts agree.
+--   state   "off" (dead or offline), "need" (a blessing someone owes is missing), "ok"
+--   mine    your blessing: "missing", "expiring", "ok", or nil when you owe them nothing
+--   others  true when another paladin's blessing is missing (or, with no assignments known,
+--           fewer blessings than there are paladins)
+--   owe     { KEY = paladin }, left { KEY = seconds or nil }, got / expect blessing counts
+function ns.Readiness(e)
+    local me = ns.Me()
+    local r = { owe = {}, left = {} }
+    r.here = ns.Eligible(e) and true or false
+    local npal = #(ns.paladins or {})
+    for _, pal in ipairs(ns.paladins or {}) do
+        local k = ns.KeyFor(pal, e)
+        if k and ns.BY_KEY[k] and not r.owe[k] then r.owe[k] = pal end
+    end
+    local got, expect = 0, 0
+    for _, b in ipairs(ns.BLESSINGS) do
+        local left = ns.MemberRemaining(e, b.key)
+        r.left[b.key] = left
+        if left then got = got + 1 end
+    end
+    for _ in pairs(r.owe) do expect = expect + 1 end
+    local known = expect > 0
+    if not known then expect = math.min(npal, #ns.BLESSINGS) end
+    r.got, r.expect = got, expect
+    local mk = ns.KeyFor(me, e)
+    r.myKey = (mk and ns.BY_KEY[mk]) and mk or nil
+    if not r.here then r.state = "off" return r end
+    if r.myKey then
+        local left = r.left[r.myKey]
+        r.mine = (not left and "missing") or (left < (ns.db.refresh or 0) and "expiring") or "ok"
+    end
+    for k, pal in pairs(r.owe) do
+        if pal ~= me and not r.left[k] then r.others = true end
+    end
+    if not known and got < expect then r.others = true end
+    r.state = (r.mine == "missing" or r.others) and "need" or "ok"
+    return r
+end
+
 -- Is the player's blessing from pal an exception (not the class one)?
 function ns.IsException(pal, e)
     local db = ns.db

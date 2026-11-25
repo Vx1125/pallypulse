@@ -15,7 +15,7 @@ local PROFILE_KEYS = {
     "rowWidth", "growUp", "rowTimers", "frameIcons", "frameIconSize", "frameIconClick", "refresh",
     "greaterMin", "reagentWarn", "rfReminder", "autoOath", "chatRequests", "compat", "readyCheck",
     "readyCheckRaid", "rcScale", "oathSound", "readyCheckSound", "alertSoundName", "font", "auraPrefer",
-    "barMode", "rowHeight", "iconSize", "barAlpha",
+    "barMode", "rowHeight", "iconSize", "barAlpha", "barClassNames",
 }
 local PREFIX = "PULSE1:"
 
@@ -229,6 +229,8 @@ function ns.BuildOptions(P, top)
         function(v) ns.db.growUp = v; ns.dirty = true end, "Vertical."))
     Add(W.Check(current, "Timers", function() return ns.db.rowTimers ~= false end,
         function(v) ns.db.rowTimers = v; ns.dirty = true end))
+    Add(W.Check(current, "Class names", function() return ns.db.barClassNames end,
+        function(v) ns.db.barClassNames = v; ns.dirty = true end, "Standard and Action only."))
     Add(W.Check(current, "Aura button", function() return ns.db.auraButton ~= false end,
         function(v) ns.db.auraButton = v; ns.dirty = true end))
     Add(W.Check(current, "Seal button", function() return ns.db.sealButton end,

@@ -12,7 +12,9 @@ local TEXT_W = 128
 -- Bar (PallyPower style): rows tinted by status, stacked (Vertical) or side by side
 -- (Horizontal), with a small drag dot on the left and no panel behind them.
 local ROW_GAP, HANDLE = 1, 14
-local function RowW() return ns.db.rowWidth or 76 end
+-- rows get wider when class names are shown beside the icons
+local CNAME_W = 50
+local function RowW() return (ns.db.rowWidth or 76) + (ns.db.barClassNames and CNAME_W or 0) end
 -- Tracker settings: row height, icon size, display mode
 local function RH() return math.max(16, math.min(32, ns.db.rowHeight or 22)) end
 local function ISZ() return math.max(10, math.min(RH() - 2, ns.db.iconSize or (RH() - 4))) end
@@ -219,16 +221,22 @@ local function BuildSmart()
 
     s.key = W.Text(s, 9, S.dim, "LEFT", S.num, "OUTLINE")
     s.key:SetPoint("TOPLEFT", 2, -2)
+    -- what the next press casts ("Kings"), from the same job the key casts
+    s.what = W.Text(s, 10, S.text, "LEFT", S.head)
+    s.what:SetWordWrap(false)
+    s.what:Hide()
 
     s:SetScript("OnEnter", function(self)
         PlaceTip(self)
         local key = BindingText()
-        GameTooltip:AddDoubleLine("Smart Buff", key or "", S.gold[1], S.gold[2], S.gold[3], 0.6, 0.6, 0.6)
+        GameTooltip:AddDoubleLine("Next Blessing", key or "", S.gold[1], S.gold[2], S.gold[3], 0.6, 0.6, 0.6)
         local job, me = self.job, ns.Me()
         if InCombatLockdown() then
             local cn = self.cnext
             if type(cn) == "table" then
-                GameTooltip:AddDoubleLine(cn.spell, cn.name, 1, 1, 1, 1, 1, 1)
+                local r, g, b = 1, 1, 1
+                local _, c = UnitClass(cn.unit or ""); if c then r, g, b = W.ClassColor(c) end
+                GameTooltip:AddDoubleLine(cn.spell, cn.name, 1, 1, 1, r, g, b)
                 if not cn.combatRebless then
                     GameTooltip:AddDoubleLine("Queue", self.cleft or 0, 0.8, 0.8, 0.8, 1, 1, 1)
                 end
@@ -240,8 +248,8 @@ local function BuildSmart()
         elseif job then
             local r, g, b = 1, 1, 1
             if job.unit then local _, c = UnitClass(job.unit); if c then r, g, b = W.ClassColor(c) end end
-            GameTooltip:AddDoubleLine(job.spell, job.name, 1, 1, 1, r, g, b)
-            if job.rebless then GameTooltip:AddLine("Re-bless", 0.5, 0.75, 0.5) end
+            GameTooltip:AddDoubleLine(job.spell, job.greater and (LOCALIZED_CLASS_NAMES_MALE[job.class] or job.class) or job.name, 1, 1, 1, r, g, b)
+            if job.rebless then GameTooltip:AddLine("Re-bless", unpack(S.good)) end
         else
             GameTooltip:AddLine("All buffed", unpack(S.good))
         end
@@ -287,6 +295,12 @@ local function BuildMinis()
             b.cicon:SetTexCoord(tc[1] + 0.02, tc[2] - 0.02, tc[3] + 0.02, tc[4] - 0.02)
             b.cicon:Hide()
         end
+        -- class name (option), beside the icons
+        b.cname = W.Text(b, 10, S.text, "LEFT")
+        b.cname:SetWordWrap(false)
+        b.cname:SetText(LOCALIZED_CLASS_NAMES_MALE and LOCALIZED_CLASS_NAMES_MALE[class] or class)
+        b.cname:SetTextColor(W.ClassColor(class))
+        b.cname:Hide()
         -- another paladin gives this class the same blessing
         b.dupMark = W.Text(b, 9, S.bad, "CENTER", S.num, "OUTLINE")
         b.dupMark:SetPoint("TOPRIGHT", b.icon, "TOPRIGHT", 3, 2)
@@ -301,13 +315,17 @@ local function BuildMinis()
                 if (self.need or 0) == 0 then
                     GameTooltip:AddLine("All buffed", unpack(S.good))
                 else
-                    GameTooltip:AddLine(("%d/%d missing"):format(self.need, self.total or 0), unpack(S.warn))
+                    -- the count on the row: players without it, or under the Expiring time
+                    GameTooltip:AddLine(("%d/%d missing or expiring"):format(self.need, self.total or 0), unpack(S.bad))
                     for n, name in ipairs(self.missing or {}) do
                         if n > 8 then GameTooltip:AddLine("...", unpack(S.dim)) break end
-                        GameTooltip:AddLine("  " .. name, unpack(S.text))
+                        GameTooltip:AddLine("  " .. ns.FirstName(name), unpack(S.text))
                     end
                 end
-                if self.dup then GameTooltip:AddLine("Also from " .. table.concat(self.dup, ", "), unpack(S.bad)) end
+                if self.lowest and self.lowest ~= math.huge then
+                    GameTooltip:AddDoubleLine("Shortest", W.FormatTime(self.lowest), 0.8, 0.8, 0.8, unpack(self.soon and S.warn or S.good))
+                end
+                if self.dup then GameTooltip:AddLine("x2: also from " .. table.concat(self.dup, ", "), unpack(S.bad)) end
                 GameTooltip:AddLine(" ")
                 local left, right = ns.CastNames(self.key, self.class)
                 GameTooltip:AddLine("Click: " .. tostring(left), 0.6, 0.6, 0.6)
@@ -801,15 +819,25 @@ local function Shape(b)
     local fs = math.max(10, math.floor(rh * 0.5))
     if not sq then
         b:SetSize(RowW(), rh)
-        b.stat:SetPoint("TOPLEFT", 1, -1); b.stat:SetPoint("BOTTOMLEFT", 1, 1); b.stat:SetWidth(2)
-        local x = 5
+        b.stat:SetPoint("TOPLEFT", 1, -1); b.stat:SetPoint("BOTTOMLEFT", 1, 1); b.stat:SetWidth(3)
+        local x = 6
         if b.cicon then
             b.cicon:ClearAllPoints(); b.cicon:SetSize(isz, isz); b.cicon:SetPoint("LEFT", x, 0); b.cicon:Show()
             x = x + isz + 2
         end
         b.icon:SetSize(isz, isz); b.icon:SetPoint("LEFT", x, 0)
+        x = x + isz + 4
+        if b.cname then
+            b.cname:ClearAllPoints()
+            b.cname:SetPoint("LEFT", x, 0); b.cname:SetWidth(CNAME_W - 4)
+            b.cname:SetShown(ns.db.barClassNames and true or false)
+        end
+        if b.what then
+            b.what:ClearAllPoints()
+            b.what:SetPoint("LEFT", x, 0); b.what:SetPoint("RIGHT", -24, 0)
+        end
         b.count:SetPoint("RIGHT", -6, 0)
-        b.timer:SetPoint("RIGHT", -5, 0)
+        b.timer:SetPoint("RIGHT", -6, 0)
         b.check:SetPoint("BOTTOMRIGHT", 1, -1)
         b.strip:Hide()
         SetNumFont(b.count, b.isSmart and fs + 1 or fs)
@@ -819,6 +847,8 @@ local function Shape(b)
         b.stat:SetPoint("BOTTOMLEFT", 1, 1); b.stat:SetPoint("BOTTOMRIGHT", -1, 1); b.stat:SetHeight(2)
         b.icon:SetPoint("TOPLEFT", 1, -1); b.icon:SetPoint("BOTTOMRIGHT", -1, 1)
         if b.cicon then b.cicon:Hide() end
+        if b.cname then b.cname:Hide() end
+        if b.what then b.what:Hide() end
         b.count:SetPoint("CENTER", 0, 1)
         b.timer:SetPoint("TOPRIGHT", 0, -1)
         b.check:SetPoint("BOTTOMRIGHT", 1, -1)
@@ -965,7 +995,7 @@ function ns.RefreshBar()
         b.dupMark:SetShown(b.dup ~= nil)
         if active then
             local need, total, target, lowest, missing = ns.ClassStatus(b.class, key)
-            b.need, b.total, b.missing = need, total, missing
+            b.need, b.total, b.missing, b.lowest = need, total, missing, lowest
             b.icon:SetTexture(ns.BY_KEY[key].icon or W.QUESTION)
             local state = need == 0 and "ok" or (need == total and "all" or "need")
             W.SetSlotState(b, state, need, lowest)
@@ -1131,6 +1161,18 @@ function ns.RefreshBar()
     end
     local key = BindingText()
     s.key:SetText(key or "")
+    -- the next press, in words (rows only): same job the key casts, or the combat queue's next
+    local what
+    if combat and type(cnext) == "table" then what = cnext.label
+    elseif combat and cnext == "oath" then what = "Oath"
+    elseif not combat and job then what = job.label end
+    if what then
+        what = tostring(what):gsub("^Greater Blessing of ", ""):gsub("^Blessing of ", ""):gsub(" Aura$", "")
+    end
+    s.what:SetText(what or "")
+    -- only when the row has room for it (wider rows or class names); the icon says it anyway
+    local room = RowW() - (6 + ISZ() + 4) - 22
+    s.what:SetShown(what ~= nil and not Square() and room >= 34)
     -- idle = nothing to cast (in combat: the combat queue is empty and Oath isn't urgent)
     bar.idle = not s.glow:IsShown() and not (not combat and stats and stats.far > 0)
 
@@ -1144,6 +1186,8 @@ function ns.RefreshBar()
         end
         s.glow:Hide(); s.pulse:Stop()
         Paint(s, st)
+        -- done: a small tick on the Smart row, nothing louder
+        if st == "ok" and #minis > 0 then s.check:Show() end
         for _, b in ipairs(minis) do Paint(b, RowState(b)) end
     end
 

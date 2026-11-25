@@ -733,7 +733,7 @@ function W.SetSlotState(btn, state, count, timer)
     btn.check:SetShown(covered)
     btn.count:SetShown(not covered and count ~= nil)
     if count then btn.count:SetText(count) end
-    local c = (state == "all" and S.bad) or (state == "need" and S.warn) or (state == "low" and S.warn) or S.good
+    local c = (state == "all" and S.bad) or (state == "need" and S.bad) or (state == "low" and S.warn) or S.good
     btn.count:SetTextColor(c[1], c[2], c[3])
     btn.timer:SetText(W.FormatTime(timer))
     btn.baseBorder = covered and S.border or c
