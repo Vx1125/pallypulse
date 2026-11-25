@@ -171,7 +171,7 @@ function W.Button(parent, label, w, h, onClick)
     end)
     b:HookScript("OnLeave", function(self)
         if self.SetBackdropBorderColor then self:SetBackdropBorderColor(unpack(S.border)) end
-        if not self.keepColor then self.label:SetTextColor(unpack(S.text)) end
+        if not self.keepColor then self.label:SetTextColor(unpack(self:IsEnabled() and S.text or S.dim)) end
     end)
     b:HookScript("OnDisable", function(self) self.label:SetTextColor(unpack(S.dim)) end)
     b:HookScript("OnEnable", function(self) self.label:SetTextColor(unpack(S.text)) end)
@@ -219,31 +219,61 @@ end
 
 -- Small square check box (gold mark) with a label. get() -> bool, set(bool)
 -- tip (optional): one short line shown on hover
+-- Tooltip for a setting: its label, the tip, and why it's unavailable (frame.why) if it is.
+-- Settings without a tip and not disabled show no tooltip.
 local function AddTip(frame, label, tip)
-    if not tip then return end
-    W.Tip(frame, function(t)
-        t:AddLine(label, 1, 1, 1)
-        t:AddLine(tip, S.dim[1], S.dim[2], S.dim[3], true)
+    frame:HookScript("OnEnter", function(self)
+        if not tip and not self.why then return end
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+        GameTooltip:AddLine(label, 1, 1, 1)
+        if tip then GameTooltip:AddLine(tip, S.dim[1], S.dim[2], S.dim[3], true) end
+        if self.why then GameTooltip:AddLine(self.why, S.other[1], S.other[2], S.other[3], true) end
+        GameTooltip:Show()
     end)
+    frame:HookScript("OnLeave", function() GameTooltip:Hide() end)
 end
 
+-- Called after any setting changes (Options uses it to update dependent settings).
+local function Changed() if W.onChange then W.onChange() end end
+
+-- Checkbox: 14px box with a bronze edge; checked = dark bronze fill and a gold tick (the game's
+-- check texture, or a small square where it's missing). The label is part of the click area.
+local CHECK_TEX = "Interface\\Buttons\\UI-CheckBox-Check"
+local CHECK_ON = { 0.22, 0.19, 0.12, 1 }
 function W.Check(parent, label, get, set, tip)
     local c = CreateFrame("CheckButton", nil, parent)
     c:SetSize(24, 24)
-    c.box = Box(c, 5)
+    c.box = Box(c, 5, S.cell)
     c.mark = c:CreateTexture(nil, "OVERLAY")
-    c.mark:SetPoint("TOPLEFT", 8, -8); c.mark:SetPoint("BOTTOMRIGHT", -8, 8)
-    c.mark:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 1)
+    c.mark:SetPoint("TOPLEFT", 4, -3); c.mark:SetPoint("BOTTOMRIGHT", -3, 4)
+    c.mark:SetTexture(CHECK_TEX)
+    if c.mark:GetTexture() then
+        c.mark:SetVertexColor(S.gold[1], S.gold[2], S.gold[3])
+    else
+        c.mark:ClearAllPoints(); c.mark:SetPoint("TOPLEFT", 8, -8); c.mark:SetPoint("BOTTOMRIGHT", -8, 8)
+        c.mark:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 1)
+    end
     c.text = W.Text(c, 12, S.text)
     c.text:SetPoint("LEFT", c, "RIGHT", 2, 1)
     c.text:SetText(label)
     c:SetHitRectInsets(0, -200, 0, 0)
-    c:SetScript("OnEnter", function(self) self.box:SetEdge(S.gold) end)
+    c:SetScript("OnEnter", function(self) if self:IsEnabled() then self.box:SetEdge(S.gold) end end)
     c:SetScript("OnLeave", function(self) self.box:SetEdge(S.border) end)
     AddTip(c, label, tip)
-    local function Show(self) self.mark:SetShown(self:GetChecked() and true or false) end
+    local function Show(self)
+        local on = self:GetChecked() and true or false
+        self.mark:SetShown(on)
+        self.box.bg:SetColorTexture(unpack(on and CHECK_ON or S.cell))
+    end
     function c:Refresh() self:SetChecked(get() and true or false); Show(self) end
-    c:SetScript("OnClick", function(self) set(self:GetChecked() and true or false); Show(self) end)
+    -- unavailable: dimmed, unclickable, the reason in the tooltip; the saved value is kept
+    function c:SetAvailable(on, why)
+        self.why = (not on) and why or nil
+        if on then self:Enable() else self:Disable() end
+        self:SetAlpha(on and 1 or 0.45)
+        self.text:SetTextColor(unpack(on and S.text or S.dim))
+    end
+    c:SetScript("OnClick", function(self) set(self:GetChecked() and true or false); Show(self); Changed() end)
     c:Refresh()
     return c
 end
@@ -283,10 +313,13 @@ function W.KeyBind(parent, label, command, tip)
         Stop()
     end
 
+    -- bound: muted gold; not bound: grey
+    b.keepColor = true
     function f:Refresh()
         if capturing then return end
         local k = GetBindingKey(command)
         b:SetText(k and (GetBindingText and GetBindingText(k, "KEY_") or k) or "Not bound")
+        b.label:SetTextColor(unpack(k and S.gold or S.dim))
     end
 
     b:SetScript("OnClick", function(_, btn)
@@ -299,6 +332,7 @@ function W.KeyBind(parent, label, command, tip)
         if capturing then Stop() return end
         capturing = true
         b:SetText("Press a key")
+        b.label:SetTextColor(unpack(S.text))
         b:EnableKeyboard(true)
         pcall(b.SetPropagateKeyboardInput, b, false)
         b:SetScript("OnKeyDown", function(_, key)
@@ -351,7 +385,7 @@ function W.Dropdown(parent, label, list, current, onPick, tip, btnW)
         r.text:SetPoint("LEFT", 4, 0); r.text:SetPoint("RIGHT", -4, 0); r.text:SetWordWrap(false)
         r.hl = r:CreateTexture(nil, "HIGHLIGHT"); r.hl:SetAllPoints(); r.hl:SetColorTexture(1, 1, 1, 0.12)
         r:SetScript("OnClick", function(self)
-            if self.item then onPick(self.item); menu:Hide(); f:Refresh() end
+            if self.item then onPick(self.item); menu:Hide(); f:Refresh(); Changed() end
         end)
         menu.rows[i] = r
     end
@@ -388,29 +422,51 @@ function W.Dropdown(parent, label, list, current, onPick, tip, btnW)
     f:SetScript("OnHide", function() menu:Hide() end)
 
     function f:Refresh() b:SetText(current() or "") end
-    if tip then f:EnableMouse(true); AddTip(f, label, tip) end
+    function f:SetAvailable(on, why)
+        self.why = (not on) and why or nil
+        if on then b:Enable() else b:Disable() end
+        txt:SetTextColor(unpack(on and S.text or S.dim))
+        arrow:SetAlpha(on and 1 or 0.4)
+    end
+    f.button, f.label = b, txt
+    f:EnableMouse(true); AddTip(f, label, tip)
     f:Refresh()
     return f
 end
 
+-- Label with [-] value [+]. The buttons switch off at the ends of the range.
 function W.Stepper(parent, label, get, set, step, minv, maxv, fmt, tip, valW)
     local f = CreateFrame("Frame", nil, parent)
     f:SetSize(236, 24)
-    if tip then f:EnableMouse(true); AddTip(f, label, tip) end
+    f:EnableMouse(true); AddTip(f, label, tip)
     local txt = W.Text(f, 12, S.text)
     txt:SetPoint("LEFT", 4, 0); txt:SetText(label)
+    local avail = true
     local function bump(d)
         local v = math.floor((get() + d * step) * 100 + 0.5) / 100
         v = math.max(minv, math.min(maxv, v))
-        set(v); f:Refresh()
+        set(v); f:Refresh(); Changed()
     end
-    local plus = W.Button(f, "+", 24, 20, function() bump(1) end)
+    local plus = W.Button(f, "+", 22, 20, function() bump(1) end)
     plus:SetPoint("RIGHT")
     local val = W.Text(f, 12, S.gold, "CENTER", S.head)
-    val:SetPoint("RIGHT", plus, "LEFT", -2, 0); val:SetWidth(valW or 52); val:SetWordWrap(false)
-    local minus = W.Button(f, "-", 24, 20, function() bump(-1) end)
+    val:SetPoint("RIGHT", plus, "LEFT", -2, 0); val:SetWidth(valW or 58); val:SetWordWrap(false)
+    local minus = W.Button(f, "-", 22, 20, function() bump(-1) end)
     minus:SetPoint("RIGHT", val, "LEFT", -2, 0)
-    function f:Refresh() val:SetText(fmt and fmt(get()) or tostring(get())) end
+    function f:Refresh()
+        local v = get()
+        val:SetText(fmt and fmt(v) or tostring(v))
+        local lo, hi = avail and v > minv + 1e-6, avail and v < maxv - 1e-6
+        if lo then minus:Enable() else minus:Disable() end
+        if hi then plus:Enable() else plus:Disable() end
+    end
+    function f:SetAvailable(on, why)
+        avail = on and true or false
+        self.why = (not on) and why or nil
+        txt:SetTextColor(unpack(on and S.text or S.dim))
+        val:SetTextColor(unpack(on and S.gold or S.dim))
+        self:Refresh()
+    end
     f:Refresh()
     return f
 end

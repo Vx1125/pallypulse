@@ -68,14 +68,43 @@ A whole row turns red only when the local paladin has to act.
 | Widget | Size | Notes |
 |--------|------|-------|
 | `W.Button` | 22 px high (18 in title bars) | `panel` fill, `border` edge, gold edge and label on hover |
-| `W.Check` | 24 px hit box, 14 px box | gold square when on |
-| `W.Stepper` | 24 px row, 24x20 buttons | value in gold between - and + |
+| `W.Check` | 24 px hit box, 14 px box | off: dark well, bronze edge; on: dark bronze fill and gold tick; the label is clickable; unavailable: dimmed, reason in the tooltip |
+| `W.Stepper` | 24 px row, 22x20 buttons, 58 px value | value (with unit: "5 min", "22 px", "85%") in gold; - and + switch off at the ends of the range |
+| `W.KeyBind` | 96x20 button | bound key in gold, "Not bound" in grey; right-click clears |
 | `W.Dropdown` | 24 px row, 140x20 button | menu is a `W.Panel` |
 | `W.NumberBox` | 64x20 | `cell` well |
 | `W.Section` | 12 px gold heading | 1px `border` rule under it |
 | `W.SkinScroll` | 4 px thumb | no arrows |
 
-Options rows step 27 px; headings 22 px.
+Options rows step 27 px; headings 22 px; two columns at x 14 and 264, 240 px wide.
+
+## Options organization
+
+Every setting has one place. A setting that depends on another is dimmed (never cleared) while
+its parent is off, with the reason in its tooltip.
+
+- **General** (how PallyPulse behaves)
+  - Key Bindings: Smart Buff, Oath of Light, Toggle window (top left, first thing a new user sees)
+  - Smart Buff: Refresh before expiry, Greater Blessings from, Low symbol warning, Righteous Fury
+    when tanking, Auto-assign Oath to tanks
+  - Group: Your aura, Accept !bless requests
+  - Ready Check: Show on ready check, Raid buff columns
+  - Sound Alerts: Oath expiring, Ready check: your blessings missing, Alert sound + Preview
+- **Appearance** (how it looks)
+  - Blessing Bar: Lock bar, Display, Orientation, Grow upward, Fade when idle, Timers, Class
+    names, Aura button, Seal button
+  - Bar Position: Bar X, Bar Y, Center
+  - Bar Size: Bar scale, Row width, Row height, Icon size, Background
+  - Raid Frames: Show blessing icons, Click icon to bless, Raid icon size
+  - Windows: Main window scale, Ready Check scale, Show minimap button, Hide empty classes, Font
+- **Advanced**
+  - Compatibility: PallyPower sync
+  - Profile: Export, Import, Restore defaults (options only; assignments, presets, priorities and
+    key bindings are kept)
+  - Diagnostics: CPU report, Spec report
+  - Blessing Priorities
+
+Scale controls are always named after what they scale.
 
 ## Icons and rows
 

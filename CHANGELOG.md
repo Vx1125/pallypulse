@@ -31,6 +31,10 @@
 - Blessings tab tooltips: class members, who gets each blessing (and who doesn't), and what each paladin's sync icon means.
 - Ready check: Other Paladins shows how many are pending and wraps long name lists.
 - Bar: player list times no longer overlap the range bars.
+- Options: General, Appearance and Advanced. Key bindings come first; every setting has a tooltip.
+- Options: clearer names (Refresh before expiry, Greater Blessings from, Low symbol warning...) and units on values.
+- Options: check boxes show a tick; settings that depend on another are dimmed while it's off.
+- Options: Preview beside the alert sound, and Restore defaults (keeps assignments, presets and key bindings).
 
 ## 1.3.3
 - Bar: the mouse wheel can switch a player back to the class blessing after Auto-assign gave them another.
