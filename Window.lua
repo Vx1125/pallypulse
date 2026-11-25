@@ -90,6 +90,20 @@ local function Analyze()
     return dup, uncovered, ncon
 end
 
+-- "Bob (Kings, Might)" for each player of a class with a request
+local function ClassRequests(class)
+    local out = {}
+    for _, e in ipairs(ns.byClass[class] or {}) do
+        local req = ns.db.requests[e.name]
+        if req and #req > 0 then
+            local t = {}
+            for _, k in ipairs(req) do if ns.BY_KEY[k] then t[#t + 1] = ns.BY_KEY[k].single:gsub("^Blessing of ", "") end end
+            out[#out + 1] = ns.FirstName(e.name) .. " (" .. table.concat(t, ", ") .. ")"
+        end
+    end
+    return out
+end
+
 local function ClassNames(list, max)
     local names = {}
     for i, class in ipairs(list) do
@@ -189,15 +203,18 @@ local function MakeList(name, parent, top, height, rowBuilder)
         local r = CreateFrame("Frame", nil, child)
         r:SetSize(WIDTH - 40, LIST_ROW)
         r:SetPoint("TOPLEFT", 0, -(i - 1) * LIST_ROW)
-        local bg = r:CreateTexture(nil, "BACKGROUND")
-        bg:SetAllPoints(); bg:SetColorTexture(1, 1, 1, i % 2 == 0 and 0.03 or 0)
+        r.bg = r:CreateTexture(nil, "BACKGROUND")
+        r.bg:SetAllPoints()
+        r.alt = i % 2 == 0
+        r.bg:SetColorTexture(unpack(r.alt and S.rowAlt or { 0, 0, 0, 0 }))
         r.hl = r:CreateTexture(nil, "BACKGROUND", nil, 2)
-        r.hl:SetAllPoints(); r.hl:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 0.06); r.hl:Hide()
+        r.hl:SetAllPoints(); r.hl:SetColorTexture(S.rowHover[1], S.rowHover[2], S.rowHover[3], 0.9); r.hl:Hide()
         rowBuilder(r)
         r:Hide()
         sf.rows[i] = r
     end
     sf.child = child
+    W.SkinScroll(sf)
     return sf
 end
 
@@ -226,16 +243,20 @@ end
 ns.ShowTab = ShowTab
 
 local function BuildTitle()
+    local band = win:CreateTexture(nil, "BACKGROUND", nil, 1)
+    band:SetPoint("TOPLEFT", 1, -1); band:SetPoint("TOPRIGHT", -1, -1); band:SetHeight(TITLE_H - 2)
+    band:SetColorTexture(unpack(S.header))
     local tb = CreateFrame("Frame", nil, win)
-    tb:SetPoint("TOPLEFT", 4, -4); tb:SetPoint("TOPRIGHT", -4, -4); tb:SetHeight(TITLE_H - 4)
+    tb:SetPoint("TOPLEFT", 4, -2); tb:SetPoint("TOPRIGHT", -4, -2); tb:SetHeight(TITLE_H - 4)
     local title = W.Heading(tb, 14)
     title:SetPoint("LEFT", PAD - 4, 0); title:SetText("PallyPulse")
     win.sub = W.Text(tb, 11, S.dim)
     win.sub:SetPoint("LEFT", title, "RIGHT", 8, -1)
     local close = W.CloseButton(tb, function() win:Hide() end)
-    close:SetPoint("RIGHT", 4, 0)
-    win.testBtn = W.Button(tb, "Test mode", 86, 20, function() if ns.TogglePreview then ns.TogglePreview() end end)
+    close:SetPoint("RIGHT", 0, 0)
+    win.testBtn = W.Button(tb, "Test mode", 80, 18, function() if ns.TogglePreview then ns.TogglePreview() end end)
     win.testBtn:SetPoint("RIGHT", close, "LEFT", -6, 0)
+    win.testBtn.keepColor = true
     W.Tip(win.testBtn, function(t)
         t:AddLine("Test mode", 1, 1, 1)
         t:AddLine("Fake 13-player raid with two fake paladins. Edit anything; nothing is cast or sent.", 0.7, 0.7, 0.7, true)
@@ -259,9 +280,12 @@ local function BuildTitle()
         tabs[t[1]] = b
         x = x + b:GetWidth() + 2
     end
+    local tl = win:CreateTexture(nil, "ARTWORK")
+    tl:SetPoint("TOPLEFT", band, "BOTTOMLEFT"); tl:SetPoint("TOPRIGHT", band, "BOTTOMRIGHT"); tl:SetHeight(1)
+    tl:SetColorTexture(S.border[1], S.border[2], S.border[3], 1)
     local line = win:CreateTexture(nil, "ARTWORK")
     line:SetPoint("TOPLEFT", 8, -(TITLE_H + TABS_H)); line:SetPoint("TOPRIGHT", -8, -(TITLE_H + TABS_H)); line:SetHeight(1)
-    line:SetColorTexture(S.frame[1], S.frame[2], S.frame[3], 0.45)
+    line:SetColorTexture(S.border[1], S.border[2], S.border[3], 0.7)
 end
 
 -- ---------------------------------------------------------------------------
@@ -281,12 +305,22 @@ local function BuildBlessings(P)
         h.icon:SetTexCoord(c[1], c[2], c[3], c[4])
         h.count = W.Text(h, 10, S.dim, "CENTER", S.num)
         h.count:SetPoint("BOTTOM", 0, 2); h.count:SetWidth(CELL)
+        -- gold dot: someone in this class asked for a blessing
+        h.req = h:CreateTexture(nil, "OVERLAY")
+        h.req:SetSize(5, 5); h.req:SetPoint("TOPRIGHT", h.icon, "TOPRIGHT", 2, 2)
+        h.req:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 1)
+        h.req:Hide()
         h.class = class
         h:SetScript("OnEnter", function(self)
             GameTooltip:SetOwner(self, "ANCHOR_TOP")
             local n = ns.byClass[self.class] and #ns.byClass[self.class] or 0
             GameTooltip:AddLine(LOCALIZED_CLASS_NAMES_MALE[self.class] or self.class, W.ClassColor(self.class))
-            GameTooltip:AddLine(("%d in group"):format(n), 0.8, 0.8, 0.8)
+            GameTooltip:AddLine(("%d in group"):format(n), unpack(S.dim))
+            local req = ClassRequests(self.class)
+            if #req > 0 then
+                GameTooltip:AddLine("Requests", unpack(S.gold))
+                for _, t in ipairs(req) do GameTooltip:AddLine(t, 1, 1, 1) end
+            end
             GameTooltip:Show()
         end)
         h:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -326,10 +360,15 @@ local function BuildBlessings(P)
         local row = CreateFrame("Frame", nil, P)
         row:SetSize(WIDTH - 12, ROW_H)
         row:SetPoint("TOPLEFT", 6, -(ROWS_Y + (r - 1) * ROW_H))
-        local bg = row:CreateTexture(nil, "BACKGROUND", nil, 1)
-        bg:SetAllPoints(); bg:SetColorTexture(1, 1, 1, r % 2 == 0 and 0.03 or 0)
+        row.bg = row:CreateTexture(nil, "BACKGROUND", nil, 1)
+        row.bg:SetAllPoints()
+        row.alt = r % 2 == 0
         row.hl = row:CreateTexture(nil, "BACKGROUND", nil, 2)
-        row.hl:SetAllPoints(); row.hl:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 0.06); row.hl:Hide()
+        row.hl:SetAllPoints(); row.hl:SetColorTexture(S.rowHover[1], S.rowHover[2], S.rowHover[3], 0.9); row.hl:Hide()
+        -- paladin-pink edge: one row per paladin
+        row.edge = row:CreateTexture(nil, "BORDER")
+        row.edge:SetPoint("TOPLEFT"); row.edge:SetPoint("BOTTOMLEFT"); row.edge:SetWidth(2)
+        row.edge:SetColorTexture(S.paladin[1], S.paladin[2], S.paladin[3], 0.8)
         row.status = row:CreateTexture(nil, "ARTWORK")
         row.status:SetSize(10, 10); row.status:SetPoint("LEFT", PAD - 6, 0)
         row.name = W.Text(row, 12, S.text)
@@ -358,10 +397,27 @@ local function BuildBlessings(P)
             cell:SetScript("OnEnter", function(self)
                 local key = ns.assign[self.pal] and ns.assign[self.pal][self.class]
                 local r, g, b = W.ClassColor(self.class)
+                local lines = {}
+                if key and ns.BY_KEY[key] then
+                    local greater, single = ns.CastNames(key, self.class)
+                    lines[#lines + 1] = greater or ns.BY_KEY[key].single
+                    -- your own row: who is still missing it
+                    if self.pal == ns.Me() and ns.byClass[self.class] then
+                        local need, total = ns.ClassStatus(self.class, key)
+                        if total > 0 then
+                            lines[#lines + 1] = need == 0 and (W.Hex(unpack(S.good)) .. "All buffed|r")
+                                or (W.Hex(unpack(S.bad)) .. ("%d/%d missing"):format(need, total) .. "|r")
+                        end
+                    end
+                else
+                    lines[#lines + 1] = W.Hex(unpack(S.dim)) .. "None|r"
+                end
                 local same = ns.SameBlessing(self.pal, self.class)
+                if same then lines[#lines + 1] = W.Hex(unpack(S.bad)) .. "Also from " .. table.concat(same, ", ") .. "|r" end
+                local req = ClassRequests(self.class)
+                if #req > 0 then lines[#lines + 1] = W.Hex(unpack(S.gold)) .. "Requests:|r " .. table.concat(req, ", ") end
                 Tip(self, W.Hex(r, g, b) .. (LOCALIZED_CLASS_NAMES_MALE[self.class] or self.class) .. "|r - " .. ns.FirstName(self.pal),
-                    (key and ns.BY_KEY[key].single or "None")
-                        .. (same and ("\n" .. W.Hex(unpack(S.bad)) .. "Also from " .. table.concat(same, ", ") .. "|r") or ""),
+                    table.concat(lines, "\n"),
                     ns.CanEditRow(self.pal) and "Click: choose   Wheel: cycle   Right-click: clear" or nil)
             end)
             row.cells[i] = cell
@@ -428,6 +484,8 @@ local function BuildBlessings(P)
     }
     local clear = W.Button(P, "Clear", 60, 22, function() StaticPopup_Show("PALLYPULSE_CLEAR") end)
     clear:SetPoint("LEFT", presets, "RIGHT", 2, 0)
+    P.preset = W.Text(P, 11, S.gold, "LEFT")
+    P.preset:SetPoint("LEFT", clear, "RIGHT", 8, 0); P.preset:SetWidth(108); P.preset:SetWordWrap(false)
     local announce = W.Button(P, "Announce", 84, 22, function() ns.Announce() end)
     announce:SetPoint("BOTTOMRIGHT", -PAD + 2, 10)
     local sync = W.Button(P, "Sync", 56, 22, function() ns.RequestSync() end)
@@ -448,12 +506,21 @@ local function RefreshBlessings(P)
         h.count:SetTextColor(unpack(n > 0 and S.text or S.dim))
         h.icon:SetDesaturated(n == 0)
         h.icon:SetAlpha(n == 0 and 0.35 or 1)
+        h.req:SetShown(n > 0 and #ClassRequests(h.class) > 0)
+    end
+    local pname, same = ns.ActivePreset and ns.ActivePreset()
+    if pname then
+        P.preset:SetText(same and pname or (pname .. " (changed)"))
+        P.preset:SetTextColor(unpack(same and S.gold or S.dim))
+    else
+        P.preset:SetText("")
     end
     local me = ns.Me()
     for r = 1, MAX_ROWS do
         local row, pal = P.rows[r], ns.paladins[r]
         if pal and r <= npal then
             row:Show()
+            row.bg:SetColorTexture(unpack(pal == me and S.rowSel or (row.alt and S.rowAlt or { 0, 0, 0, 0 })))
             row.name:SetText(pal == me and (ns.FirstName(pal) .. W.Hex(unpack(S.dim)) .. " (you)|r") or ns.FirstName(pal))
             row.name:SetTextColor(W.ClassColor("PALADIN"))
             local heard = (pal == me) or ns.caps[pal] ~= nil
@@ -523,16 +590,48 @@ end
 -- ---------------------------------------------------------------------------
 local ROLE_CYCLE = { false, "TANK", "MELEE", "RANGED", "CASTER", "HEALER" }
 
+local LIST_TOP = TOP + 40          -- summary line + column headers
+local sortBy = "status"            -- "status", "name", "class", "role"
+local ROLE_ORDER = { TANK = 1, HEALER = 2, MELEE = 3, RANGED = 4, CASTER = 5 }
+
 local function BuildPlayers(P)
+    -- totals for the whole group (every paladin's blessings, not only yours)
+    P.summary = W.Text(P, 11, S.text, "LEFT")
+    P.summary:SetPoint("TOPLEFT", PAD, -(TOP + 4))
+
+    -- column headers; Player, Role and Status sort (Player again: by class)
+    P.heads = {}
     local hdr = {
-        { 10, "Player" }, { 136, "Role" }, { 208, "Yours" }, { 250, "Wants" }, { 380, "Status" },
+        { 28, "Player", "name" }, { 136, "Role", "role" }, { 214, "Yours" }, { 256, "Wants" }, { 386, "Status", "status" },
     }
     for _, h in ipairs(hdr) do
-        local t = W.Text(P, 11, S.gold, "LEFT", S.head)
-        t:SetPoint("TOPLEFT", h[1], -(TOP + 4)); t:SetText(h[2])
+        local b = CreateFrame("Button", nil, P)
+        b.text = W.Text(b, 11, S.gold, "LEFT", S.head); b.text:SetPoint("LEFT")
+        b.text:SetText(h[2])
+        b:SetSize(70, 16)
+        b:SetPoint("TOPLEFT", h[1], -(TOP + 22))
+        b.sort = h[3]
+        if b.sort then
+            b:SetScript("OnClick", function(self)
+                if self.sort == "name" then sortBy = (sortBy == "name") and "class" or "name"
+                else sortBy = self.sort end
+                ns.RefreshWindow()
+            end)
+            W.Tip(b, function(t) t:AddLine("Click: sort", 1, 1, 1) end)
+        else
+            b:EnableMouse(false)
+        end
+        P.heads[#P.heads + 1] = b
     end
-    P.list = MakeList("PallyPulsePlayerList", P, TOP + 22, LIST_ROW * LIST_MAX_VISIBLE, function(r)
-        r.name = W.Text(r, 12, S.text); r.name:SetPoint("LEFT", 4, 0); r.name:SetWidth(124); r.name:SetWordWrap(false)
+    P.rule = P:CreateTexture(nil, "ARTWORK")
+    P.rule:SetPoint("TOPLEFT", 8, -(LIST_TOP - 2)); P.rule:SetPoint("TOPRIGHT", -8, -(LIST_TOP - 2)); P.rule:SetHeight(1)
+    P.rule:SetColorTexture(S.border[1], S.border[2], S.border[3], 0.5)
+
+    P.list = MakeList("PallyPulsePlayerList", P, LIST_TOP, LIST_ROW * LIST_MAX_VISIBLE, function(r)
+        r.cicon = r:CreateTexture(nil, "ARTWORK")
+        r.cicon:SetSize(14, 14); r.cicon:SetPoint("LEFT", 4, 0)
+        r.cicon:SetTexture(CLASS_ICONS)
+        r.name = W.Text(r, 12, S.text); r.name:SetPoint("LEFT", 22, 0); r.name:SetWidth(106); r.name:SetWordWrap(false)
 
         r.role = CreateFrame("Button", nil, r)
         r.role:SetSize(66, LIST_ROW); r.role:SetPoint("LEFT", 130, 0)
@@ -554,14 +653,15 @@ local function BuildPlayers(P)
         r.role:SetScript("OnEnter", function(self)
             local e = self:GetParent().e
             local role, why, specName = ns.GuessRole(e)
+            self:GetParent().hl:Show()
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
             GameTooltip:AddLine("Role: " .. (role and ns.ROLE_LABEL[role] or "Unknown"), 1, 1, 1)
             GameTooltip:AddLine(why == "set by hand" and "Manual" or (why == "spec" and tostring(specName)) or "Auto",
-                0.7, 0.7, 0.7)
+                unpack(S.dim))
             GameTooltip:AddLine("Click: set   Right-click: auto", 0.6, 0.6, 0.6)
             GameTooltip:Show()
         end)
-        r.role:SetScript("OnLeave", function() GameTooltip:Hide() end)
+        r.role:SetScript("OnLeave", function(self) self:GetParent().hl:Hide(); GameTooltip:Hide() end)
 
         r.cell = Cell(r, 20, 20)
         r.cell:SetPoint("LEFT", 208, 0)
@@ -582,9 +682,12 @@ local function BuildPlayers(P)
             local me = ns.Me()
             local key = ns.KeyFor(me, e)
             local _, kind = ns.IsException(me, e)
-            Tip(self, ns.FirstName(e.name),
-                (key and ns.BY_KEY[key].single or "None") .. (kind == "hand" and " (manual)" or kind == "auto" and " (auto)" or ""),
-                "Click: override   Right-click: reset")
+            local req = ns.db.requests[e.name]
+            local value = (key and ns.BY_KEY[key].single or "None") .. (kind == "hand" and " (manual)" or kind == "auto" and " (auto)" or "")
+            if req and req[1] and ns.BY_KEY[req[1]] then
+                value = value .. "\n" .. W.Hex(unpack(S.gold)) .. "Wants " .. ns.BY_KEY[req[1]].single:gsub("^Blessing of ", "") .. "|r"
+            end
+            Tip(self, ns.FirstName(e.name), value, "Click: override   Right-click: reset")
         end)
         r.cell.row = r
 
@@ -596,65 +699,136 @@ local function BuildPlayers(P)
     P.note:SetText("")
 end
 
+-- Is every blessing owed to this player up? Returns "off" (dead / offline), "need" or "ok".
+local function GroupState(e)
+    if not ns.Eligible(e) then return "off" end
+    for _, pal in ipairs(ns.paladins) do
+        local k = ns.KeyFor(pal, e)
+        if k and ns.BY_KEY[k] and not ns.MemberRemaining(e, k) then return "need" end
+    end
+    return "ok"
+end
+
 local function RefreshPlayers(P)
     local me = ns.Me()
-    local n = 0
+    -- one pass: what each player needs, then sort
+    local items = {}
+    local nOk, nNeed, nOff = 0, 0, 0
     for i, e in ipairs(ns.roster) do
         if i > 40 then break end
+        local it = { e = e, key = ns.KeyFor(me, e), here = ns.Eligible(e) }
+        local gs = GroupState(e)
+        if gs == "ok" then nOk = nOk + 1 elseif gs == "need" then nNeed = nNeed + 1 else nOff = nOff + 1 end
+        if not it.here then it.rank = 5
+        elseif it.key then
+            it.left = ns.MemberRemaining(e, it.key)
+            if not it.left then it.rank = 1
+            elseif it.left < (ns.db.refresh or 0) then it.rank = 2
+            else it.rank = 3 end
+        else
+            it.rank = 4
+        end
+        it.missing = gs == "need"
+        items[#items + 1] = it
+    end
+    local classOrder = {}
+    for i, c in ipairs(ns.CLASSES) do classOrder[c] = i end
+    table.sort(items, function(a, b)
+        local ea, eb = a.e, b.e
+        if sortBy == "status" then
+            if a.rank ~= b.rank then return a.rank < b.rank end
+            if a.rank == 2 and a.left ~= b.left then return (a.left or 0) < (b.left or 0) end
+        elseif sortBy == "class" then
+            local ca, cb = classOrder[ea.class] or 99, classOrder[eb.class] or 99
+            if ca ~= cb then return ca < cb end
+        elseif sortBy == "role" then
+            local ra, rb = ROLE_ORDER[ns.GuessRole(ea) or ""] or 9, ROLE_ORDER[ns.GuessRole(eb) or ""] or 9
+            if ra ~= rb then return ra < rb end
+        end
+        return (ea.name or "") < (eb.name or "")
+    end)
+
+    P.summary:SetText(("%d players   %s%d|r buffed   %s%d|r missing   %s%d|r unavailable"):format(
+        #items, W.Hex(unpack(S.good)), nOk, W.Hex(unpack(nNeed > 0 and S.bad or S.dim)), nNeed, W.Hex(unpack(S.dim)), nOff))
+    for _, h in ipairs(P.heads) do
+        if h.sort then
+            local on = (h.sort == sortBy) or (h.sort == "name" and sortBy == "class")
+            h.text:SetText(h.sort == "name" and (sortBy == "class" and "Class" or "Player") or h.text:GetText())
+            h.text:SetTextColor(unpack(on and S.gold or S.dim))
+        end
+    end
+
+    local n = 0
+    for i, it in ipairs(items) do
         n = i
+        local e, key = it.e, it.key
         local r = P.list.rows[i]
         r.e = e
         r:Show()
+        r:SetAlpha(it.here and 1 or 0.5)
+        r.bg:SetColorTexture(unpack(it.missing and S.rowMiss or (r.alt and S.rowAlt or { 0, 0, 0, 0 })))
+        local tc = CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[e.class]
+        if tc then r.cicon:SetTexCoord(tc[1] + 0.02, tc[2] - 0.02, tc[3] + 0.02, tc[4] - 0.02); r.cicon:Show() else r.cicon:Hide() end
         r.name:SetText(ns.FirstName(e.name)); r.name:SetTextColor(W.ClassColor(e.class))
         local role, why = ns.GuessRole(e)
         local spec = why ~= "set by hand" and ns.SpecLabel(e)
         r.role.text:SetText(spec or ((role and ns.ROLE_LABEL[role] or "?") .. (why == "set by hand" and "*" or "")))
         r.role.text:SetTextColor(unpack(role and S.text or S.dim))
-        local key = ns.KeyFor(me, e)
-        local isEx, kind = ns.IsException(me, e)
+        local isEx = ns.IsException(me, e)
         if key and ns.BY_KEY[key] then r.cell.icon:SetTexture(ns.BY_KEY[key].icon); r.cell.plus:Hide()
         else r.cell.icon:SetTexture(nil); r.cell.plus:Show() end
         r.cell.badge:SetText(isEx and "*" or "")
-        r.cell.baseBorder = isEx and S.gold or S.border
+        r.cell.baseBorder = (it.here and key and not it.left) and S.bad or (isEx and S.gold or S.border)
         r.cell:SetBackdropBorderColor(unpack(r.cell.baseBorder))
         local req = ns.db.requests[e.name]
         if req then
             local t = {}
             for _, k in ipairs(req) do t[#t + 1] = ns.BY_KEY[k].single:gsub("^Blessing of ", "") end
-            r.wants:SetText(table.concat(t, ", ")); r.wants:SetTextColor(unpack(S.text))
+            r.wants:SetText(table.concat(t, ", ")); r.wants:SetTextColor(unpack(S.gold))
         else
             r.wants:SetText("-"); r.wants:SetTextColor(unpack(S.dim))
         end
-        if not ns.Eligible(e) then
+        if not it.here then
             r.stat:SetText((e.dead or ns.SafeUnit(UnitIsDeadOrGhost, e.unit, false)) and "Dead" or "Offline"); r.stat:SetTextColor(unpack(S.dim))
         elseif key then
-            local left = ns.MemberRemaining(e, key)
+            local left = it.left
             local far = e.name ~= me and ns.InRange(ns.BY_KEY[key].single, e.unit) == false
             if not left then r.stat:SetText(far and "Out of range" or "Missing"); r.stat:SetTextColor(unpack(S.bad))
-            else r.stat:SetText(W.FormatTime(left) ~= "" and W.FormatTime(left) or "Up"); r.stat:SetTextColor(unpack(far and S.dim or S.good)) end
+            else
+                r.stat:SetText(W.FormatTime(left) ~= "" and W.FormatTime(left) or "Up")
+                r.stat:SetTextColor(unpack(far and S.dim or (it.rank == 2 and S.warn or S.good)))
+            end
         else
-            r.stat:SetText("");
+            r.stat:SetText("")
         end
     end
     for i = n + 1, 40 do P.list.rows[i]:Hide() end
     local h = SizeList(P.list, n)
     P.note:ClearAllPoints()
-    P.note:SetPoint("TOPLEFT", PAD, -(TOP + 22 + h + 8))
-    return TOP + 22 + h + 8 + 30
+    P.note:SetPoint("TOPLEFT", PAD, -(LIST_TOP + h + 8))
+    return LIST_TOP + h + 8 + 30
 end
 
 -- ---------------------------------------------------------------------------
 -- Group tab (versions)
 -- ---------------------------------------------------------------------------
 local function BuildGroup(P)
-    for _, h in ipairs({ { 10, "Player" }, { 190, "Addon" }, { 330, "Version" } }) do
+    P.summary = W.Text(P, 11, S.text, "LEFT")
+    P.summary:SetPoint("TOPLEFT", PAD, -(TOP + 4))
+    for _, h in ipairs({ { 28, "Player" }, { 190, "Addon" }, { 300, "Version" }, { 390, "Status" } }) do
         local t = W.Text(P, 11, S.gold, "LEFT", S.head)
-        t:SetPoint("TOPLEFT", h[1], -(TOP + 4)); t:SetText(h[2])
+        t:SetPoint("TOPLEFT", h[1], -(TOP + 22)); t:SetText(h[2])
     end
-    P.list = MakeList("PallyPulseGroupList", P, TOP + 22, LIST_ROW * LIST_MAX_VISIBLE, function(r)
-        r.name = W.Text(r, 12, S.text); r.name:SetPoint("LEFT", 4, 0); r.name:SetWidth(176); r.name:SetWordWrap(false)
-        r.addon = W.Text(r, 11, S.text); r.addon:SetPoint("LEFT", 184, 0); r.addon:SetWidth(140)
-        r.ver = W.Text(r, 11, S.text); r.ver:SetPoint("LEFT", 324, 0); r.ver:SetWidth(120)
+    local rule = P:CreateTexture(nil, "ARTWORK")
+    rule:SetPoint("TOPLEFT", 8, -(LIST_TOP - 2)); rule:SetPoint("TOPRIGHT", -8, -(LIST_TOP - 2)); rule:SetHeight(1)
+    rule:SetColorTexture(S.border[1], S.border[2], S.border[3], 0.5)
+    P.list = MakeList("PallyPulseGroupList", P, LIST_TOP, LIST_ROW * LIST_MAX_VISIBLE, function(r)
+        r.dot = r:CreateTexture(nil, "ARTWORK")
+        r.dot:SetSize(6, 6); r.dot:SetPoint("LEFT", 8, 0)
+        r.name = W.Text(r, 12, S.text); r.name:SetPoint("LEFT", 22, 0); r.name:SetWidth(160); r.name:SetWordWrap(false)
+        r.addon = W.Text(r, 11, S.text); r.addon:SetPoint("LEFT", 184, 0); r.addon:SetWidth(104)
+        r.ver = W.Text(r, 11, S.text); r.ver:SetPoint("LEFT", 294, 0); r.ver:SetWidth(90); r.ver:SetWordWrap(false)
+        r.stat = W.Text(r, 11, S.dim); r.stat:SetPoint("LEFT", 384, 0); r.stat:SetWidth(100); r.stat:SetWordWrap(false)
     end)
     P.footer = W.Text(P, 11, S.dim)
     P.refresh = W.Button(P, "Refresh", 80, 22, function() ns.RequestVersions() end)
@@ -662,35 +836,59 @@ end
 
 local function RefreshGroup(P)
     local rows = ns.VersionRows()
-    local n, pp, pulse = 0, 0, 0
+    local Parse = ns.ParseVersion or function() return 0 end
+    -- newest release seen in the group, to spot old copies
+    local newest = Parse(ns.VERSION)
+    for _, v in ipairs(rows) do
+        if v.addon == "PallyPulse" then newest = math.max(newest, Parse(v.ver)) end
+    end
+    local n, pp, pulse, none, old = 0, 0, 0, 0, 0
     for i, v in ipairs(rows) do
         if i > 40 then break end
         n = i
         local r = P.list.rows[i]
         r:Show()
-        r.name:SetText(v.name .. (v.name == ns.Me() and W.Hex(unpack(S.dim)) .. " (you)|r" or ""))
+        r.name:SetText(ns.FirstName(v.name) .. (v.name == ns.Me() and W.Hex(unpack(S.dim)) .. " (you)|r" or ""))
         r.name:SetTextColor(W.ClassColor(v.class))
+        local dot
         if v.addon == "PallyPulse" then
             pulse = pulse + 1
-            r.addon:SetText("PallyPulse"); r.addon:SetTextColor(unpack(S.good))
+            r.addon:SetText("PallyPulse"); r.addon:SetTextColor(unpack(S.text))
             r.ver:SetText(v.ver or "?"); r.ver:SetTextColor(unpack(S.text))
+            local pv = Parse(v.ver)
+            if pv > 0 and pv < newest then
+                old = old + 1
+                r.stat:SetText("Out of date"); r.stat:SetTextColor(unpack(S.warn)); dot = S.warn
+            else
+                r.stat:SetText("Synced"); r.stat:SetTextColor(unpack(S.good)); dot = S.good
+            end
         elseif v.addon == "PallyPower" then
             pp = pp + 1
-            r.addon:SetText("PallyPower"); r.addon:SetTextColor(unpack(S.warn))
-            r.ver:SetText("Synced"); r.ver:SetTextColor(unpack(S.dim))
+            r.addon:SetText("PallyPower"); r.addon:SetTextColor(unpack(S.text))
+            r.ver:SetText("-"); r.ver:SetTextColor(unpack(S.dim))
+            r.stat:SetText("Synced"); r.stat:SetTextColor(unpack(S.good)); dot = S.good
         else
-            r.addon:SetText(v.class == "PALADIN" and "None" or "-"); r.addon:SetTextColor(unpack(S.dim))
+            local pal = v.class == "PALADIN"
+            if pal then none = none + 1 end
+            r.addon:SetText(pal and "None" or "-"); r.addon:SetTextColor(unpack(S.dim))
             r.ver:SetText("")
+            r.stat:SetText(pal and "No sync" or ""); r.stat:SetTextColor(unpack(pal and S.bad or S.dim))
+            dot = pal and S.bad or nil
         end
+        r.dot:SetShown(dot ~= nil)
+        if dot then r.dot:SetColorTexture(dot[1], dot[2], dot[3], 1) end
     end
     for i = n + 1, 40 do P.list.rows[i]:Hide() end
+    P.summary:SetText(("%s%d|r PallyPulse   %s%d|r PallyPower   %s%d|r out of date   %s%d|r no sync"):format(
+        W.Hex(unpack(S.good)), pulse, W.Hex(unpack(S.good)), pp, W.Hex(unpack(old > 0 and S.warn or S.dim)), old,
+        W.Hex(unpack(none > 0 and S.bad or S.dim)), none))
     local h = SizeList(P.list, n)
     P.footer:ClearAllPoints()
-    P.footer:SetPoint("TOPLEFT", PAD, -(TOP + 22 + h + 10))
-    P.footer:SetText(("v%s  |  %d PallyPulse, %d PallyPower"):format(ns.VERSION, pulse, pp))
+    P.footer:SetPoint("TOPLEFT", PAD, -(LIST_TOP + h + 10))
+    P.footer:SetText(("You: v%s"):format(ns.VERSION))
     P.refresh:ClearAllPoints()
-    P.refresh:SetPoint("TOPRIGHT", P, "TOPRIGHT", -PAD, -(TOP + 22 + h + 5))
-    return TOP + 22 + h + 40
+    P.refresh:SetPoint("TOPRIGHT", P, "TOPRIGHT", -PAD, -(LIST_TOP + h + 5))
+    return LIST_TOP + h + 40
 end
 
 -- ---------------------------------------------------------------------------

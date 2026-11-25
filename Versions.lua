@@ -13,6 +13,8 @@ local function Parse(v)
     local a, b, c = tostring(v or ""):match("^(%d+)%.(%d+)%.?(%d*)")
     return (tonumber(a) or 0) * 10000 + (tonumber(b) or 0) * 100 + (tonumber(c) or 0)
 end
+-- 0 for builds without a release number (dev-xxxx)
+ns.ParseVersion = Parse
 
 function ns.NoteAddon(name, addon, ver)
     if not name then return end

@@ -11,8 +11,22 @@ local SMART, MINI, GAP, PAD = 44, 22, 2, 7
 local TEXT_W = 128
 -- Bar (PallyPower style): rows tinted by status, stacked (Vertical) or side by side
 -- (Horizontal), with a small drag dot on the left and no panel behind them.
-local ROW_H, ROW_GAP, HANDLE = 22, 1, 14
+local ROW_GAP, HANDLE = 1, 14
 local function RowW() return ns.db.rowWidth or 76 end
+-- Tracker settings: row height, icon size, display mode
+local function RH() return math.max(16, math.min(32, ns.db.rowHeight or 22)) end
+local function ISZ() return math.max(10, math.min(RH() - 2, ns.db.iconSize or (RH() - 4))) end
+local function Mode()
+    local m = ns.db.barMode
+    return (m == "compact" or m == "action") and m or "standard"
+end
+local function Square() return Mode() == "compact" end      -- icon cells instead of rows
+local function CellW() return Square() and RH() or RowW() end
+-- thin status strip on each row (left edge; bottom edge on icon cells)
+local function AddStat(b)
+    b.stat = b:CreateTexture(nil, "OVERLAY", nil, 1)
+    b.stat:SetColorTexture(S.good[1], S.good[2], S.good[3], 1)
+end
 
 -- Seals (optional seal button, like PallyPower's). Click casts the chosen one; mouse wheel
 -- picks another (out of combat).
@@ -106,11 +120,8 @@ function ns.Alert()
     if snd.file then pcall(PlaySoundFile, snd.file, "Master")
     else pcall(PlaySound, snd.id, "Master") end
 end
-local ROW_COLORS = {
-    ok   = { 0.16, 0.42, 0.16, 0.85 },   -- everyone covered
-    low  = { 0.50, 0.42, 0.18, 0.85 },   -- expiring soon
-    need = { 0.55, 0.13, 0.10, 0.85 },   -- someone missing it
-}
+-- status colours: strip and text only; the rows themselves stay dark
+local STATE_COLOR = { ok = S.good, low = S.warn, need = S.bad }
 local bar
 
 -- Two layouts, both made of the same class rows: Vertical ("compact", rows stacked) and
@@ -191,6 +202,7 @@ local function BuildSmart()
     s.strip:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 1)
     s.count:SetFont(S.num, 18, "OUTLINE")
     s.isSmart = true
+    AddStat(s)
 
     -- soft gold pulse while there is something to cast
     s.glow = s:CreateTexture(nil, "OVERLAY", nil, 3)
@@ -266,6 +278,7 @@ local function BuildMinis()
         b:RegisterForClicks("AnyDown", "AnyUp")
         b.strip:SetColorTexture(W.ClassColor(class))
         b.class = class
+        AddStat(b)
         -- class icon, shown only in the Compact layout (left of the blessing icon)
         local tc = CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[class]
         if tc then
@@ -318,6 +331,7 @@ local function BuildMinis()
         end
     end)
     o.strip:SetColorTexture(S.paladin[1], S.paladin[2], S.paladin[3], 1)
+    AddStat(o)
     o:SetScript("OnEnter", function(self)
         PlaceTip(self)
         GameTooltip:AddDoubleLine("Oath of Light", tostring(ns.oath[ns.Me()]), S.paladin[1], S.paladin[2], S.paladin[3], 1, 1, 1)
@@ -339,6 +353,7 @@ local function BuildMinis()
     W.IconSlot(au, MINI)
     au:RegisterForClicks("AnyDown", "AnyUp")
     au.strip:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 1)
+    AddStat(au)
     au:SetScript("OnEnter", function(self)
         PlaceTip(self)
         local a = self.aura and ns.AURA_BY_KEY[self.aura]
@@ -354,6 +369,7 @@ local function BuildMinis()
     W.IconSlot(se, MINI)
     se:RegisterForClicks("AnyDown", "AnyUp")
     se.strip:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 1)
+    AddStat(se)
     se:EnableMouseWheel(true)
     se:SetScript("OnMouseWheel", function(self, delta)
         if InCombatLockdown() then return end
@@ -579,7 +595,7 @@ function ns.ArmFlyout()
 end
 
 -- 3 = in blessing range, 2 = within 40 yards, 1 = nearby, 0 = far or unknown
-local RANGE_COLOR = { [3] = { 0.25, 0.9, 0.25 }, [2] = { 1, 0.82, 0 }, [1] = { 0.9, 0.25, 0.2 } }
+local RANGE_COLOR = { [3] = S.good, [2] = S.warn, [1] = S.bad }
 function RangeLevel(e, spell)
     if e.name == ns.Me() then return 3 end
     if spell and ns.InRange(spell, e.unit) == true then return 3 end
@@ -768,14 +784,25 @@ function ns.OnStyleChanged()
     for _, b in ipairs({ bar.smart, bar.auraBtn, bar.sealBtn, bar.oathBtn }) do if b then b.shaped = nil end end
 end
 
-local function Shape(b, compact, size)
-    local want = compact and ("compact" .. RowW()) or size
+local function SetNumFont(fs, size)
+    local path = fs:GetFont()
+    fs.ppSize = size
+    if path then fs:SetFont(path, size, "OUTLINE") end
+end
+
+-- Lay a slot out as a row (Standard, Action only) or an icon cell (Compact).
+local function Shape(b)
+    local rh, isz, sq = RH(), ISZ(), Square()
+    local want = (sq and "sq" or "row") .. RowW() .. ":" .. rh .. ":" .. isz
     if b.shaped == want then return end
     b.shaped = want
     b.icon:ClearAllPoints(); b.count:ClearAllPoints(); b.timer:ClearAllPoints(); b.check:ClearAllPoints()
-    if compact then
-        b:SetSize(RowW(), ROW_H)
-        local isz, x = ROW_H - 4, 2
+    b.stat:ClearAllPoints()
+    local fs = math.max(10, math.floor(rh * 0.5))
+    if not sq then
+        b:SetSize(RowW(), rh)
+        b.stat:SetPoint("TOPLEFT", 1, -1); b.stat:SetPoint("BOTTOMLEFT", 1, 1); b.stat:SetWidth(2)
+        local x = 5
         if b.cicon then
             b.cicon:ClearAllPoints(); b.cicon:SetSize(isz, isz); b.cicon:SetPoint("LEFT", x, 0); b.cicon:Show()
             x = x + isz + 2
@@ -785,34 +812,46 @@ local function Shape(b, compact, size)
         b.timer:SetPoint("RIGHT", -5, 0)
         b.check:SetPoint("BOTTOMRIGHT", 1, -1)
         b.strip:Hide()
-        if b.isSmart then b.count:SetFont(S.num, 13, "OUTLINE") end
+        SetNumFont(b.count, b.isSmart and fs + 1 or fs)
+        SetNumFont(b.timer, math.max(9, fs - 1))
     else
-        b:SetSize(size, size)
+        b:SetSize(rh, rh)
+        b.stat:SetPoint("BOTTOMLEFT", 1, 1); b.stat:SetPoint("BOTTOMRIGHT", -1, 1); b.stat:SetHeight(2)
         b.icon:SetPoint("TOPLEFT", 1, -1); b.icon:SetPoint("BOTTOMRIGHT", -1, 1)
         if b.cicon then b.cicon:Hide() end
-        if b.isSmart then
-            b.count:SetFont(S.num, 18, "OUTLINE"); b.count:SetPoint("BOTTOMRIGHT", -2, 2)
-        else
-            b.count:SetPoint("CENTER", 0, 1)
-        end
+        b.count:SetPoint("CENTER", 0, 1)
         b.timer:SetPoint("TOPRIGHT", 0, -1)
         b.check:SetPoint("BOTTOMRIGHT", 1, -1)
-        b.strip:Show()
-        if b.SetBackdropColor then b:SetBackdropColor(0, 0, 0, 0.8) end
+        -- class colour along the top, so each cell still says whose it is
+        b.strip:ClearAllPoints()
+        b.strip:SetPoint("TOPLEFT", 1, -1); b.strip:SetPoint("TOPRIGHT", -1, -1); b.strip:SetHeight(2)
+        b.strip:SetShown(b.class ~= nil)
+        SetNumFont(b.count, fs)
+        SetNumFont(b.timer, math.max(8, fs - 3))
     end
 end
 
--- Compact rows: tint by status. Cosmetic only, so it also runs in combat.
+-- Dark row, thin status strip, coloured count. Cosmetic only, so it also runs in combat.
 local function Paint(b, state)
-    local c = ROW_COLORS[state] or ROW_COLORS.need
+    local c = STATE_COLOR[state] or S.bad
+    local a = math.max(0, math.min(1, ns.db.barAlpha or 0.85))
     if b.SetBackdropColor then
-        b:SetBackdropColor(c[1], c[2], c[3], c[4])
-        -- the Smart Buff row gets a gold edge so it never looks like just another row
-        if b.isSmart then b:SetBackdropBorderColor(S.gold[1], S.gold[2], S.gold[3], 1)
-        else b:SetBackdropBorderColor(0, 0, 0, 1) end
+        local bg = (state == "need" and not b.isSmart) and S.rowMiss or S.panel
+        b:SetBackdropColor(bg[1], bg[2], bg[3], a)
+        if b.isSmart and state ~= "ok" then b:SetBackdropBorderColor(S.gold[1], S.gold[2], S.gold[3], 1)
+        elseif Square() and state ~= "ok" then b:SetBackdropBorderColor(c[1], c[2], c[3], 0.8)
+        else b:SetBackdropBorderColor(0, 0, 0, math.max(0.35, a)) end
     end
+    local sc = (b.isSmart and state ~= "ok") and S.gold or c
+    b.stat:SetColorTexture(sc[1], sc[2], sc[3], 1)
     b.check:Hide()
-    if not b.isSmart then b.icon:SetDesaturated(false); b.icon:SetVertexColor(1, 1, 1) end
+    if not b.isSmart then
+        b.icon:SetDesaturated(false)
+        local v = state == "ok" and 0.85 or 1
+        b.icon:SetVertexColor(v, v, v)
+        b.count:SetTextColor(unpack(state == "need" and S.bad or S.warn))
+    end
+    b.timer:SetTextColor(unpack(state == "low" and S.warn or S.text))
     if b.count:IsShown() or ns.db.rowTimers == false then b.timer:SetText("") end
 end
 
@@ -842,6 +881,7 @@ local function Layout(minis)
 
     local s = bar.smart
     local n = #minis
+    local rh, cw = RH(), CellW()
     SetChrome(true)
     local horiz = Horizontal()
     local up = ns.db.growUp and not horiz
@@ -854,24 +894,24 @@ local function Layout(minis)
         else bar:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", l, t) end
     end
     local function Pos(j)    -- j = 0 for the Smart row, 1.. for the others
-        if horiz then return HANDLE + j * (RowW() + ROW_GAP), 0 end
-        return HANDLE, -(((up and (cells - 1 - j)) or j) * (ROW_H + ROW_GAP))
+        if horiz then return HANDLE + j * (cw + ROW_GAP), 0 end
+        return HANDLE, -(((up and (cells - 1 - j)) or j) * (rh + ROW_GAP))
     end
-    Shape(s, true)
+    Shape(s)
     s:ClearAllPoints(); s:SetPoint("TOPLEFT", bar, "TOPLEFT", Pos(0))
     bar.handle:ClearAllPoints(); bar.handle:SetPoint("RIGHT", s, "LEFT", -1, 0)
     if not ns.db.collapsed then
         for i, b in ipairs(minis) do
-            Shape(b, true)
+            Shape(b)
             b:ClearAllPoints()
             b:SetPoint("TOPLEFT", bar, "TOPLEFT", Pos(i))
             b:Show()
         end
     end
     if horiz then
-        bar:SetSize(HANDLE + cells * (RowW() + ROW_GAP) - ROW_GAP, ROW_H)
+        bar:SetSize(HANDLE + cells * (cw + ROW_GAP) - ROW_GAP, rh)
     else
-        bar:SetSize(HANDLE + RowW(), cells * (ROW_H + ROW_GAP) - ROW_GAP)
+        bar:SetSize(HANDLE + cw, cells * (rh + ROW_GAP) - ROW_GAP)
     end
 end
 
@@ -1108,6 +1148,13 @@ function ns.RefreshBar()
     end
 
     if not combat and not bar.pulseMoving then   -- never re-lay out mid-drag: it fights the mouse
+        -- Action only: just the rows that need you. Hiding secure buttons is only allowed out
+        -- of combat, so the set shown at the pull stays until combat ends.
+        if Mode() == "action" then
+            local need = {}
+            for _, b in ipairs(minis) do if RowState(b) ~= "ok" then need[#need + 1] = b end end
+            minis = need
+        end
         Layout(minis)
         ns.layoutDirty = false
     else

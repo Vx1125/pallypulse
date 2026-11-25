@@ -151,27 +151,40 @@ ns.DEFAULTS = {
     assign = {},     -- [paladin][CLASS] = KEY
     oath = {},       -- [paladin] = target name (Oath of Light)
     pos = {},
-    flatStyle = false,    -- Flat look (1px edges) instead of the game's tooltip borders
     font = "Default",     -- LibSharedMedia font name, or the game's fonts
     specPrefs = {},       -- ["CLASS:SPEC"] = { KEY, KEY, KEY }  your own blessing order per spec
+    barMode = "standard", -- tracker: "standard", "compact" (icons only) or "action" (only what you owe)
+    rowHeight = 22,
+    iconSize = 18,
+    barAlpha = 0.85,      -- tracker row background opacity
+    rcOpen = {},          -- ready check sections opened or closed by hand
 }
 
--- Look: native WoW feel. Dark tooltip-style panels, gold Friz Quadrata headings.
+-- Look: one theme for every window. Dark neutral panels, thin bronze edges, restrained gold.
+local function C(hex, a)
+    -- no alpha unless given, so unpack(color) can end a tooltip line's arguments
+    return { tonumber(hex:sub(1, 2), 16) / 255, tonumber(hex:sub(3, 4), 16) / 255, tonumber(hex:sub(5, 6), 16) / 255, a }
+end
 ns.STYLE = {
     font     = (STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"),   -- body text, client default
     head     = "Fonts\\FRIZQT__.TTF",                            -- headings
     num      = "Fonts\\ARIALN.TTF",                              -- counts and timers on icons
-    bg       = { 0.03, 0.03, 0.04, 0.92 },
-    panel    = { 0.09, 0.09, 0.11, 1 },
-    cell     = { 0.02, 0.02, 0.03, 0.85 },
-    border   = { 0.26, 0.24, 0.20, 1 },     -- dark bronze for icon / cell edges
-    frame    = { 0.62, 0.55, 0.42, 1 },     -- panel edge (tooltip border tint)
-    gold     = { 1.00, 0.82, 0.00 },        -- Blizzard heading gold
-    accent   = { 1.00, 0.82, 0.00 },        -- hover / focus
+    bg       = C("141311", 0.96),   -- window background
+    panel    = C("201E1A"),         -- content panels, buttons
+    header   = C("242019"),         -- title bars, section headers
+    cell     = C("171613", 0.9),     -- icon wells
+    border   = C("51432B"),         -- thin bronze edges
+    frame    = C("51432B"),
+    gold     = C("D6B266"),         -- accent
+    accent   = C("D6B266"),
     paladin  = { 0.96, 0.55, 0.73 },
-    text     = { 0.92, 0.90, 0.85 },
-    good     = { 0.30, 0.85, 0.40 },
-    warn     = { 1.00, 0.70, 0.15 },
-    bad      = { 1.00, 0.30, 0.25 },
-    dim      = { 0.58, 0.56, 0.52 },
+    text     = C("E0DBD0"),
+    dim      = C("938C80"),
+    good     = C("94BA78"),
+    warn     = C("D6A55A"),
+    bad      = C("D17665"),
+    rowSel   = C("38301E"),         -- your row, selected
+    rowMiss  = C("35231E"),         -- someone missing a blessing
+    rowHover = C("2C2820"),
+    rowAlt   = { 1, 1, 1, 0.025 },  -- alternate rows
 }

@@ -981,7 +981,7 @@ core:SetScript("OnEvent", function(_, event, ...)
         ns.ScanRoster()
         if ns.BuildUI then ns.BuildUI() end
         -- fonts from LibSharedMedia are registered by the time everyone has loaded
-        if ns.db.flatStyle or (ns.db.font and ns.db.font ~= "Default") then ns.W.ApplyStyle() end
+        if ns.db.font and ns.db.font ~= "Default" then ns.W.ApplyStyle() end
     elseif event == "PLAYER_ENTERING_WORLD" or event == "SPELLS_CHANGED" then
         ns.ComputeOwnCaps()
         if event == "PLAYER_ENTERING_WORLD" then

@@ -1,5 +1,17 @@
 # PallyPulse
 
+## 1.4.0
+- New look for every window: dark panels, thin bronze edges, gold accents. Replaces Classic and Flat.
+- Bar: dark rows with a thin status strip instead of solid green and red.
+- Bar display: Standard, Compact (icons only) or Action only (only what you still owe).
+- Bar options: row height, icon size and background opacity. Bar settings have their own Options tab.
+- Ready check: totals and a readiness bar, Your Blessings, and Needs Attention, Fully Buffed, Unavailable and Other Paladins sections.
+- Ready check: offline players count as unavailable, never as missing.
+- Players tab: totals, class icons, and sorting by name, class, role or status (missing first).
+- Blessings tab: your row highlighted, requests marked on the class icons, more detail in cell tooltips.
+- Presets: the loaded preset shows next to the buttons, marked when assignments change.
+- Versions tab: totals, a status dot and "Out of date" for old copies.
+
 ## 1.3.3
 - Bar: the mouse wheel can switch a player back to the class blessing after Auto-assign gave them another.
 - Ready check: players who said ready stay ready, and the window closes when the pull starts.

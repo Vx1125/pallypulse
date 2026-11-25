@@ -26,53 +26,40 @@ function W.Hex(r, g, b)
 end
 
 -- ---------------------------------------------------------------------------
--- Look: Classic (the game's tooltip borders and red buttons) or Flat (1px edges and flat
--- fills, to sit next to ElvUI or EllesmereUI). Everything built here registers itself so a
--- change applies at once, without a reload. The font can come from LibSharedMedia when
--- another addon has loaded it.
+-- Look: one theme. Flat panels with 1px bronze edges, plain buttons and boxes. Text registers
+-- itself so a font change (Options > Advanced > Font, from LibSharedMedia when another addon
+-- has loaded it) applies at once, without a reload.
 -- ---------------------------------------------------------------------------
-local skinned = { panels = {}, buttons = {}, checks = {}, texts = {} }
-local function IsFlat() return ns.db and ns.db.flatStyle end
-W.IsFlat = IsFlat
+local skinned = { texts = {} }
+function W.IsFlat() return true end
 
-local CLASSIC_PANEL = {
-    bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-    tile = true, tileSize = 16, edgeSize = 14,
-    insets = { left = 3, right = 3, top = 3, bottom = 3 },
-}
-local FLAT_PANEL = { bgFile = WHITE, edgeFile = WHITE, edgeSize = 1, insets = { left = 1, right = 1, top = 1, bottom = 1 } }
-local FLAT_BG, FLAT_EDGE = { 0.06, 0.06, 0.07, 0.94 }, { 0, 0, 0, 1 }
+local EDGE = { bgFile = WHITE, edgeFile = WHITE, edgeSize = 1, insets = { left = 1, right = 1, top = 1, bottom = 1 } }
+W.EDGE = EDGE
 
-function W.StylePanel(f)
-    if not f.ppSkin then f.ppSkin = true; table.insert(skinned.panels, f) end
-    if IsFlat() then
-        f:SetBackdrop(FLAT_PANEL)
-        f:SetBackdropColor(unpack(FLAT_BG)); f:SetBackdropBorderColor(unpack(FLAT_EDGE))
-    else
-        f:SetBackdrop(CLASSIC_PANEL)
-        f:SetBackdropColor(unpack(S.bg)); f:SetBackdropBorderColor(unpack(S.frame))
-    end
+-- bg: fill colour (default: the window background)
+function W.StylePanel(f, bg)
+    if not f.SetBackdrop then return end
+    f:SetBackdrop(EDGE)
+    f:SetBackdropColor(unpack(bg or S.bg)); f:SetBackdropBorderColor(unpack(S.border))
 end
 
--- Panel: the game's tooltip look (Classic) or a flat box (Flat).
-function W.Panel(parent, w, h, name)
+function W.Panel(parent, w, h, name, bg)
     local f = CreateFrame("Frame", name, parent, BACKDROP_TEMPLATE)
     if w then f:SetSize(w, h) end
-    W.StylePanel(f)
+    W.StylePanel(f, bg)
     return f
 end
 
 -- 1px box drawn with textures, for widgets that have no backdrop of their own
-local function Box(owner, inset)
+local function Box(owner, inset, bg)
     local bx = {}
     bx.bg = owner:CreateTexture(nil, "BACKGROUND", nil, -7)
     bx.bg:SetPoint("TOPLEFT", inset, -inset); bx.bg:SetPoint("BOTTOMRIGHT", -inset, inset)
-    bx.bg:SetColorTexture(0.12, 0.12, 0.13, 1)
+    bx.bg:SetColorTexture(unpack(bg or S.panel))
     bx.edges = {}
     for i, pts in ipairs({ { "TOPLEFT", "TOPRIGHT" }, { "BOTTOMLEFT", "BOTTOMRIGHT" }, { "TOPLEFT", "BOTTOMLEFT" }, { "TOPRIGHT", "BOTTOMRIGHT" } }) do
         local t = owner:CreateTexture(nil, "BORDER", nil, 7)
-        t:SetColorTexture(0, 0, 0, 1)
+        t:SetColorTexture(unpack(S.border))
         t:SetPoint(pts[1], bx.bg, pts[1]); t:SetPoint(pts[2], bx.bg, pts[2])
         if i <= 2 then t:SetHeight(1) else t:SetWidth(1) end
         bx.edges[i] = t
@@ -81,39 +68,19 @@ local function Box(owner, inset)
         self.bg:SetShown(on)
         for _, t in ipairs(self.edges) do t:SetShown(on) end
     end
+    function bx:SetEdge(c)
+        for _, t in ipairs(self.edges) do t:SetColorTexture(c[1], c[2], c[3], c[4] or 1) end
+    end
     return bx
 end
+W.Box = Box
 
-local function TemplateTextures(b)
-    local out = {}
-    for _, k in ipairs({ "Left", "Middle", "Right", "LeftSeparator", "RightSeparator" }) do
-        if b[k] and b[k].SetAlpha then out[#out + 1] = b[k] end
+-- Hide a template's own art (InputBoxTemplate, scroll arrows...)
+local function HideArt(f, keys)
+    for _, k in ipairs(keys) do
+        local t = f[k]
+        if t and t.SetAlpha then t:SetAlpha(0) end
     end
-    for _, fn in ipairs({ "GetNormalTexture", "GetPushedTexture", "GetDisabledTexture" }) do
-        local t = b[fn] and b[fn](b)
-        if t then out[#out + 1] = t end
-    end
-    return out
-end
-
-local function StyleButton(b)
-    if not b.ppBox then return end
-    local flat = IsFlat() and true or false
-    for _, t in ipairs(b.ppTex) do t:SetAlpha(flat and 0 or 1) end
-    b.ppBox:SetShown(flat)
-    b.ppHL:SetShown(flat)
-    local hl = b.GetHighlightTexture and b:GetHighlightTexture()
-    if hl and hl ~= b.ppHL then hl:SetAlpha(flat and 0 or 1) end
-end
-
-local function StyleCheck(c)
-    if not c.ppBox then return end
-    local flat = IsFlat() and true or false
-    for _, t in ipairs(c.ppTex) do t:SetAlpha(flat and 0 or 1) end
-    local ck = c:GetCheckedTexture()
-    if ck then ck:SetAlpha(flat and 0 or 1) end
-    c.ppBox:SetShown(flat)
-    c.ppMark:SetShown(flat and c:GetChecked() and true or false)
 end
 
 -- Font for all PallyPulse text: "Default" keeps the game's fonts.
@@ -136,11 +103,8 @@ function W.FontList()
     return out
 end
 
--- Re-apply the look everywhere (Options: Flat style, Font).
+-- Re-apply the font everywhere (Options: Font).
 function W.ApplyStyle()
-    for _, f in ipairs(skinned.panels) do W.StylePanel(f) end
-    for _, b in ipairs(skinned.buttons) do StyleButton(b) end
-    for _, c in ipairs(skinned.checks) do StyleCheck(c) end
     local body, head, num = FontPaths()
     for _, fs in ipairs(skinned.texts) do
         local path = (fs.ppRole == "head" and head) or (fs.ppRole == "num" and num) or body
@@ -181,45 +145,90 @@ function W.Heading(parent, size)
     return W.Text(parent, size or 13, S.gold, "LEFT", S.head)
 end
 
--- Blizzard's red panel button; falls back to a flat button if the template is missing.
+-- Section heading with a thin bronze rule under it.
+function W.Section(parent, text, w)
+    local h = W.Heading(parent, 12)
+    h:SetText(text)
+    h.rule = parent:CreateTexture(nil, "ARTWORK")
+    h.rule:SetHeight(1)
+    h.rule:SetPoint("TOPLEFT", h, "BOTTOMLEFT", 0, -3)
+    h.rule:SetWidth(w or 228)
+    h.rule:SetColorTexture(S.border[1], S.border[2], S.border[3], 0.8)
+    return h
+end
+
+-- Flat button: panel fill, bronze edge, gold on hover.
 function W.Button(parent, label, w, h, onClick)
-    local ok, b = pcall(CreateFrame, "Button", nil, parent, "UIPanelButtonTemplate")
-    if not ok or not b then
-        b = CreateFrame("Button", nil, parent, BACKDROP_TEMPLATE)
-        b:SetBackdrop({ bgFile = WHITE, edgeFile = WHITE, edgeSize = 1 })
-        b:SetBackdropColor(unpack(S.panel)); b:SetBackdropBorderColor(unpack(S.border))
-        b:SetNormalFontObject(GameFontNormalSmall)
-        b:SetHighlightFontObject(GameFontHighlightSmall)
-    end
+    local b = CreateFrame("Button", nil, parent, BACKDROP_TEMPLATE)
     b:SetSize(w, h)
-    b:SetText(label ~= "" and label or " ")
-    b.label = b:GetFontString()
-    if ok and b then
-        b.ppTex = TemplateTextures(b)
-        b.ppBox = Box(b, 1)
-        b.ppHL = b:CreateTexture(nil, "HIGHLIGHT")
-        b.ppHL:SetPoint("TOPLEFT", 2, -2); b.ppHL:SetPoint("BOTTOMRIGHT", -2, 2)
-        b.ppHL:SetColorTexture(1, 1, 1, 0.08)
-        table.insert(skinned.buttons, b)
-        StyleButton(b)
+    if b.SetBackdrop then
+        b:SetBackdrop(EDGE)
+        b:SetBackdropColor(unpack(S.panel)); b:SetBackdropBorderColor(unpack(S.border))
     end
+    local fs = W.Text(b, 11, S.text, "CENTER", S.head)
+    fs:SetPoint("LEFT", 4, 0); fs:SetPoint("RIGHT", -4, 0)
+    fs:SetWordWrap(false)
+    b:SetFontString(fs)
+    b.label = fs
+    b:SetText(label ~= "" and label or " ")
+    pcall(b.SetPushedTextOffset, b, 1, -1)
+    local hl = b:CreateTexture(nil, "HIGHLIGHT")
+    hl:SetPoint("TOPLEFT", 1, -1); hl:SetPoint("BOTTOMRIGHT", -1, 1)
+    hl:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 0.08)
+    b:HookScript("OnEnter", function(self)
+        if not self:IsEnabled() then return end
+        if self.SetBackdropBorderColor then self:SetBackdropBorderColor(unpack(S.gold)) end
+        if not self.keepColor then self.label:SetTextColor(unpack(S.gold)) end
+    end)
+    b:HookScript("OnLeave", function(self)
+        if self.SetBackdropBorderColor then self:SetBackdropBorderColor(unpack(S.border)) end
+        if not self.keepColor then self.label:SetTextColor(unpack(S.text)) end
+    end)
+    b:HookScript("OnDisable", function(self) self.label:SetTextColor(unpack(S.dim)) end)
+    b:HookScript("OnEnable", function(self) self.label:SetTextColor(unpack(S.text)) end)
     if onClick then b:SetScript("OnClick", function(self) onClick(self) end) end
     return b
 end
 
--- Blizzard's close "X".
+-- Small close "x": dim, gold on hover.
 function W.CloseButton(parent, onClick)
-    local ok, b = pcall(CreateFrame, "Button", nil, parent, "UIPanelCloseButton")
-    if not ok or not b then
-        b = CreateFrame("Button", nil, parent)
-        b:SetSize(20, 20)
-        local t = W.Text(b, 14, S.dim, "CENTER"); t:SetAllPoints(); t:SetText("x")
-    end
+    local b = CreateFrame("Button", nil, parent)
+    b:SetSize(18, 18)
+    b.t = W.Text(b, 13, S.dim, "CENTER", S.head)
+    b.t:SetPoint("CENTER", 0, 1); b.t:SetText("x")
+    b:SetScript("OnEnter", function(self) self.t:SetTextColor(unpack(S.gold)) end)
+    b:SetScript("OnLeave", function(self) self.t:SetTextColor(unpack(S.dim)) end)
     b:SetScript("OnClick", onClick)
     return b
 end
 
--- Small square check box (gold tick) with a label. get() -> bool, set(bool)
+-- Thin scrollbar on a UIPanelScrollFrameTemplate: no arrows, a slim bronze thumb.
+-- Every client builds this template a little differently, so each step is optional.
+function W.SkinScroll(sf)
+    pcall(function()
+        local name = sf:GetName()
+        local bar = sf.ScrollBar or (name and _G[name .. "ScrollBar"])
+        if not bar then return end
+        for _, k in ipairs({ "ScrollUpButton", "ScrollDownButton" }) do
+            local btn = bar[k] or (name and _G[name .. "ScrollBar" .. k])
+            if btn then btn:SetAlpha(0); btn:EnableMouse(false); btn:SetSize(1, 1) end
+        end
+        for _, r in ipairs({ bar:GetRegions() }) do
+            if r.GetObjectType and r:GetObjectType() == "Texture" and r ~= bar:GetThumbTexture() then r:SetAlpha(0) end
+        end
+        if bar.SetThumbTexture then
+            bar:SetThumbTexture(WHITE)
+            local th = bar:GetThumbTexture()
+            th:SetSize(4, 28)
+            th:SetVertexColor(S.border[1], S.border[2], S.border[3], 1)
+        end
+        local track = bar:CreateTexture(nil, "BACKGROUND")
+        track:SetPoint("TOP", 0, 0); track:SetPoint("BOTTOM", 0, 0); track:SetWidth(4)
+        track:SetColorTexture(0, 0, 0, 0.35)
+    end)
+end
+
+-- Small square check box (gold mark) with a label. get() -> bool, set(bool)
 -- tip (optional): one short line shown on hover
 local function AddTip(frame, label, tip)
     if not tip then return end
@@ -230,41 +239,22 @@ local function AddTip(frame, label, tip)
 end
 
 function W.Check(parent, label, get, set, tip)
-    local ok, c = pcall(CreateFrame, "CheckButton", nil, parent, "UICheckButtonTemplate")
-    if ok and c then
-        AddTip(c, label, tip)
-        c:SetSize(24, 24)
-        local txt = W.Text(c, 12, S.text)
-        txt:SetPoint("LEFT", c, "RIGHT", 2, 1)
-        txt:SetText(label)
-        c:SetHitRectInsets(0, -200, 0, 0)
-        -- flat look: a 14px box with a gold square when checked
-        c.ppTex = {}
-        for _, fn in ipairs({ "GetNormalTexture", "GetPushedTexture", "GetHighlightTexture", "GetDisabledTexture" }) do
-            local t = c[fn] and c[fn](c)
-            if t then c.ppTex[#c.ppTex + 1] = t end
-        end
-        c.ppBox = Box(c, 5)
-        c.ppMark = c:CreateTexture(nil, "OVERLAY")
-        c.ppMark:SetPoint("TOPLEFT", 8, -8); c.ppMark:SetPoint("BOTTOMRIGHT", -8, 8)
-        c.ppMark:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 1)
-        table.insert(skinned.checks, c)
-        function c:Refresh() self:SetChecked(get() and true or false); StyleCheck(self) end
-        c:SetScript("OnClick", function(self) set(self:GetChecked() and true or false); StyleCheck(self) end)
-        c:Refresh()
-        return c
-    end
-    -- fallback
-    c = CreateFrame("Button", nil, parent)
-    c:SetSize(230, 22)
-    local box = W.Flat(c, 14, 14, S.panel, S.border); box:SetPoint("LEFT")
-    local mark = box:CreateTexture(nil, "OVERLAY")
-    mark:SetPoint("TOPLEFT", 3, -3); mark:SetPoint("BOTTOMRIGHT", -3, 3)
-    mark:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 1)
-    local txt = W.Text(c, 12, S.text); txt:SetPoint("LEFT", box, "RIGHT", 8, 0); txt:SetText(label)
-    function c:Refresh() mark:SetShown(get() and true or false) end
-    c:SetScript("OnClick", function() set(not get()); c:Refresh() end)
+    local c = CreateFrame("CheckButton", nil, parent)
+    c:SetSize(24, 24)
+    c.box = Box(c, 5)
+    c.mark = c:CreateTexture(nil, "OVERLAY")
+    c.mark:SetPoint("TOPLEFT", 8, -8); c.mark:SetPoint("BOTTOMRIGHT", -8, 8)
+    c.mark:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 1)
+    c.text = W.Text(c, 12, S.text)
+    c.text:SetPoint("LEFT", c, "RIGHT", 2, 1)
+    c.text:SetText(label)
+    c:SetHitRectInsets(0, -200, 0, 0)
+    c:SetScript("OnEnter", function(self) self.box:SetEdge(S.gold) end)
+    c:SetScript("OnLeave", function(self) self.box:SetEdge(S.border) end)
     AddTip(c, label, tip)
+    local function Show(self) self.mark:SetShown(self:GetChecked() and true or false) end
+    function c:Refresh() self:SetChecked(get() and true or false); Show(self) end
+    c:SetScript("OnClick", function(self) set(self:GetChecked() and true or false); Show(self) end)
     c:Refresh()
     return c
 end
@@ -446,6 +436,9 @@ function W.NumberBox(parent, label, get, set, tip)
     local ok, e = pcall(CreateFrame, "EditBox", nil, f, "InputBoxTemplate")
     if not ok or not e then e = CreateFrame("EditBox", nil, f, BACKDROP_TEMPLATE) end
     e:SetSize(64, 20); e:SetPoint("RIGHT", -4, 0)
+    HideArt(e, { "Left", "Middle", "Right" })
+    e.box = Box(e, -2, S.cell)
+    e:SetTextInsets(2, 2, 0, 0)
     e:SetAutoFocus(false); e:SetJustifyH("CENTER")
     e:SetFontObject(ChatFontNormal)
     e:SetScript("OnEnterPressed", function(self)
@@ -570,9 +563,12 @@ function W.TextDialog(title, text, acceptLabel, onAccept)
         dialog.title = W.Heading(dialog, 13)
         dialog.title:SetPoint("TOPLEFT", 12, -10)
         local close = W.CloseButton(dialog, function() dialog:Hide() end)
-        close:SetPoint("TOPRIGHT", -2, -2)
+        close:SetPoint("TOPRIGHT", -4, -4)
         local sf = CreateFrame("ScrollFrame", "PallyPulseTextDialogScroll", dialog, "UIPanelScrollFrameTemplate")
-        sf:SetPoint("TOPLEFT", 12, -32); sf:SetPoint("BOTTOMRIGHT", -32, 42)
+        sf:SetPoint("TOPLEFT", 12, -32); sf:SetPoint("BOTTOMRIGHT", -24, 42)
+        W.SkinScroll(sf)
+        local well = W.Box(dialog, 0, S.cell)
+        well.bg:ClearAllPoints(); well.bg:SetPoint("TOPLEFT", sf, "TOPLEFT", -4, 4); well.bg:SetPoint("BOTTOMRIGHT", sf, "BOTTOMRIGHT", 4, -4)
         local eb = CreateFrame("EditBox", nil, sf)
         eb:SetMultiLine(true); eb:SetAutoFocus(false)
         eb:SetFontObject(ChatFontNormal)

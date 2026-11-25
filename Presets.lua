@@ -16,6 +16,21 @@ function ns.SavePreset(name)
     local rows = {}
     for i, pal in ipairs(ns.paladins) do rows[i] = Copy(ns.assign[pal]) end
     ns.db.presets[name] = rows
+    ns.db.activePreset = name
+    if ns.RefreshWindow then ns.RefreshWindow() end
+end
+
+-- The preset loaded or saved last, and whether the assignments still match it.
+function ns.ActivePreset()
+    local name = ns.db.activePreset
+    local rows = name and ns.db.presets[name]
+    if not rows then return nil end
+    for i, pal in ipairs(ns.paladins) do
+        local want, have = rows[i] or {}, ns.assign[pal] or {}
+        for class, key in pairs(want) do if have[class] ~= key then return name, false end end
+        for class, key in pairs(have) do if want[class] ~= key then return name, false end end
+    end
+    return name, true
 end
 
 function ns.LoadPreset(name)
@@ -37,12 +52,15 @@ function ns.LoadPreset(name)
             applied = applied + 1
         end
     end
+    ns.db.activePreset = name
     ns.dirty = true
     if ns.OnAssignmentsChanged then ns.OnAssignmentsChanged() end
 end
 
 function ns.DeletePreset(name)
     ns.db.presets[name] = nil
+    if ns.db.activePreset == name then ns.db.activePreset = nil end
+    if ns.RefreshWindow then ns.RefreshWindow() end
 end
 
 StaticPopupDialogs["PALLYPULSE_SAVE_PRESET"] = {
@@ -106,7 +124,10 @@ function ns.RefreshPresetMenu()
     for i, name in ipairs(names) do
         local it = GetItem(i)
         it.name = name
+        local active, same = ns.ActivePreset()
         it.load.label:SetText(name)
+        it.load.keepColor = name == active
+        it.load.label:SetTextColor(unpack(name == active and (same and S.gold or S.warn) or S.text))
         it:ClearAllPoints(); it:SetPoint("TOPLEFT", 6, y)
         it:Show()
         y = y - (ITEM_H + 2)
