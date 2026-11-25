@@ -473,15 +473,15 @@ local function BuildFlyout()
         r.icon:SetSize(16, 16); r.icon:SetPoint("LEFT", 2, 0)
         r.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
         r.name = W.Text(r, 11, S.text)
-        r.name:SetPoint("LEFT", r.icon, "RIGHT", 5, 0); r.name:SetWidth(86); r.name:SetWordWrap(false)
+        r.name:SetPoint("LEFT", r.icon, "RIGHT", 5, 0); r.name:SetWidth(78); r.name:SetWordWrap(false)
         r.time = W.Text(r, 10, S.dim, "RIGHT", S.num)
-        r.time:SetPoint("RIGHT", -3, 0)
+        r.time:SetPoint("RIGHT", -3, 0); r.time:SetWidth(40); r.time:SetWordWrap(false)
         -- range: three signal bars, left of the time
         r.bars = {}
         for b = 1, 3 do
             local t = r:CreateTexture(nil, "ARTWORK")
             t:SetSize(3, 3 + b * 3)
-            t:SetPoint("BOTTOMRIGHT", r, "BOTTOMRIGHT", -36 - (3 - b) * 4, 5)
+            t:SetPoint("BOTTOMRIGHT", r, "BOTTOMRIGHT", -46 - (3 - b) * 4, 5)
             r.bars[b] = t
         end
         r.hl = r:CreateTexture(nil, "HIGHLIGHT")

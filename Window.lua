@@ -109,15 +109,6 @@ local function ClassRequests(class)
     return out
 end
 
-local function ClassNames(list, max)
-    local names = {}
-    for i, class in ipairs(list) do
-        if i > max then names[#names + 1] = ("+%d more"):format(#list - max) break end
-        names[#names + 1] = LOCALIZED_CLASS_NAMES_MALE[class] or class
-    end
-    return table.concat(names, ", ")
-end
-
 -- ---------------------------------------------------------------------------
 -- Icon picker flyout (blessings, auras)
 -- ---------------------------------------------------------------------------
@@ -321,6 +312,12 @@ local function BuildBlessings(P)
             local n = ns.byClass[self.class] and #ns.byClass[self.class] or 0
             GameTooltip:AddLine(LOCALIZED_CLASS_NAMES_MALE[self.class] or self.class, W.ClassColor(self.class))
             GameTooltip:AddLine(("%d in group"):format(n), unpack(S.dim))
+            local names = {}
+            for i, e in ipairs(ns.byClass[self.class] or {}) do
+                if i > 12 then names[#names + 1] = ("+%d"):format(n - 12) break end
+                names[#names + 1] = ns.FirstName(e.name)
+            end
+            if #names > 0 then GameTooltip:AddLine(table.concat(names, ", "), 1, 1, 1, true) end
             local req = ClassRequests(self.class)
             if #req > 0 then
                 GameTooltip:AddLine("Requests", unpack(S.gold))
@@ -376,6 +373,28 @@ local function BuildBlessings(P)
         row.edge:SetColorTexture(S.paladin[1], S.paladin[2], S.paladin[3], 0.8)
         row.status = row:CreateTexture(nil, "ARTWORK")
         row.status:SetSize(10, 10); row.status:SetPoint("LEFT", PAD - 6, 0)
+        -- what the tick / question mark means
+        row.statusHit = CreateFrame("Frame", nil, row)
+        row.statusHit:SetSize(14, 14); row.statusHit:SetPoint("CENTER", row.status)
+        row.statusHit:EnableMouse(true)
+        row.statusHit:SetScript("OnEnter", function(self)
+            local pal = row.pal
+            if not pal then return end
+            local v = ns.versions and ns.versions[pal]
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:AddLine(ns.FirstName(pal), W.ClassColor("PALADIN"))
+            if pal == ns.Me() then
+                GameTooltip:AddLine("You", unpack(S.good))
+            elseif ns.caps[pal] ~= nil then
+                GameTooltip:AddLine(v and v.addon == "PallyPower" and "Synced (PallyPower)" or "Synced", unpack(S.good))
+                if v and v.ver then GameTooltip:AddLine("Version " .. v.ver, unpack(S.dim)) end
+            else
+                GameTooltip:AddLine("Not heard from", unpack(S.other))
+                GameTooltip:AddLine("No PallyPulse or PallyPower: assignments can't sync.", 0.8, 0.8, 0.8, true)
+            end
+            GameTooltip:Show()
+        end)
+        row.statusHit:SetScript("OnLeave", function() GameTooltip:Hide() end)
         row.name = W.Text(row, 12, S.text)
         row.name:SetPoint("LEFT", row.status, "RIGHT", 4, 0)
         row.name:SetWidth(NAME_W - 18); row.name:SetWordWrap(false)
@@ -416,6 +435,17 @@ local function BuildBlessings(P)
                     end
                 else
                     lines[#lines + 1] = W.Hex(unpack(S.dim)) .. "None|r"
+                end
+                if key and ns.BY_KEY[key] then
+                    -- who actually gets it from this paladin, and who gets something else
+                    local got, other = {}, {}
+                    for _, e in ipairs(ns.byClass[self.class] or {}) do
+                        local k = ns.KeyFor(self.pal, e)
+                        if k == key then got[#got + 1] = ns.FirstName(e.name)
+                        else other[#other + 1] = ns.FirstName(e.name) .. " (" .. (k and ns.BY_KEY[k] and ns.BY_KEY[k].single:gsub("^Blessing of ", "") or "none") .. ")" end
+                    end
+                    if #got > 0 then lines[#lines + 1] = W.Hex(unpack(S.dim)) .. "To:|r " .. table.concat(got, ", ") end
+                    if #other > 0 then lines[#lines + 1] = W.Hex(unpack(S.dim)) .. "Except:|r " .. table.concat(other, ", ") end
                 end
                 if key and ns.caps[self.pal] and not ns.caps[self.pal][key] then
                     lines[#lines + 1] = W.Hex(unpack(S.bad)) .. "Not known by " .. ns.FirstName(self.pal) .. "|r"
@@ -515,6 +545,34 @@ local function BuildBlessings(P)
     end)
     sb:SetScript("OnLeave", function() GameTooltip:Hide() end)
     P.statusBtn = sb
+    -- coverage: does everyone get as many different blessings as the paladins can give?
+    local cb = CreateFrame("Button", nil, P)
+    cb:SetHeight(16); cb:SetPoint("LEFT", sb, "RIGHT", 14, 0)
+    P.cover = W.Text(cb, 11, S.dim)
+    P.cover:SetPoint("LEFT")
+    cb:SetScript("OnEnter", function(self)
+        local gaps = P.gaps
+        if not gaps or #gaps == 0 then return end
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:AddLine("Unassigned blessings", unpack(S.other))
+        for i, g in ipairs(gaps) do
+            if i > 8 then GameTooltip:AddLine(("+%d more"):format(#gaps - 8), unpack(S.dim)) break end
+            local names = {}
+            for j, n in ipairs(g.players) do
+                if j > 6 then names[#names + 1] = ("+%d"):format(#g.players - 6) break end
+                names[#names + 1] = ns.FirstName(n)
+            end
+            local r, gg, b = W.ClassColor(g.class)
+            GameTooltip:AddDoubleLine(LOCALIZED_CLASS_NAMES_MALE[g.class] or g.class,
+                ("%d missing"):format(g.missing), r, gg, b, unpack(S.other))
+            GameTooltip:AddLine(table.concat(names, ", "), 0.8, 0.8, 0.8, true)
+        end
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine("Fewer blessings than the paladins can give.", 0.8, 0.8, 0.8, true)
+        GameTooltip:Show()
+    end)
+    cb:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    P.coverBtn = cb
 
     local auto = W.Button(P, "Auto-assign", 96, 22, function() ns.AutoAssign() end)
     auto:SetPoint("BOTTOMLEFT", PAD - 2, 10)
@@ -581,6 +639,7 @@ local function RefreshBlessings(P)
             row.status:SetTexture(heard and W.READY or W.WAITING)
             row.name:SetAlpha(heard and 1 or 0.65)
             local editable = ns.CanEditRow(pal)
+            row.pal = pal
             for _, cell in ipairs(row.cells) do
                 cell.pal = pal
                 local ci = col[cell.class]
@@ -635,19 +694,28 @@ local function RefreshBlessings(P)
         end
     end
     P.empty:SetShown(npal == 0)
-    local text, color
+    -- two compact indicators: conflicts, then coverage
     local ncon = #conflicts
+    local gaps, ngap = ns.AssignmentGaps()
+    P.gaps = gaps
     if #ns.paladins == 0 then
-        text, color = "", S.dim
-    elseif ncon > 0 then
-        text = ("|T%s:12|t  %d assignment conflict%s"):format(W.NOTREADY, ncon, ncon == 1 and "" or "s"); color = S.bad
-    elseif #uncovered > 0 then
-        text = ("|T%s:12|t  Unassigned: %s"):format(W.WAITING, ClassNames(uncovered, 3)); color = S.other
+        P.status:SetText(""); P.cover:SetText("")
     else
-        text = ("|T%s:12|t  No assignment conflicts"):format(W.READY); color = S.good
+        if ncon > 0 then
+            P.status:SetText(("|T%s:12|t %d assignment conflict%s"):format(W.NOTREADY, ncon, ncon == 1 and "" or "s"))
+            P.status:SetTextColor(unpack(S.bad))
+        else
+            P.status:SetText(("|T%s:12|t No assignment conflicts"):format(W.READY)); P.status:SetTextColor(unpack(S.good))
+        end
+        if ngap > 0 then
+            P.cover:SetText(("|T%s:12|t %d required blessing%s unassigned"):format(W.WAITING, ngap, ngap == 1 and "" or "s"))
+            P.cover:SetTextColor(unpack(S.other))
+        else
+            P.cover:SetText(("|T%s:12|t All required blessings assigned"):format(W.READY)); P.cover:SetTextColor(unpack(S.good))
+        end
     end
-    P.status:SetText(text); P.status:SetTextColor(unpack(color))
     P.statusBtn:SetWidth(math.max(20, P.status:GetStringWidth() + 4))
+    P.coverBtn:SetWidth(math.max(20, P.cover:GetStringWidth() + 4))
     return ROWS_Y + math.max(npal, 1) * ROW_H + BOTTOM + 4
 end
 

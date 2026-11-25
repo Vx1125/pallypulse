@@ -938,6 +938,47 @@ function ns.AssignmentConflicts()
     return list, cells
 end
 
+-- Coverage: does every player get as many different blessings as the paladins can give?
+-- Each player should get min(paladins, blessings those paladins know between them), less one
+-- for every paladin set to give that player nothing on purpose (a "None" personal blessing).
+-- An empty class cell can't be told apart from a forgotten one, so it counts as unassigned.
+-- Returns { { class, missing = n, players = { names } }, ... } and the total missing.
+function ns.AssignmentGaps()
+    local npal = #ns.paladins
+    if npal == 0 then return {}, 0 end
+    local known, nk = {}, 0
+    for _, pal in ipairs(ns.paladins) do
+        local caps = ns.caps[pal]
+        for _, b in ipairs(ns.BLESSINGS) do
+            if (not caps or caps[b.key]) and not known[b.key] then known[b.key] = true; nk = nk + 1 end
+        end
+    end
+    local base = math.min(npal, nk)
+    local out, total = {}, 0
+    for _, class in ipairs(ns.CLASSES) do
+        local worst, players = 0, {}
+        for _, e in ipairs(ns.byClass[class] or {}) do
+            local got, n, excluded = {}, 0, 0
+            for _, pal in ipairs(ns.paladins) do
+                local o = ns.db.override[pal] and ns.db.override[pal][e.name]
+                if o == "NONE" then
+                    excluded = excluded + 1
+                else
+                    local k = ns.KeyFor(pal, e)
+                    if k and ns.BY_KEY[k] and not got[k] then got[k] = true; n = n + 1 end
+                end
+            end
+            local short = math.max(0, base - excluded) - n
+            if short > 0 then players[#players + 1] = e.name; if short > worst then worst = short end end
+        end
+        if worst > 0 then
+            out[#out + 1] = { class = class, missing = worst, players = players }
+            total = total + worst
+        end
+    end
+    return out, total
+end
+
 -- Other paladins in a conflict with pal over this class (first names), or nil.
 function ns.SameBlessing(pal, class)
     for _, c in ipairs(ClassConflicts(class)) do

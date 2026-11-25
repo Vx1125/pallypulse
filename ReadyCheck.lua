@@ -294,7 +294,9 @@ local function Build()
         l.icon = l:CreateTexture(nil, "ARTWORK")
         l.icon:SetSize(14, 14); l.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
         l.text = W.Text(l, 11, S.text, "LEFT")
-        l.text:SetPoint("RIGHT"); l.text:SetWordWrap(false)
+        l.text:SetJustifyV("TOP")
+        l.right = W.Text(l, 10, S.dim, "RIGHT")
+        l.right:SetPoint("TOPRIGHT", 0, -2)
         l.hl = l:CreateTexture(nil, "HIGHLIGHT")
         l.hl:SetAllPoints(); l.hl:SetColorTexture(S.gold[1], S.gold[2], S.gold[3], 0.06)
         l:SetScript("OnClick", function(self)
@@ -319,7 +321,7 @@ local function Build()
     local elapsed = 0
     win:SetScript("OnUpdate", function(self, dt)
         elapsed = elapsed + dt
-        if elapsed < 0.5 then return end
+        if elapsed < 1 then return end      -- answers also refresh on READY_CHECK_CONFIRM
         elapsed = 0
         if closeAt and GetTime() >= closeAt and not self:IsMouseOver() then
             closeAt = nil; self:Hide(); return
@@ -628,7 +630,8 @@ function ns.RefreshReadyCheck()
         end
     end
 
-    -- Other Paladins: paladin name, then one line per blessing with its players
+    -- Other Paladins: paladin name and how many are pending, then one line per blessing with
+    -- its players (wrapping onto more lines when needed; the full list on hover)
     table.sort(todoOrder)
     for _, l in ipairs(win.lines) do l:Hide() end
     local others = {}
@@ -637,29 +640,41 @@ function ns.RefreshReadyCheck()
         local open = Header("others", #others)
         if open then
             local i = 0
-            local function Line(indent)
+            local lineW = contentW - PAD * 2
+            local function Line(indent, text, wrap)
                 i = i + 1
                 local l = win.lines[i]
                 if not l then return nil end
                 l.pal, l.whisper, l.tip, l.all = nil, nil, nil, nil
-                l:ClearAllPoints(); l:SetPoint("TOPLEFT", win.list, "TOPLEFT", PAD, -ly); l:SetWidth(contentW - PAD * 2)
-                l.icon:ClearAllPoints(); l.icon:SetPoint("LEFT", indent, 0)
-                l.text:ClearAllPoints(); l.text:SetPoint("RIGHT")
+                l.right:SetText("")
+                l.icon:ClearAllPoints(); l.icon:SetPoint("TOPLEFT", indent, -1)
+                l.text:ClearAllPoints()
+                l.text:SetPoint("TOPLEFT", indent + (indent > 0 and 19 or 0), -2)
+                l.text:SetWidth(lineW - indent - (indent > 0 and 19 or 0) - (indent > 0 and 0 or 60))
+                l.text:SetWordWrap(wrap and true or false)
+                l.text:SetText(text)
+                local h = math.max(LINE_H - 1, math.ceil((l.text:GetStringHeight() or 12) + 4))
+                l:SetHeight(h)
+                l:ClearAllPoints(); l:SetPoint("TOPLEFT", win.list, "TOPLEFT", PAD, -ly); l:SetWidth(lineW)
                 l:Show()
-                ly = ly + LINE_H
+                ly = ly + h
                 return l
             end
+            local pr, pg, pb = W.ClassColor("PALADIN")
             for _, pal in ipairs(others) do
-                local l = Line(0)
-                if not l then break end
-                l.icon:Hide()
-                l.text:SetPoint("LEFT", 0, 0)
-                l.text:SetText(W.Hex(unpack(S.other)) .. ns.FirstName(pal) .. "|r")
-                local wparts = {}
+                local pending, wparts = 0, {}
                 for _, b in ipairs(ns.BLESSINGS) do
                     local names = todo[pal][b.key]
-                    if names then wparts[#wparts + 1] = b.single:gsub("^Blessing of ", "") .. ": " .. table.concat(names, ", ") end
+                    if names then
+                        pending = pending + #names
+                        wparts[#wparts + 1] = b.single:gsub("^Blessing of ", "") .. ": " .. table.concat(names, ", ")
+                    end
                 end
+                if i > 0 then ly = ly + 3 end
+                local l = Line(0, W.Hex(pr, pg, pb) .. ns.FirstName(pal) .. "|r", false)
+                if not l then break end
+                l.icon:Hide()
+                l.right:SetText(pending .. " pending")
                 local real = ns.UnitForName and ns.UnitForName(pal) and not (ns.IsFakeName and ns.IsFakeName(pal))
                 if real then
                     l.pal = pal
@@ -669,12 +684,11 @@ function ns.RefreshReadyCheck()
                 for _, b in ipairs(ns.BLESSINGS) do
                     local names = todo[pal][b.key]
                     if names then
-                        local bl = Line(10)
+                        -- up to 12 names, wrapped; the rest on hover
+                        local bl = Line(4, Names(names, 12), true)
                         if not bl then break end
                         bl.icon:SetTexture(b.icon); bl.icon:Show()
-                        bl.text:SetPoint("LEFT", bl.icon, "RIGHT", 5, 0)
-                        bl.text:SetText(Names(names, 4))
-                        bl.all = #names > 4 and names or nil
+                        bl.all = #names > 12 and names or nil
                     end
                 end
             end

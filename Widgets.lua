@@ -31,7 +31,6 @@ end
 -- has loaded it) applies at once, without a reload.
 -- ---------------------------------------------------------------------------
 local skinned = { texts = {} }
-function W.IsFlat() return true end
 
 local EDGE = { bgFile = WHITE, edgeFile = WHITE, edgeSize = 1, insets = { left = 1, right = 1, top = 1, bottom = 1 } }
 W.EDGE = EDGE
@@ -112,16 +111,6 @@ function W.ApplyStyle()
     end
     if ns.OnStyleChanged then ns.OnStyleChanged() end
     ns.dirty = true
-end
-
--- Hard-edged 1px box, for icon slots and grid cells.
-function W.Flat(parent, w, h, bg, border, name)
-    local f = CreateFrame("Frame", name, parent, BACKDROP_TEMPLATE)
-    if w then f:SetSize(w, h) end
-    f:SetBackdrop({ bgFile = WHITE, edgeFile = WHITE, edgeSize = 1 })
-    f:SetBackdropColor(unpack(bg or S.cell))
-    f:SetBackdropBorderColor(unpack(border or S.border))
-    return f
 end
 
 function W.Text(parent, size, color, justify, font, flags)

@@ -11,3 +11,4 @@ ignore:
   - VERSION
   - media
   - CURSEFORGE.md
+  - UI_DESIGN_STANDARD.md
