@@ -474,7 +474,16 @@ function ns.FillNewClasses()
                 if k then used[k] = true end
             end
             local caps = ns.caps[me]
-            for _, key in ipairs(ClassOrder(class)) do
+            -- your usual blessing first (the one you give most), if it's among this class's top picks
+            local order, most, mostN, count = ClassOrder(class), nil, 0, {}
+            for _, k in pairs(row or {}) do count[k] = (count[k] or 0) + 1 end
+            for k, n in pairs(count) do if n > mostN then most, mostN = k, n end end
+            if most then
+                for i, k in ipairs(order) do
+                    if k == most and i <= #ns.paladins then table.remove(order, i); table.insert(order, 1, most) break end
+                end
+            end
+            for _, key in ipairs(order) do
                 if not used[key] and (not caps or caps[key]) then
                     ns.SetAssignment(me, class, key, true)
                     break
@@ -485,23 +494,85 @@ function ns.FillNewClasses()
     end
 end
 
+-- Auto-assign. Each class gets its top blessings (one per paladin), and each paladin keeps
+-- the same blessing everywhere it's wanted: with two paladins, one gives Kings to every class
+-- and the other covers Might or Wisdom. The most wanted blessing goes first, to the paladin
+-- who already gives it most, so pressing Auto-assign again doesn't swap paladins around.
+-- Rows you can't edit keep what they have, and their blessings count as taken.
 function ns.AutoAssign()
-    local me = Me()
+    local free, before = {}, {}
     for _, pal in ipairs(ns.paladins) do
         if ns.CanEditRow(pal) then
+            free[#free + 1] = pal
+            local c = {}
+            for _, k in pairs(ns.assign[pal] or {}) do c[k] = (c[k] or 0) + 1 end
+            before[pal] = c
             ns.assign[pal] = {}
         end
     end
+    local function Can(pal, key) local caps = ns.caps[pal]; return not caps or caps[key] end
+    local idx = {}
+    for i, b in ipairs(ns.BLESSINGS) do idx[b.key] = i end
+
+    -- what each class should get from the editable paladins, and how often each blessing is wanted
+    local wants, freq = {}, {}
     for _, class in ipairs(ns.CLASSES) do
         if ns.byClass[class] then
-            local used, order = {}, ClassOrder(class)
+            local used = {}
             for _, pal in ipairs(ns.paladins) do
-                if ns.CanEditRow(pal) then
-                    local caps = ns.caps[pal]
-                    for _, key in ipairs(order) do
-                        if not used[key] and (not caps or caps[key]) then
-                            used[key] = true
-                            ns.assign[pal][class] = key
+                if not ns.CanEditRow(pal) then
+                    local k = ns.assign[pal] and ns.assign[pal][class]
+                    if k then used[k] = true end
+                end
+            end
+            local list = {}
+            for _, key in ipairs(ClassOrder(class)) do
+                if #list >= #free then break end
+                local castable = false
+                for _, pal in ipairs(free) do if Can(pal, key) then castable = true break end end
+                if not used[key] and castable then
+                    list[#list + 1] = key
+                    freq[key] = (freq[key] or 0) + 1
+                end
+            end
+            wants[class] = list
+        end
+    end
+
+    -- one blessing per paladin, most wanted first
+    local keys = {}
+    for k in pairs(freq) do keys[#keys + 1] = k end
+    table.sort(keys, function(a, b)
+        if freq[a] ~= freq[b] then return freq[a] > freq[b] end
+        return (idx[a] or 9) < (idx[b] or 9)
+    end)
+    local anchor, taken = {}, {}
+    for _, key in ipairs(keys) do
+        local best, bestN
+        for _, pal in ipairs(free) do
+            if not taken[pal] and Can(pal, key) then
+                local n = before[pal][key] or 0
+                if not best or n > bestN then best, bestN = pal, n end
+            end
+        end
+        if best then anchor[best] = key; taken[best] = true end
+    end
+
+    -- each class: paladins give their own blessing where it's wanted, then the rest in order
+    for _, class in ipairs(ns.CLASSES) do
+        local list = wants[class]
+        if list then
+            local left = {}
+            for _, k in ipairs(list) do left[k] = true end
+            for _, pal in ipairs(free) do
+                local k = anchor[pal]
+                if k and left[k] then ns.assign[pal][class] = k; left[k] = nil end
+            end
+            for _, key in ipairs(list) do
+                if left[key] then
+                    for _, pal in ipairs(free) do
+                        if not ns.assign[pal][class] and Can(pal, key) then
+                            ns.assign[pal][class] = key; left[key] = nil
                             break
                         end
                     end

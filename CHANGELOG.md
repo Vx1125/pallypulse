@@ -1,5 +1,8 @@
 # PallyPulse
 
+## 1.4.1
+- Auto-assign: each paladin gives the same blessing to every class where it can (with two paladins, one gives Kings to everyone).
+
 ## 1.4.0
 - New look for every window: dark panels, thin bronze edges, gold accents. Replaces Classic and Flat.
 - Bar: dark rows with a thin status strip instead of solid green and red.
