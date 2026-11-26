@@ -54,8 +54,9 @@ local function GroupChannel()
 end
 
 -- Forever characters can have surnames ("First Last"), which PallyPower keys by the full name.
+-- Names can come back secret in combat (the target's, say): treat those as unknown.
 local function StripRealm(name)
-    if not name then return nil end
+    if not name or not Readable(name) or type(name) ~= "string" then return nil end
     return (name:gsub("%-[^%-]+$", ""))
 end
 local function FullName(unit)
