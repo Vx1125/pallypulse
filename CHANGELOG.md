@@ -1,5 +1,8 @@
 # PallyPulse
 
+## 1.4.3
+- Raid frame icons (and click to bless) on HealKit frames.
+
 ## 1.4.2
 - Fixed a Lua error in combat when the bar read your target's name.
 

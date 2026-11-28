@@ -1,7 +1,7 @@
 local ADDON, ns = ...
 local S, W = ns.STYLE, ns.W
 
--- Big, readable blessing icons on Blizzard's party and raid frames.
+-- Big, readable blessing icons on Blizzard's party and raid frames, and on HealKit's frames.
 --
 -- On each frame, right side, inside the health bar:
 --   [blessing]  the blessing you owe this player, with time left.
@@ -31,6 +31,12 @@ local function BuildFrameList()
     for g = 1, 8 do for m = 1, 5 do add(_G["CompactRaidGroup" .. g .. "Member" .. m]) end end
     for i = 1, 4 do add(_G["PartyMemberFrame" .. i]) end                         -- classic portrait frames
     if PartyFrame then for i = 1, 4 do add(PartyFrame["MemberFrame" .. i]) end end  -- modern portrait frames
+    -- HealKit (it hides Blizzard's group frames and keeps its own unit buttons in HealKit.cells;
+    -- its preview cells are skipped)
+    local hk = _G.HealKit
+    if type(hk) == "table" and type(hk.cells) == "table" then
+        for _, b in ipairs(hk.cells) do if type(b) == "table" and not b.fake then add(b) end end
+    end
     lastListBuild = GetTime()
 end
 
